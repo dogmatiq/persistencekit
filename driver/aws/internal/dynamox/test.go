@@ -1,8 +1,7 @@
-package dynamodb_test
+package dynamox
 
 import (
 	"context"
-	"errors"
 	"os"
 	"testing"
 
@@ -10,10 +9,10 @@ import (
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
-	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 )
 
-func newClient(t *testing.T) *dynamodb.Client {
+// NewTestClient returns a new DynamoDB client for use in a test.
+func NewTestClient(t *testing.T) *dynamodb.Client {
 	endpoint := os.Getenv("DOGMATIQ_TEST_DYNAMODB_ENDPOINT")
 	if endpoint == "" {
 		endpoint = "http://localhost:28000"
@@ -49,23 +48,4 @@ func newClient(t *testing.T) *dynamodb.Client {
 	}
 
 	return dynamodb.NewFromConfig(cfg)
-}
-
-func deleteTable(
-	ctx context.Context,
-	client *dynamodb.Client,
-	table string,
-) error {
-	if _, err := client.DeleteTable(
-		ctx,
-		&dynamodb.DeleteTableInput{
-			TableName: aws.String(table),
-		},
-	); err != nil {
-		if !errors.As(err, new(*types.ResourceNotFoundException)) {
-			return err
-		}
-	}
-
-	return nil
 }
