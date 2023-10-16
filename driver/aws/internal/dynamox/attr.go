@@ -1,4 +1,4 @@
-package dynamodb
+package dynamox
 
 import (
 	"fmt"
@@ -7,7 +7,10 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 )
 
-func getAttr[T types.AttributeValue](
+// AttrAs fetches an attribute of type T from an item.
+//
+// It returns an error if the item is absent or a different type.
+func AttrAs[T types.AttributeValue](
 	item map[string]types.AttributeValue,
 	name string,
 ) (v T, err error) {
