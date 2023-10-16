@@ -7,8 +7,8 @@ import (
 	"github.com/dogmatiq/persistencekit/journal"
 )
 
-// Store is an implementation of [journal.Store] that contains journals that
-// persist records in a PostgresSQL table.
+// Store is an implementation of [journal.Store] that persists to a PostgreSQL
+// database.
 type Store struct {
 	// DB is the PostgreSQL database connection.
 	DB *sql.DB
