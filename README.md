@@ -13,12 +13,12 @@ Abstract persistence primitives for use in
 </div>
 
 The persistence toolkit provides a set of relatively low-level persistence
-"primitives" that can be used to make higher-level storage systems.
+abstractions that can be used to build higher-level storage systems.
 
 The interfaces are designed to be easy to implement by placing a minimal set of
 requirements on each implementation.
 
-## Primitive Types
+## Abstractions
 
 - [`Journal`] - an append-only log of binary records with [optimistic concurrency control]
 - [`Keyspace`] - a non-transactional binary key/value store
