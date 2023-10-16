@@ -11,3 +11,30 @@ Abstract persistence primitives for use in
 [![Code Coverage](https://img.shields.io/codecov/c/github/dogmatiq/persistencekit/main.svg?style=for-the-badge)](https://codecov.io/github/dogmatiq/persistencekit)
 
 </div>
+
+The persistence toolkit provides a set of relatively low-level persistence
+"primitives" that can be used to make higher-level storage systems.
+
+The interfaces are designed to be easy to implement by placing a minimal set of
+requirements on each implementation.
+
+## Primitive Types
+
+- [`Journal`] - an append-only log of binary records with [optimistic concurrency control]
+- [`Keyspace`] - a non-transactional binary key/value store
+
+## Drivers
+
+Implementations of the above primitives are called "driver". Several built-in
+drivers are included, each in their own package within the [`driver`] directory.
+
+- [Amazon DynamoDB](https://aws.amazon.com/dynamodb/)
+- [PostgreSQL](https://www.postgresql.org/) and compatible databases
+- In-memory reference/testing implementation
+
+<!-- references-->
+
+[optimistic concurrency control]: https://en.wikipedia.org/wiki/Optimistic_concurrency_control
+[`journal`]: journal/journal.go
+[`keyspace`]: kv/keyspace.go
+[`driver`]: driver
