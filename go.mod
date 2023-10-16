@@ -1,3 +1,3 @@
-module github.com/dogmatiq/GITHUB_REPO_NAME
+module github.com/dogmatiq/persistencekit
 
-go 1.19
+go 1.21
