@@ -21,7 +21,7 @@ func TestStore(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if err := CreateJournalStoreSchema(ctx, db); err != nil {
+	if err := CreateSchema(ctx, db); err != nil {
 		t.Fatal(err)
 	}
 

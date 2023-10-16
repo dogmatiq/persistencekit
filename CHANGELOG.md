@@ -16,6 +16,8 @@ The format is based on [Keep a Changelog], and this project adheres to
 
 - **[BC]** Moved `postgres.JournalStore` to `pgjournal.Store`
 - **[BC]** Moved `postgres.KeyValueStore` to `pgkv.Store`
+- **[BC]** Moved `memory.JournalStore` to `memoryjournal.Store`
+- **[BC]** Moved `memory.KeyValueStore` to `memorykv.Store`
 
 ## [0.1.0] - 2023-10-16
 

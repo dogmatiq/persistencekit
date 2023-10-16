@@ -22,7 +22,7 @@ func TestStore(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if err := CreateKeyValueStoreSchema(ctx, db); err != nil {
+	if err := CreateSchema(ctx, db); err != nil {
 		t.Fatal(err)
 	}
 
@@ -39,7 +39,7 @@ func TestStore(t *testing.T) {
 	kv.RunTests(
 		t,
 		func(t *testing.T) kv.Store {
-			return &KeyValueStore{
+			return &Store{
 				DB: db,
 			}
 		},
