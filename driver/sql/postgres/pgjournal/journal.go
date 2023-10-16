@@ -3,6 +3,7 @@ package pgjournal
 import (
 	"context"
 	"database/sql"
+	"fmt"
 
 	"github.com/dogmatiq/persistencekit/journal"
 )
@@ -10,43 +11,58 @@ import (
 // journ is an implementation of [journal.Journal] that persists to a PostgreSQL
 // database.
 type journ struct {
-	Name string
-	DB   *sql.DB
+	ID uint64
+	DB *sql.DB
 }
 
 func (j *journ) Bounds(ctx context.Context) (begin, end journal.Position, err error) {
 	row := j.DB.QueryRowContext(
 		ctx,
 		`SELECT
-			COALESCE(MIN(position),     0),
-			COALESCE(MAX(position) + 1, 0)
-		FROM persistencekit.journal
-		WHERE name = $1`,
-		j.Name,
+			j.begin,
+			COALESCE(
+				(
+					SELECT MAX(r.position) + 1
+					FROM persistencekit.journal_record AS r
+					WHERE r.journal_id = j.id
+				),
+				j.begin
+			)
+		FROM persistencekit.journal AS j
+		WHERE j.id = $1`,
+		j.ID,
 	)
 
-	err = row.Scan(&begin, &end)
-	return begin, end, err
+	if err := row.Scan(&begin, &end); err != nil {
+		return 0, 0, fmt.Errorf("cannot query journal bounds: %w", err)
+	}
+
+	return begin, end, nil
 }
 
 func (j *journ) Get(ctx context.Context, pos journal.Position) ([]byte, error) {
 	row := j.DB.QueryRowContext(
 		ctx,
-		`SELECT record
-		FROM persistencekit.journal
-		WHERE name = $1
-		AND position = $2`,
-		j.Name,
+		`SELECT r.record
+		FROM persistencekit.journal_record AS r
+		INNER JOIN persistencekit.journal AS j
+		ON j.id = r.journal_id
+		WHERE j.id = $1
+		AND r.position = $2
+		AND r.position >= j.begin`,
+		j.ID,
 		pos,
 	)
 
 	var rec []byte
-	err := row.Scan(&rec)
-	if err == sql.ErrNoRows {
-		return nil, journal.ErrNotFound
+	if err := row.Scan(&rec); err != nil {
+		if err == sql.ErrNoRows {
+			return nil, journal.ErrNotFound
+		}
+		return nil, fmt.Errorf("cannot scan journal record: %w", err)
 	}
 
-	return rec, err
+	return rec, nil
 }
 
 func (j *journ) Range(
@@ -58,16 +74,19 @@ func (j *journ) Range(
 	// everything into memory at once.
 	rows, err := j.DB.QueryContext(
 		ctx,
-		`SELECT position, record
-		FROM persistencekit.journal
-		WHERE name = $1
-		AND position >= $2
+		`SELECT r.position, r.record
+		FROM persistencekit.journal_record AS r
+		INNER JOIN persistencekit.journal AS j
+		ON j.id = r.journal_id
+		WHERE j.id = $1
+		AND r.position >= $2
+		AND r.position >= j.begin
 		ORDER BY position`,
-		j.Name,
+		j.ID,
 		begin,
 	)
 	if err != nil {
-		return err
+		return fmt.Errorf("cannot query journal records: %w", err)
 	}
 	defer rows.Close()
 
@@ -79,7 +98,7 @@ func (j *journ) Range(
 			rec []byte
 		)
 		if err := rows.Scan(&pos, &rec); err != nil {
-			return err
+			return fmt.Errorf("cannot scan journal record: %w", err)
 		}
 
 		if pos != expectPos {
@@ -94,26 +113,30 @@ func (j *journ) Range(
 		}
 	}
 
-	return rows.Err()
+	if err := rows.Err(); err != nil {
+		return fmt.Errorf("cannot range over journal records: %w", err)
+	}
+
+	return nil
 }
 
 func (j *journ) Append(ctx context.Context, end journal.Position, rec []byte) error {
 	res, err := j.DB.ExecContext(
 		ctx,
-		`INSERT INTO persistencekit.journal
-		(name, position, record) VALUES ($1, $2, $3)
-		ON CONFLICT (name, position) DO NOTHING`,
-		j.Name,
+		`INSERT INTO persistencekit.journal_record
+		(journal_id, position, record) VALUES ($1, $2, $3)
+		ON CONFLICT (journal_id, position) DO NOTHING`,
+		j.ID,
 		end,
 		rec,
 	)
 	if err != nil {
-		return err
+		return fmt.Errorf("cannot insert journal record: %w", err)
 	}
 
 	n, err := res.RowsAffected()
 	if err != nil {
-		return err
+		return fmt.Errorf("cannot determine affected rows: %w", err)
 	}
 
 	if n != 1 {
@@ -124,16 +147,28 @@ func (j *journ) Append(ctx context.Context, end journal.Position, rec []byte) er
 }
 
 func (j *journ) Truncate(ctx context.Context, end journal.Position) error {
-	_, err := j.DB.ExecContext(
+	if _, err := j.DB.ExecContext(
 		ctx,
-		`DELETE FROM persistencekit.journal
-		WHERE name = $1
-		AND position < $2`,
-		j.Name,
+		`UPDATE persistencekit.journal
+		SET begin = $2
+		WHERE id = $1
+		AND begin < $2`,
+		j.ID,
 		end,
-	)
+	); err != nil {
+		return fmt.Errorf("cannot update journal bounds: %w", err)
+	}
 
-	return err
+	// _, err := j.DB.ExecContext(
+	// 	ctx,
+	// 	`DELETE FROM persistencekit.journal
+	// 	WHERE name = $1
+	// 	AND position < $2`,
+	// 	j.Name,
+	// 	end,
+	// )
+
+	return nil
 }
 
 func (j *journ) Close() error {

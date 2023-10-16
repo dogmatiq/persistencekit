@@ -14,8 +14,7 @@ type Store struct {
 }
 
 // Open returns the keyspace with the given name.
-func (s *Store) Open(_ context.Context, name string) (kv.Keyspace, error) {
-	// TODO: consider creating a separate table partition for each keyspace
+func (s *Store) Open(ctx context.Context, name string) (kv.Keyspace, error) {
 	return &keyspace{
 		Name: name,
 		DB:   s.DB,

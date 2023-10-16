@@ -14,25 +14,25 @@ func TestStore(t *testing.T) {
 
 	database, err := sqltest.NewDatabase(ctx, sqltest.PGXDriver, sqltest.PostgreSQL)
 	if err != nil {
-		t.Fatal(err)
+		t.Fatalf("cannot create test database: %s", err)
 	}
 
 	db, err := database.Open()
 	if err != nil {
-		t.Fatal(err)
+		t.Fatalf("cannot open test database: %s", err)
 	}
 
 	if err := CreateSchema(ctx, db); err != nil {
-		t.Fatal(err)
+		t.Fatalf("cannot create schema: %s", err)
 	}
 
 	t.Cleanup(func() {
 		if err := db.Close(); err != nil {
-			t.Fatal(err)
+			t.Fatalf("cannot close database: %s", err)
 		}
 
 		if err := database.Close(); err != nil {
-			t.Fatal(err)
+			t.Fatalf("cannot close test database: %s", err)
 		}
 	})
 

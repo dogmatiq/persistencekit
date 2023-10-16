@@ -3,10 +3,13 @@ package pgjournal
 import (
 	"context"
 	"database/sql"
+	_ "embed"
 )
 
-// CreateSchema creates the PostgreSQL schema elements required by
-// [JournalStore].
+//go:embed schema.sql
+var schema string
+
+// CreateSchema creates the PostgreSQL schema elements required by [Store].
 func CreateSchema(
 	ctx context.Context,
 	db *sql.DB,
@@ -15,27 +18,11 @@ func CreateSchema(
 	if err != nil {
 		return err
 	}
-	defer tx.Rollback() // nolint:errcheck
+	defer tx.Rollback()
 
-	if _, err := db.ExecContext(
-		ctx,
-		`CREATE SCHEMA IF NOT EXISTS persistencekit`,
-	); err != nil {
+	if _, err := tx.ExecContext(ctx, schema); err != nil {
 		return err
 	}
 
-	if _, err := db.ExecContext(
-		ctx,
-		`CREATE TABLE IF NOT EXISTS persistencekit.journal (
-			name     TEXT NOT NULL,
-			position BIGINT NOT NULL,
-			record   BYTEA NOT NULL,
-
-			PRIMARY KEY (name, position)
-		)`,
-	); err != nil {
-		return err
-	}
-
-	return nil
+	return tx.Commit()
 }

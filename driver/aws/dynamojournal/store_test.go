@@ -10,7 +10,7 @@ import (
 	"github.com/dogmatiq/persistencekit/journal"
 )
 
-func TestJournalStore(t *testing.T) {
+func TestStore(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 
 	client := dynamox.NewTestClient(t)

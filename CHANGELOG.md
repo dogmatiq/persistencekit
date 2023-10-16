@@ -21,6 +21,10 @@ The format is based on [Keep a Changelog], and this project adheres to
 - **[BC]** Moved `dynamodb.JournalStore` to `dynamojournal.Store`
 - **[BC]** Moved `dynamodb.KeyValueStore` to `dynamokv.Store`
 
+### Fixed
+
+- Fixed non-transactional PostgreSQL schema creation to be transactional
+
 ## [0.1.0] - 2023-10-16
 
 ### Added
