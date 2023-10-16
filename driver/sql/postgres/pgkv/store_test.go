@@ -1,15 +1,15 @@
-package postgres_test
+package pgkv_test
 
 import (
 	"context"
 	"testing"
 
-	. "github.com/dogmatiq/persistencekit/driver/sql/postgres"
+	. "github.com/dogmatiq/persistencekit/driver/sql/postgres/pgkv"
 	"github.com/dogmatiq/persistencekit/kv"
 	"github.com/dogmatiq/sqltest"
 )
 
-func TestKeyValueStore(t *testing.T) {
+func TestStore(t *testing.T) {
 	ctx := context.Background()
 
 	database, err := sqltest.NewDatabase(ctx, sqltest.PGXDriver, sqltest.PostgreSQL)

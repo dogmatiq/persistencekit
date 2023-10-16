@@ -1,15 +1,15 @@
-package postgres_test
+package pgjournal_test
 
 import (
 	"context"
 	"testing"
 
-	. "github.com/dogmatiq/persistencekit/driver/sql/postgres"
+	. "github.com/dogmatiq/persistencekit/driver/sql/postgres/pgjournal"
 	"github.com/dogmatiq/persistencekit/journal"
 	"github.com/dogmatiq/sqltest"
 )
 
-func TestJournalStore(t *testing.T) {
+func TestStore(t *testing.T) {
 	ctx := context.Background()
 	database, err := sqltest.NewDatabase(ctx, sqltest.PGXDriver, sqltest.PostgreSQL)
 	if err != nil {
@@ -38,7 +38,7 @@ func TestJournalStore(t *testing.T) {
 	journal.RunTests(
 		t,
 		func(t *testing.T) journal.Store {
-			return &JournalStore{
+			return &Store{
 				DB: db,
 			}
 		},

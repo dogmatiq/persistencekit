@@ -1,4 +1,4 @@
-package postgres
+package pgjournal
 
 import (
 	"context"
@@ -7,24 +7,8 @@ import (
 	"github.com/dogmatiq/persistencekit/journal"
 )
 
-// JournalStore is an implementation of [journal.Store] that contains journals
-// that persist records in a PostgresSQL table.
-type JournalStore struct {
-	// DB is the PostgreSQL database connection.
-	DB *sql.DB
-}
-
-// Open returns the journal with the given name.
-func (s *JournalStore) Open(_ context.Context, name string) (journal.Journal, error) {
-	// TODO: consider creating a separate table partition for each journal
-	return &journ{
-		Name: name,
-		DB:   s.DB,
-	}, nil
-}
-
-// journ is an implementation of journal.Journal that stores records in
-// a DynamoDB table.
+// journ is an implementation of [journal.Journal] that stores records in a
+// PostgreSQL table.
 type journ struct {
 	Name string
 	DB   *sql.DB
