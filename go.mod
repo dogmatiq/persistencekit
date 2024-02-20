@@ -6,7 +6,7 @@ require (
 	github.com/aws/aws-sdk-go-v2 v1.25.0
 	github.com/aws/aws-sdk-go-v2/config v1.27.1
 	github.com/aws/aws-sdk-go-v2/credentials v1.17.1
-	github.com/aws/aws-sdk-go-v2/service/dynamodb v1.29.0
+	github.com/aws/aws-sdk-go-v2/service/dynamodb v1.29.1
 	github.com/aws/aws-sdk-go-v2/service/sso v1.19.1
 	github.com/dogmatiq/sqltest v0.3.0
 	github.com/google/go-cmp v0.6.0
