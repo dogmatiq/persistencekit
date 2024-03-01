@@ -39,9 +39,9 @@ func (s *Store) Open(ctx context.Context, name string) (journal.Journal, error) 
 	}
 
 	return &journ{
-		name:             name,
-		state:            st.(*state),
-		beforeAppendHook: s.BeforeAppend,
-		afterAppendHook:  s.AfterAppend,
+		name:         name,
+		state:        st.(*state),
+		beforeAppend: s.BeforeAppend,
+		afterAppend:  s.AfterAppend,
 	}, ctx.Err()
 }

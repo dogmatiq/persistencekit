@@ -19,10 +19,10 @@ type state struct {
 // journ is an implementation of [journal.Journal] that manipulates a journal's
 // in-memory [state].
 type journ struct {
-	name             string
-	state            *state
-	beforeAppendHook func(name string, rec []byte) error
-	afterAppendHook  func(name string, rec []byte) error
+	name         string
+	state        *state
+	beforeAppend func(name string, rec []byte) error
+	afterAppend  func(name string, rec []byte) error
 }
 
 func (j *journ) Bounds(ctx context.Context) (begin, end journal.Position, err error) {
@@ -92,8 +92,8 @@ func (j *journ) Append(ctx context.Context, end journal.Position, rec []byte) er
 	j.state.Lock()
 	defer j.state.Unlock()
 
-	if j.beforeAppendHook != nil {
-		if err := j.beforeAppendHook(j.name, rec); err != nil {
+	if j.beforeAppend != nil {
+		if err := j.beforeAppend(j.name, rec); err != nil {
 			return err
 		}
 	}
@@ -108,8 +108,8 @@ func (j *journ) Append(ctx context.Context, end journal.Position, rec []byte) er
 		panic("position out of range, this causes undefined behavior in a 'real' journal implementation")
 	}
 
-	if j.afterAppendHook != nil {
-		if err := j.afterAppendHook(j.name, rec); err != nil {
+	if j.afterAppend != nil {
+		if err := j.afterAppend(j.name, rec); err != nil {
 			return err
 		}
 	}
