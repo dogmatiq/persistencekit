@@ -10,6 +10,13 @@ The format is based on [Keep a Changelog], and this project adheres to
 [Keep a Changelog]: https://keepachangelog.com/en/1.0.0/
 [Semantic Versioning]: https://semver.org/spec/v2.0.0.html
 
+## [0.2.1] - 2024-03-02
+
+### Added
+
+- Added `journal.WithTelemetry()` and `kv.WithTelemetry()`, which add logging,
+  tracing and metrics to an existing journal or key-value store, respectively.
+
 ## [0.2.0] - 2024-03-02
 
 ### Changed
@@ -36,6 +43,7 @@ The format is based on [Keep a Changelog], and this project adheres to
 [Unreleased]: https://github.com/dogmatiq/persistencekit
 [0.1.0]: https://github.com/dogmatiq/persistencekit/releases/tag/v0.1.0
 [0.2.0]: https://github.com/dogmatiq/persistencekit/releases/tag/v0.2.0
+[0.2.1]: https://github.com/dogmatiq/persistencekit/releases/tag/v0.2.1
 
 <!-- version template
 ## [0.0.1] - YYYY-MM-DD
