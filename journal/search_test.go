@@ -51,7 +51,6 @@ func TestBinarySearch(t *testing.T) {
 	}
 
 	datum = []byte{101}
-
 	if _, _, err = BinarySearch(ctx, j, 0, 100, fn); err != ErrNotFound {
 		t.Fatalf("unexpected error: got %q, want %q", err, ErrNotFound)
 	}
