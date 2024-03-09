@@ -12,15 +12,14 @@ import (
 )
 
 func TestStore(t *testing.T) {
-	mstore := &memorykv.Store{}
-	tstore := Store[string, int, JSONMarshaler[string], JSONMarshaler[int]]{
-		Store: mstore,
-	}
-
 	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
 	defer cancel()
 
-	ks, err := tstore.Open(ctx, "<name>")
+	store := Store[string, int, JSONMarshaler[string], JSONMarshaler[int]]{
+		Store: &memorykv.Store{},
+	}
+
+	ks, err := store.Open(ctx, "<name>")
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
