@@ -10,6 +10,14 @@ The format is based on [Keep a Changelog], and this project adheres to
 [Keep a Changelog]: https://keepachangelog.com/en/1.0.0/
 [Semantic Versioning]: https://semver.org/spec/v2.0.0.html
 
+## [0.3.0] - 2024-03-09
+
+### Added
+
+- Added `journal.BinarySearch()`
+- Added `typedjournal` package, a generic wrapper around a `journal.Store`
+- Added `typedkv` package, a generic wrapper around a `kv.Store`
+
 ## [0.2.1] - 2024-03-02
 
 ### Added
@@ -44,6 +52,7 @@ The format is based on [Keep a Changelog], and this project adheres to
 [0.1.0]: https://github.com/dogmatiq/persistencekit/releases/tag/v0.1.0
 [0.2.0]: https://github.com/dogmatiq/persistencekit/releases/tag/v0.2.0
 [0.2.1]: https://github.com/dogmatiq/persistencekit/releases/tag/v0.2.1
+[0.3.0]: https://github.com/dogmatiq/persistencekit/releases/tag/v0.3.0
 
 <!-- version template
 ## [0.0.1] - YYYY-MM-DD
