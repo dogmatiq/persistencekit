@@ -14,7 +14,7 @@ func TestBinarySearch(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
 	defer cancel()
 
-	store := Store[int, JSONMarshaler[int]]{
+	store := Store[int, jsonMarshaler[int]]{
 		Store: &memoryjournal.Store{},
 	}
 
