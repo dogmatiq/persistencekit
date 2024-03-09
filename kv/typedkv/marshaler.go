@@ -1,4 +1,4 @@
-package typedjournal
+package typedkv
 
 // Marshaler is a constraint for types that can marshal and unmarshal values of
 // type T.

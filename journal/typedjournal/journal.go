@@ -27,6 +27,7 @@ func (j Journal[R, M]) Get(ctx context.Context, pos journal.Position) (R, error)
 		var zero R
 		return zero, err
 	}
+
 	return j.marshaler.Unmarshal(data)
 }
 
@@ -43,6 +44,7 @@ func (j Journal[R, M]) Range(ctx context.Context, pos journal.Position, fn Range
 			if err != nil {
 				return false, err
 			}
+
 			return fn(ctx, pos, rec)
 		},
 	)
@@ -62,5 +64,6 @@ func (j Journal[R, M]) Append(ctx context.Context, end journal.Position, rec R) 
 	if err != nil {
 		return err
 	}
+
 	return j.Journal.Append(ctx, end, data)
 }

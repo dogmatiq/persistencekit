@@ -3,7 +3,6 @@ package typedjournal_test
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"testing"
 	"time"
 
@@ -14,7 +13,7 @@ import (
 
 func TestStore(t *testing.T) {
 	mstore := &memoryjournal.Store{}
-	tstore := StoreOf[record, JSONMarshaler[record]]{
+	tstore := Store[int, JSONMarshaler[int]]{
 		Store: mstore,
 	}
 
@@ -27,18 +26,18 @@ func TestStore(t *testing.T) {
 	}
 	defer j.Close()
 
-	if err := j.Append(ctx, 0, record{Value: "<value-0>"}); err != nil {
+	if err := j.Append(ctx, 0, 100); err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
 
-	if err := j.Append(ctx, 1, record{Value: "<value-1>"}); err != nil {
+	if err := j.Append(ctx, 1, 101); err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
 
-	fn := func(ctx context.Context, pos journal.Position, rec record) (bool, error) {
-		expect := fmt.Sprintf("<value-%d>", pos)
-		if rec.Value != expect {
-			t.Fatalf("unexpected value at position %d: got %q, want %q", pos, rec.Value, expect)
+	fn := func(ctx context.Context, pos journal.Position, rec int) (bool, error) {
+		expect := int(pos) + 100
+		if rec != expect {
+			t.Fatalf("unexpected value at position %d: got %d, want %d", pos, rec, expect)
 		}
 		return true, nil
 	}
@@ -54,10 +53,6 @@ func TestStore(t *testing.T) {
 		}
 		fn(ctx, pos, rec)
 	}
-}
-
-type record struct {
-	Value string
 }
 
 type JSONMarshaler[R any] struct {
