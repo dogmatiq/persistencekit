@@ -5,16 +5,17 @@ import (
 	"testing"
 	"time"
 
+	. "github.com/dogmatiq/persistencekit/adaptor/typed/typedjournal"
+	"github.com/dogmatiq/persistencekit/adaptor/typed/typedmarshaler"
 	"github.com/dogmatiq/persistencekit/driver/memory/memoryjournal"
 	"github.com/dogmatiq/persistencekit/journal"
-	. "github.com/dogmatiq/persistencekit/journal/typedjournal"
 )
 
 func TestBinarySearch(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
 	defer cancel()
 
-	store := Store[int, jsonMarshaler[int]]{
+	store := Store[int, typedmarshaler.JSON[int]]{
 		Store: &memoryjournal.Store{},
 	}
 

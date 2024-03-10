@@ -3,6 +3,7 @@ package typedkv
 import (
 	"context"
 
+	"github.com/dogmatiq/persistencekit/adaptor/typed/typedmarshaler"
 	"github.com/dogmatiq/persistencekit/kv"
 )
 
@@ -11,13 +12,17 @@ import (
 //
 // If err is non-nil, ranging stops and err is propagated up the stack.
 // Otherwise, if ok is false, ranging stops without any error being propagated.
-type RangeFunc[K, V any] func(context.Context, K, V) (ok bool, err error)
+type RangeFunc[Key, Value any] func(context.Context, Key, Value) (ok bool, err error)
 
 // A Keyspace is an isolated collection of key/value pairs of type K/V.
-type Keyspace[K, V any, KM Marshaler[K], VM Marshaler[V]] struct {
+type Keyspace[
+	Key, Value any,
+	KeyMarshaler typedmarshaler.Marshaler[Key],
+	ValueMarshaler typedmarshaler.Marshaler[Value],
+] struct {
 	kv.Keyspace
-	keyMarshaler   KM
-	valueMarshaler VM
+	keyMarshaler   KeyMarshaler
+	valueMarshaler ValueMarshaler
 }
 
 // Get returns the value associated with k.

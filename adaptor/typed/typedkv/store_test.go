@@ -2,20 +2,20 @@ package typedkv_test
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"testing"
 	"time"
 
+	. "github.com/dogmatiq/persistencekit/adaptor/typed/typedkv"
+	"github.com/dogmatiq/persistencekit/adaptor/typed/typedmarshaler"
 	"github.com/dogmatiq/persistencekit/driver/memory/memorykv"
-	. "github.com/dogmatiq/persistencekit/kv/typedkv"
 )
 
 func TestStore(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
 	defer cancel()
 
-	store := Store[string, int, jsonMarshaler[string], jsonMarshaler[int]]{
+	store := Store[string, int, typedmarshaler.String, typedmarshaler.JSON[int]]{
 		Store: &memorykv.Store{},
 	}
 
@@ -95,15 +95,4 @@ func TestStore(t *testing.T) {
 	); err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
-}
-
-type jsonMarshaler[R any] struct{}
-
-func (m jsonMarshaler[R]) Marshal(rec R) ([]byte, error) {
-	return json.Marshal(rec)
-}
-
-func (m jsonMarshaler[R]) Unmarshal(data []byte) (R, error) {
-	var rec R
-	return rec, json.Unmarshal(data, &rec)
 }

@@ -2,20 +2,20 @@ package typedjournal_test
 
 import (
 	"context"
-	"encoding/json"
 	"testing"
 	"time"
 
+	. "github.com/dogmatiq/persistencekit/adaptor/typed/typedjournal"
+	"github.com/dogmatiq/persistencekit/adaptor/typed/typedmarshaler"
 	"github.com/dogmatiq/persistencekit/driver/memory/memoryjournal"
 	"github.com/dogmatiq/persistencekit/journal"
-	. "github.com/dogmatiq/persistencekit/journal/typedjournal"
 )
 
 func TestStore(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
 	defer cancel()
 
-	store := Store[int, jsonMarshaler[int]]{
+	store := Store[int, typedmarshaler.JSON[int]]{
 		Store: &memoryjournal.Store{},
 	}
 
@@ -52,15 +52,4 @@ func TestStore(t *testing.T) {
 		}
 		fn(ctx, pos, rec)
 	}
-}
-
-type jsonMarshaler[R any] struct{}
-
-func (m jsonMarshaler[R]) Marshal(rec R) ([]byte, error) {
-	return json.Marshal(rec)
-}
-
-func (m jsonMarshaler[R]) Unmarshal(data []byte) (R, error) {
-	var rec R
-	return rec, json.Unmarshal(data, &rec)
 }

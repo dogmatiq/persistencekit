@@ -3,13 +3,17 @@ package typedjournal
 import (
 	"context"
 
+	"github.com/dogmatiq/persistencekit/adaptor/typed/typedmarshaler"
 	"github.com/dogmatiq/persistencekit/journal"
 )
 
 // Store is a collection of keyspaces that store values of type R.
-type Store[R any, M Marshaler[R]] struct {
+type Store[
+	Record any,
+	Marshaler typedmarshaler.Marshaler[Record],
+] struct {
 	journal.Store
-	Marshaler M
+	Marshaler Marshaler
 }
 
 // Open returns the journal with the given name.

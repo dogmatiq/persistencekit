@@ -1,6 +1,6 @@
-package typedkv
+package typedmarshaler
 
-// Marshaler is a constraint for types that can marshal and unmarshal values of
+// Marshaler is an interface for types that can marshal and unmarshal values of
 // type T.
 type Marshaler[T any] interface {
 	Marshal(T) ([]byte, error)

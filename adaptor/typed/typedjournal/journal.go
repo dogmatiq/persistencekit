@@ -3,6 +3,7 @@ package typedjournal
 import (
 	"context"
 
+	"github.com/dogmatiq/persistencekit/adaptor/typed/typedmarshaler"
 	"github.com/dogmatiq/persistencekit/journal"
 )
 
@@ -10,12 +11,15 @@ import (
 //
 // If err is non-nil, ranging stops and err is propagated up the stack.
 // Otherwise, if ok is false, ranging stops without any error being propagated.
-type RangeFunc[R any] func(context.Context, journal.Position, R) (ok bool, err error)
+type RangeFunc[Record any] func(context.Context, journal.Position, Record) (ok bool, err error)
 
 // A Journal is an append-only log of records of type R.
-type Journal[R any, M Marshaler[R]] struct {
+type Journal[
+	Record any,
+	Marshaler typedmarshaler.Marshaler[Record],
+] struct {
 	journal.Journal
-	marshaler M
+	marshaler Marshaler
 }
 
 // Get returns the record at the given position.
