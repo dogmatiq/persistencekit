@@ -1,0 +1,307 @@
+package journal_test
+
+import (
+	"bytes"
+	"context"
+	"testing"
+	"time"
+
+	"github.com/dogmatiq/persistencekit/driver/memory/memoryjournal"
+	"github.com/dogmatiq/persistencekit/journal"
+)
+
+func TestIsFresh(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+	defer cancel()
+
+	store := &memoryjournal.Store{}
+	j, err := store.Open(ctx, "test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer j.Close()
+
+	t.Run("when the journal is empty", func(t *testing.T) {
+		t.Run("it returns true", func(t *testing.T) {
+			ok, err := journal.IsFresh(ctx, j)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !ok {
+				t.Fatal("expected ok to be true")
+			}
+		})
+	})
+
+	t.Run("when the journal has records", func(t *testing.T) {
+		if err := j.Append(ctx, 0, []byte("<record-0>")); err != nil {
+			t.Fatal(err)
+		}
+
+		t.Run("it returns false", func(t *testing.T) {
+			ok, err := journal.IsFresh(ctx, j)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if ok {
+				t.Fatal("expected ok to be false")
+			}
+		})
+	})
+
+	t.Run("when the journal has been fully truncated", func(t *testing.T) {
+		if err := j.Truncate(ctx, 1); err != nil {
+			t.Fatal(err)
+		}
+
+		t.Run("it continues to return false", func(t *testing.T) {
+			ok, err := journal.IsFresh(ctx, j)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if ok {
+				t.Fatal("expected ok to be false")
+			}
+		})
+	})
+}
+
+func TestIsEmpty(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+	defer cancel()
+
+	store := &memoryjournal.Store{}
+	j, err := store.Open(ctx, "test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer j.Close()
+
+	t.Run("when the journal is empty", func(t *testing.T) {
+		t.Run("it returns true", func(t *testing.T) {
+			ok, err := journal.IsEmpty(ctx, j)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !ok {
+				t.Fatal("expected ok to be true")
+			}
+		})
+	})
+
+	t.Run("when the journal has records", func(t *testing.T) {
+		if err := j.Append(ctx, 0, []byte("<record-0>")); err != nil {
+			t.Fatal(err)
+		}
+
+		t.Run("it returns false", func(t *testing.T) {
+			ok, err := journal.IsEmpty(ctx, j)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if ok {
+				t.Fatal("expected ok to be false")
+			}
+		})
+	})
+
+	t.Run("when the journal has been fully truncated", func(t *testing.T) {
+		if err := j.Truncate(ctx, 1); err != nil {
+			t.Fatal(err)
+		}
+
+		t.Run("it returns true", func(t *testing.T) {
+			ok, err := journal.IsEmpty(ctx, j)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !ok {
+				t.Fatal("expected ok to be true")
+			}
+		})
+	})
+}
+
+func TestFirstRecord(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+	defer cancel()
+
+	store := &memoryjournal.Store{}
+	j, err := store.Open(ctx, "test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer j.Close()
+
+	t.Run("when the journal is empty", func(t *testing.T) {
+		t.Run("it returns false", func(t *testing.T) {
+			_, _, ok, err := journal.FirstRecord(ctx, j)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if ok {
+				t.Fatal("expected ok to be false")
+			}
+		})
+	})
+
+	t.Run("when the journal has records", func(t *testing.T) {
+		if err := j.Append(ctx, 0, []byte("<record-0>")); err != nil {
+			t.Fatal(err)
+		}
+
+		if err := j.Append(ctx, 1, []byte("<record-1>")); err != nil {
+			t.Fatal(err)
+		}
+
+		t.Run("it returns the first record", func(t *testing.T) {
+			pos, rec, ok, err := journal.FirstRecord(ctx, j)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !ok {
+				t.Fatal("expected ok to be true")
+			}
+			if pos != 0 {
+				t.Fatalf("unexpected position: got %d, want %d", pos, 0)
+			}
+
+			expect := []byte("<record-0>")
+			if !bytes.Equal(rec, expect) {
+				t.Fatalf("unexpected record: got %q, want %q", rec, expect)
+			}
+		})
+	})
+
+	t.Run("when the journal has been partially truncated", func(t *testing.T) {
+		if err := j.Truncate(ctx, 1); err != nil {
+			t.Fatal(err)
+		}
+
+		t.Run("it returns the first non-truncated record", func(t *testing.T) {
+			pos, rec, ok, err := journal.FirstRecord(ctx, j)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !ok {
+				t.Fatal("expected ok to be true")
+			}
+			if pos != 1 {
+				t.Fatalf("unexpected position: got %d, want %d", pos, 1)
+			}
+
+			expect := []byte("<record-1>")
+			if !bytes.Equal(rec, expect) {
+				t.Fatalf("unexpected record: got %q, want %q", rec, expect)
+			}
+		})
+	})
+
+	t.Run("when the journal has been fully truncated", func(t *testing.T) {
+		if err := j.Truncate(ctx, 2); err != nil {
+			t.Fatal(err)
+		}
+
+		t.Run("it returns false", func(t *testing.T) {
+			_, _, ok, err := journal.FirstRecord(ctx, j)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if ok {
+				t.Fatal("expected ok to be false")
+			}
+		})
+	})
+}
+
+func TestLastRecord(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+	defer cancel()
+
+	store := &memoryjournal.Store{}
+	j, err := store.Open(ctx, "test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer j.Close()
+
+	t.Run("when the journal is empty", func(t *testing.T) {
+		t.Run("it returns false", func(t *testing.T) {
+			_, _, ok, err := journal.LastRecord(ctx, j)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if ok {
+				t.Fatal("expected ok to be false")
+			}
+		})
+	})
+
+	t.Run("when the journal has records", func(t *testing.T) {
+		if err := j.Append(ctx, 0, []byte("<record-0>")); err != nil {
+			t.Fatal(err)
+		}
+
+		if err := j.Append(ctx, 1, []byte("<record-1>")); err != nil {
+			t.Fatal(err)
+		}
+
+		t.Run("it returns the last record", func(t *testing.T) {
+			pos, rec, ok, err := journal.LastRecord(ctx, j)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !ok {
+				t.Fatal("expected ok to be true")
+			}
+			if pos != 1 {
+				t.Fatalf("unexpected position: got %d, want %d", pos, 1)
+			}
+
+			expect := []byte("<record-1>")
+			if !bytes.Equal(rec, expect) {
+				t.Fatalf("unexpected record: got %q, want %q", rec, expect)
+			}
+		})
+	})
+
+	t.Run("when the journal has been partially truncated", func(t *testing.T) {
+		if err := j.Truncate(ctx, 1); err != nil {
+			t.Fatal(err)
+		}
+
+		t.Run("it continues to return the last record", func(t *testing.T) {
+			pos, rec, ok, err := journal.LastRecord(ctx, j)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !ok {
+				t.Fatal("expected ok to be true")
+			}
+			if pos != 1 {
+				t.Fatalf("unexpected position: got %d, want %d", pos, 1)
+			}
+
+			expect := []byte("<record-1>")
+			if !bytes.Equal(rec, expect) {
+				t.Fatalf("unexpected record: got %q, want %q", rec, expect)
+			}
+		})
+	})
+
+	t.Run("when the journal has been fully truncated", func(t *testing.T) {
+		if err := j.Truncate(ctx, 2); err != nil {
+			t.Fatal(err)
+		}
+
+		t.Run("it returns false", func(t *testing.T) {
+			_, _, ok, err := journal.LastRecord(ctx, j)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if ok {
+				t.Fatal("expected ok to be false")
+			}
+		})
+	})
+}

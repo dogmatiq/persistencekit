@@ -21,16 +21,16 @@ func TestStore(t *testing.T) {
 
 	j, err := store.Open(ctx, "<name>")
 	if err != nil {
-		t.Fatalf("unexpected error: %s", err)
+		t.Fatal(err)
 	}
 	defer j.Close()
 
 	if err := j.Append(ctx, 0, 100); err != nil {
-		t.Fatalf("unexpected error: %s", err)
+		t.Fatal(err)
 	}
 
 	if err := j.Append(ctx, 1, 101); err != nil {
-		t.Fatalf("unexpected error: %s", err)
+		t.Fatal(err)
 	}
 
 	fn := func(ctx context.Context, pos journal.Position, rec int) (bool, error) {
@@ -42,13 +42,13 @@ func TestStore(t *testing.T) {
 	}
 
 	if err := j.Range(ctx, 0, fn); err != nil {
-		t.Fatalf("unexpected error: %s", err)
+		t.Fatal(err)
 	}
 
 	for pos := journal.Position(0); pos < 2; pos++ {
 		rec, err := j.Get(ctx, pos)
 		if err != nil {
-			t.Fatalf("unexpected error: %s", err)
+			t.Fatal(err)
 		}
 		fn(ctx, pos, rec)
 	}

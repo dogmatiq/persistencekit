@@ -19,6 +19,9 @@ The format is based on [Keep a Changelog], and this project adheres to
 ### Added
 
 - Added `typedmarshaler` package.
+- Added `journal.IsEmpty()`, which returns `true` if a journal currently has no records.
+- Added `journal.IsFresh()`, which returns `true` if a journal has never been written to.
+- Added `journal.FirstRecord()` and `LastRecord()`.
 
 ### Removed
 

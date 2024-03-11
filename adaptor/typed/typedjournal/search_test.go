@@ -21,13 +21,13 @@ func TestBinarySearch(t *testing.T) {
 
 	j, err := store.Open(ctx, "<name>")
 	if err != nil {
-		t.Fatalf("unexpected error: %s", err)
+		t.Fatal(err)
 	}
 	defer j.Close()
 
 	for pos := journal.Position(0); pos < 100; pos++ {
 		if err := j.Append(ctx, pos, int(pos)); err != nil {
-			t.Fatalf("unexpected error: %s", err)
+			t.Fatal(err)
 		}
 	}
 
@@ -42,7 +42,7 @@ func TestBinarySearch(t *testing.T) {
 
 	pos, rec, err := BinarySearch(ctx, j, 0, 100, fn)
 	if err != nil {
-		t.Fatalf("unexpected error: %s", err)
+		t.Fatal(err)
 	}
 
 	expect := journal.Position(55)

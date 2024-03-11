@@ -21,7 +21,7 @@ func TestStore(t *testing.T) {
 
 	ks, err := store.Open(ctx, "<name>")
 	if err != nil {
-		t.Fatalf("unexpected error: %s", err)
+		t.Fatal(err)
 	}
 	defer ks.Close()
 
@@ -32,7 +32,7 @@ func TestStore(t *testing.T) {
 
 	for k, v := range pairs {
 		if err := ks.Set(ctx, k, v); err != nil {
-			t.Fatalf("unexpected error: %s", err)
+			t.Fatal(err)
 		}
 	}
 
@@ -45,13 +45,13 @@ func TestStore(t *testing.T) {
 	}
 
 	if err := ks.Range(ctx, fn); err != nil {
-		t.Fatalf("unexpected error: %s", err)
+		t.Fatal(err)
 	}
 
 	for k := range pairs {
 		ok, err := ks.Has(ctx, k)
 		if err != nil {
-			t.Fatalf("unexpected error: %s", err)
+			t.Fatal(err)
 		}
 		if !ok {
 			t.Fatalf("expected key %q to exist", k)
@@ -59,7 +59,7 @@ func TestStore(t *testing.T) {
 
 		v, ok, err := ks.Get(ctx, k)
 		if err != nil {
-			t.Fatalf("unexpected error: %s", err)
+			t.Fatal(err)
 		}
 		if !ok {
 			t.Fatalf("expected key %q to exist", k)
@@ -67,12 +67,12 @@ func TestStore(t *testing.T) {
 		fn(ctx, k, v)
 
 		if err := ks.Delete(ctx, k); err != nil {
-			t.Fatalf("unexpected error: %s", err)
+			t.Fatal(err)
 		}
 
 		ok, err = ks.Has(ctx, k)
 		if err != nil {
-			t.Fatalf("unexpected error: %s", err)
+			t.Fatal(err)
 		}
 		if ok {
 			t.Fatalf("expected key %q to be deleted", k)
@@ -80,7 +80,7 @@ func TestStore(t *testing.T) {
 
 		_, ok, err = ks.Get(ctx, k)
 		if err != nil {
-			t.Fatalf("unexpected error: %s", err)
+			t.Fatal(err)
 		}
 		if ok {
 			t.Fatalf("expected key %q to be deleted", k)
@@ -93,6 +93,6 @@ func TestStore(t *testing.T) {
 			return false, fmt.Errorf("unexpected range function invocation (%q, %d)", k, v)
 		},
 	); err != nil {
-		t.Fatalf("unexpected error: %s", err)
+		t.Fatal(err)
 	}
 }
