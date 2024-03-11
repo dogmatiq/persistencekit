@@ -17,7 +17,14 @@ type Store[
 }
 
 // Open returns the journal with the given name.
-func (s Store[R, M]) Open(ctx context.Context, name string) (Journal[R, M], error) {
+func (s Store[R, M]) Open(ctx context.Context, name string) (*Journal[R, M], error) {
 	j, err := s.Store.Open(ctx, name)
-	return Journal[R, M]{j, s.Marshaler}, err
+	if err != nil {
+		return nil, err
+	}
+
+	return &Journal[R, M]{
+		j,
+		s.Marshaler,
+	}, nil
 }

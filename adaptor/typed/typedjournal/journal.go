@@ -25,7 +25,7 @@ type Journal[
 // Get returns the record at the given position.
 //
 // It returns [journal.ErrNotFound] if there is no record at the given position.
-func (j Journal[R, M]) Get(ctx context.Context, pos journal.Position) (R, error) {
+func (j *Journal[R, M]) Get(ctx context.Context, pos journal.Position) (R, error) {
 	data, err := j.Journal.Get(ctx, pos)
 	if err != nil {
 		var zero R
@@ -39,7 +39,7 @@ func (j Journal[R, M]) Get(ctx context.Context, pos journal.Position) (R, error)
 // the record at the given position.
 //
 // It returns [journal.ErrNotFound] if there is no record at the given position.
-func (j Journal[R, M]) Range(ctx context.Context, pos journal.Position, fn RangeFunc[R]) error {
+func (j *Journal[R, M]) Range(ctx context.Context, pos journal.Position, fn RangeFunc[R]) error {
 	return j.Journal.Range(
 		ctx,
 		pos,
@@ -63,7 +63,7 @@ func (j Journal[R, M]) Range(ctx context.Context, pos journal.Position, fn Range
 // is returned, indicating an optimistic concurrency conflict.
 //
 // The behavior is undefined if end is greater than the next position.
-func (j Journal[R, M]) Append(ctx context.Context, end journal.Position, rec R) error {
+func (j *Journal[R, M]) Append(ctx context.Context, end journal.Position, rec R) error {
 	data, err := j.marshaler.Marshal(rec)
 	if err != nil {
 		return err

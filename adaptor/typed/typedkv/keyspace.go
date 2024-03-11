@@ -28,7 +28,7 @@ type Keyspace[
 // Get returns the value associated with k.
 //
 // If the key does not exist v is the zero-value and ok is false.
-func (ks Keyspace[K, V, KM, VM]) Get(ctx context.Context, k K) (v V, ok bool, err error) {
+func (ks *Keyspace[K, V, KM, VM]) Get(ctx context.Context, k K) (v V, ok bool, err error) {
 	keyData, err := ks.keyMarshaler.Marshal(k)
 	if err != nil {
 		var zero V
@@ -46,7 +46,7 @@ func (ks Keyspace[K, V, KM, VM]) Get(ctx context.Context, k K) (v V, ok bool, er
 }
 
 // Has returns true if k is present in the keyspace.
-func (ks Keyspace[K, V, KM, VM]) Has(ctx context.Context, k K) (bool, error) {
+func (ks *Keyspace[K, V, KM, VM]) Has(ctx context.Context, k K) (bool, error) {
 	keyData, err := ks.keyMarshaler.Marshal(k)
 	if err != nil {
 		return false, err
@@ -57,7 +57,7 @@ func (ks Keyspace[K, V, KM, VM]) Has(ctx context.Context, k K) (bool, error) {
 // Set associates a value with k.
 //
 // If v is marshaled to an empty byte-slice, the key is deleted.
-func (ks Keyspace[K, V, KM, VM]) Set(ctx context.Context, k K, v V) error {
+func (ks *Keyspace[K, V, KM, VM]) Set(ctx context.Context, k K, v V) error {
 	keyData, err := ks.keyMarshaler.Marshal(k)
 	if err != nil {
 		return err
@@ -72,7 +72,7 @@ func (ks Keyspace[K, V, KM, VM]) Set(ctx context.Context, k K, v V) error {
 }
 
 // Delete removes the key k from the keyspace.
-func (ks Keyspace[K, V, KM, VM]) Delete(ctx context.Context, k K) error {
+func (ks *Keyspace[K, V, KM, VM]) Delete(ctx context.Context, k K) error {
 	keyData, err := ks.keyMarshaler.Marshal(k)
 	if err != nil {
 		return err
@@ -81,7 +81,7 @@ func (ks Keyspace[K, V, KM, VM]) Delete(ctx context.Context, k K) error {
 }
 
 // Range invokes fn for each key in the keyspace in an undefined order.
-func (ks Keyspace[K, V, KM, VM]) Range(ctx context.Context, fn RangeFunc[K, V]) error {
+func (ks *Keyspace[K, V, KM, VM]) Range(ctx context.Context, fn RangeFunc[K, V]) error {
 	return ks.Keyspace.Range(
 		ctx,
 		func(ctx context.Context, k, v []byte) (bool, error) {

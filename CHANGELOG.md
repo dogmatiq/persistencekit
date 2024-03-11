@@ -10,6 +10,19 @@ The format is based on [Keep a Changelog], and this project adheres to
 [Keep a Changelog]: https://keepachangelog.com/en/1.0.0/
 [Semantic Versioning]: https://semver.org/spec/v2.0.0.html
 
+## Unreleased
+
+### Added
+
+- Added `typedjournal.IsEmpty()`, which returns `true` if a journal currently has no records.
+- Added `typedjournal.IsFresh()`, which returns `true` if a journal has never been written to.
+- Added `typedjournal.FirstRecord()` and `LastRecord()`.
+
+### Changed
+
+- **[BC]** Changed `typedjournal.Journal` to use pointer receivers
+- **[BC]** Changed `typedkv.Keyspace` to use pointer receivers
+
 ## [0.4.0] - 2024-03-11
 
 ### Changed

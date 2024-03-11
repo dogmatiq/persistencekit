@@ -20,7 +20,15 @@ type Store[
 }
 
 // Open returns the journal with the given name.
-func (s Store[K, V, KM, VM]) Open(ctx context.Context, name string) (Keyspace[K, V, KM, VM], error) {
+func (s Store[K, V, KM, VM]) Open(ctx context.Context, name string) (*Keyspace[K, V, KM, VM], error) {
 	ks, err := s.Store.Open(ctx, name)
-	return Keyspace[K, V, KM, VM]{ks, s.KeyMarshaler, s.ValueMarshaler}, err
+	if err != nil {
+		return nil, err
+	}
+
+	return &Keyspace[K, V, KM, VM]{
+		ks,
+		s.KeyMarshaler,
+		s.ValueMarshaler,
+	}, nil
 }

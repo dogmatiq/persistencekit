@@ -25,7 +25,7 @@ func BinarySearch[
 	Marshaler typedmarshaler.Marshaler[Record],
 ](
 	ctx context.Context,
-	j Journal[Record, Marshaler],
+	j *Journal[Record, Marshaler],
 	begin, end journal.Position,
 	cmp CompareFunc[Record],
 ) (journal.Position, Record, error) {
