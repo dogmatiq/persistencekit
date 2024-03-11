@@ -28,8 +28,7 @@ type Journal[
 func (j *Journal[R, M]) Get(ctx context.Context, pos journal.Position) (R, error) {
 	data, err := j.Journal.Get(ctx, pos)
 	if err != nil {
-		var zero R
-		return zero, err
+		return typedmarshaler.Zero[R](), err
 	}
 
 	return j.marshaler.Unmarshal(data)

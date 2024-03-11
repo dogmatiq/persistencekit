@@ -31,14 +31,12 @@ type Keyspace[
 func (ks *Keyspace[K, V, KM, VM]) Get(ctx context.Context, k K) (v V, ok bool, err error) {
 	keyData, err := ks.keyMarshaler.Marshal(k)
 	if err != nil {
-		var zero V
-		return zero, false, err
+		return typedmarshaler.Zero[V](), false, err
 	}
 
 	valueData, err := ks.Keyspace.Get(ctx, keyData)
 	if err != nil || len(valueData) == 0 {
-		var zero V
-		return zero, false, err
+		return typedmarshaler.Zero[V](), false, err
 	}
 
 	v, err = ks.valueMarshaler.Unmarshal(valueData)

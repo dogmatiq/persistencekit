@@ -43,8 +43,7 @@ func FirstRecord[
 	for {
 		begin, end, err := j.Bounds(ctx)
 		if begin == end || err != nil {
-			var zero Record
-			return 0, zero, false, err
+			return 0, typedmarshaler.Zero[Record](), false, err
 		}
 
 		rec, err := j.Get(ctx, begin)
@@ -70,8 +69,7 @@ func LastRecord[
 	for {
 		begin, end, err := j.Bounds(ctx)
 		if begin == end || err != nil {
-			var zero Record
-			return 0, zero, false, err
+			return 0, typedmarshaler.Zero[Record](), false, err
 		}
 
 		pos := end - 1

@@ -17,6 +17,7 @@ The format is based on [Keep a Changelog], and this project adheres to
 - Added `typedjournal.IsEmpty()`, which returns `true` if a journal currently has no records.
 - Added `typedjournal.IsFresh()`, which returns `true` if a journal has never been written to.
 - Added `typedjournal.FirstRecord()` and `LastRecord()`.
+- Added `typedmarshaler.Zero()`
 
 ### Changed
 
