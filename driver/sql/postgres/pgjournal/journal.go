@@ -11,8 +11,8 @@ import (
 // journ is an implementation of [journal.Journal] that persists to a PostgreSQL
 // database.
 type journ struct {
-	Name string
-	DB   *sql.DB
+	ID uint64
+	DB *sql.DB
 }
 
 func (j *journ) Bounds(ctx context.Context) (begin, end journal.Position, err error) {
@@ -21,9 +21,9 @@ func (j *journ) Bounds(ctx context.Context) (begin, end journal.Position, err er
 		`SELECT
 			COALESCE(MIN(position),     0),
 			COALESCE(MAX(position) + 1, 0)
-		FROM persistencekit.journal
-		WHERE name = $1`,
-		j.Name,
+		FROM persistencekit.journal_record
+		WHERE journal_id = $1`,
+		j.ID,
 	)
 
 	if err := row.Scan(&begin, &end); err != nil {
@@ -37,10 +37,10 @@ func (j *journ) Get(ctx context.Context, pos journal.Position) ([]byte, error) {
 	row := j.DB.QueryRowContext(
 		ctx,
 		`SELECT record
-		FROM persistencekit.journal
-		WHERE name = $1
+		FROM persistencekit.journal_record
+		WHERE journal_id = $1
 		AND position = $2`,
-		j.Name,
+		j.ID,
 		pos,
 	)
 
@@ -65,11 +65,11 @@ func (j *journ) Range(
 	rows, err := j.DB.QueryContext(
 		ctx,
 		`SELECT position, record
-		FROM persistencekit.journal
-		WHERE name = $1
+		FROM persistencekit.journal_record
+		WHERE journal_id = $1
 		AND position >= $2
 		ORDER BY position`,
-		j.Name,
+		j.ID,
 		begin,
 	)
 	if err != nil {
@@ -110,10 +110,10 @@ func (j *journ) Range(
 func (j *journ) Append(ctx context.Context, end journal.Position, rec []byte) error {
 	res, err := j.DB.ExecContext(
 		ctx,
-		`INSERT INTO persistencekit.journal
-		(name, position, record) VALUES ($1, $2, $3)
-		ON CONFLICT (name, position) DO NOTHING`,
-		j.Name,
+		`INSERT INTO persistencekit.journal_record
+		(journal_id, position, record) VALUES ($1, $2, $3)
+		ON CONFLICT (journal_id, position) DO NOTHING`,
+		j.ID,
 		end,
 		rec,
 	)
@@ -136,10 +136,10 @@ func (j *journ) Append(ctx context.Context, end journal.Position, rec []byte) er
 func (j *journ) Truncate(ctx context.Context, end journal.Position) error {
 	if _, err := j.DB.ExecContext(
 		ctx,
-		`DELETE FROM persistencekit.journal
-		WHERE name = $1
+		`DELETE FROM persistencekit.journal_record
+		WHERE journal_id = $1
 		AND position < $2`,
-		j.Name,
+		j.ID,
 		end,
 	); err != nil {
 		return fmt.Errorf("cannot update journal bounds: %w", err)

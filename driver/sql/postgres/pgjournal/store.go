@@ -3,6 +3,7 @@ package pgjournal
 import (
 	"context"
 	"database/sql"
+	"fmt"
 
 	"github.com/dogmatiq/persistencekit/journal"
 )
@@ -15,10 +16,24 @@ type Store struct {
 }
 
 // Open returns the journal with the given name.
-func (s *Store) Open(_ context.Context, name string) (journal.Journal, error) {
-	// TODO: consider creating a separate table partition for each journal
+func (s *Store) Open(ctx context.Context, name string) (journal.Journal, error) {
+	row := s.DB.QueryRowContext(
+		ctx,
+		`INSERT INTO persistencekit.journal (name)
+		VALUES ($1)
+		ON CONFLICT (name) DO UPDATE
+		SET name = EXCLUDED.name
+		RETURNING id`,
+		name,
+	)
+
+	var id uint64
+	if err := row.Scan(&id); err != nil {
+		return nil, fmt.Errorf("cannot scan journal ID: %w", err)
+	}
+
 	return &journ{
-		Name: name,
-		DB:   s.DB,
+		ID: id,
+		DB: s.DB,
 	}, nil
 }
