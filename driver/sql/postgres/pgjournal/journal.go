@@ -25,8 +25,11 @@ func (j *journ) Bounds(ctx context.Context) (begin, end journal.Position, err er
 		j.Name,
 	)
 
-	err = row.Scan(&begin, &end)
-	return begin, end, err
+	if err := row.Scan(&begin, &end); err != nil {
+		return 0, 0, fmt.Errorf("cannot query journal bounds: %w", err)
+	}
+
+	return begin, end, nil
 }
 
 func (j *journ) Get(ctx context.Context, pos journal.Position) ([]byte, error) {
@@ -41,12 +44,14 @@ func (j *journ) Get(ctx context.Context, pos journal.Position) ([]byte, error) {
 	)
 
 	var rec []byte
-	err := row.Scan(&rec)
-	if err == sql.ErrNoRows {
-		return nil, journal.ErrNotFound
+	if err := row.Scan(&rec); err != nil {
+		if err == sql.ErrNoRows {
+			return nil, journal.ErrNotFound
+		}
+		return nil, fmt.Errorf("cannot scan journal record: %w", err)
 	}
 
-	return rec, err
+	return rec, nil
 }
 
 func (j *journ) Range(
@@ -67,7 +72,7 @@ func (j *journ) Range(
 		begin,
 	)
 	if err != nil {
-		return err
+		return fmt.Errorf("cannot query journal records: %w", err)
 	}
 	defer rows.Close()
 
@@ -79,7 +84,7 @@ func (j *journ) Range(
 			rec []byte
 		)
 		if err := rows.Scan(&pos, &rec); err != nil {
-			return err
+			return fmt.Errorf("cannot scan journal record: %w", err)
 		}
 
 		if pos != expectPos {
@@ -94,7 +99,11 @@ func (j *journ) Range(
 		}
 	}
 
-	return rows.Err()
+	if err := rows.Err(); err != nil {
+		return fmt.Errorf("cannot range over journal records: %w", err)
+	}
+
+	return nil
 }
 
 func (j *journ) Append(ctx context.Context, end journal.Position, rec []byte) error {
@@ -108,12 +117,12 @@ func (j *journ) Append(ctx context.Context, end journal.Position, rec []byte) er
 		rec,
 	)
 	if err != nil {
-		return err
+		return fmt.Errorf("cannot insert journal record: %w", err)
 	}
 
 	n, err := res.RowsAffected()
 	if err != nil {
-		return err
+		return fmt.Errorf("cannot determine affected rows: %w", err)
 	}
 
 	if n != 1 {
@@ -124,16 +133,18 @@ func (j *journ) Append(ctx context.Context, end journal.Position, rec []byte) er
 }
 
 func (j *journ) Truncate(ctx context.Context, end journal.Position) error {
-	_, err := j.DB.ExecContext(
+	if _, err := j.DB.ExecContext(
 		ctx,
 		`DELETE FROM persistencekit.journal
 		WHERE name = $1
 		AND position < $2`,
 		j.Name,
 		end,
-	)
+	); err != nil {
+		return fmt.Errorf("cannot update journal bounds: %w", err)
+	}
 
-	return err
+	return nil
 }
 
 func (j *journ) Close() error {
