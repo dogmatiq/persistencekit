@@ -3,6 +3,7 @@ package pgjournal
 import (
 	"context"
 	"database/sql"
+	"fmt"
 
 	"github.com/dogmatiq/persistencekit/journal"
 )
