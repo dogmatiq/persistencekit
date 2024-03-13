@@ -3,7 +3,12 @@ package pgkv
 import (
 	"context"
 	"database/sql"
+
+	_ "embed"
 )
+
+//go:embed schema.sql
+var schema string
 
 // CreateSchema creates the PostgreSQL schema elements required by [Store].
 func CreateSchema(
@@ -14,27 +19,11 @@ func CreateSchema(
 	if err != nil {
 		return err
 	}
-	defer tx.Rollback() // nolint:errcheck
+	defer tx.Rollback()
 
-	if _, err := db.ExecContext(
-		ctx,
-		`CREATE SCHEMA IF NOT EXISTS persistencekit`,
-	); err != nil {
+	if _, err := tx.ExecContext(ctx, schema); err != nil {
 		return err
 	}
 
-	if _, err := db.ExecContext(
-		ctx,
-		`CREATE TABLE IF NOT EXISTS persistencekit.kv (
-			keyspace TEXT NOT NULL,
-			key      BYTEA NOT NULL,
-			value    BYTEA NOT NULL,
-
-			PRIMARY KEY (keyspace, key)
-		)`,
-	); err != nil {
-		return err
-	}
-
-	return nil
+	return tx.Commit()
 }

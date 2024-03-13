@@ -10,6 +10,12 @@ The format is based on [Keep a Changelog], and this project adheres to
 [Keep a Changelog]: https://keepachangelog.com/en/1.0.0/
 [Semantic Versioning]: https://semver.org/spec/v2.0.0.html
 
+## Unreleased
+
+### Fixed
+
+- PostgreSQL schema creation is now performed within a transaction.
+
 ## [0.5.0] - 2024-03-12
 
 ### Added
