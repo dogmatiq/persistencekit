@@ -12,6 +12,16 @@ The format is based on [Keep a Changelog], and this project adheres to
 
 ## Unreleased
 
+### Changed
+
+- **[BC]** Changed the SQL schema for the `pgkv` driver to assign each keyspace
+  a sequential ID to avoid duplicating the keyspace name in every record.
+
+### Removed
+
+- **[BC]** Removed `pgkv.CreateSchema()`, the schema creation is now managed at
+  runtime by the keyspace store.
+
 ### Fixed
 
 - PostgreSQL schema creation is now performed within a transaction.

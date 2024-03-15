@@ -12,6 +12,7 @@ require (
 	github.com/dogmatiq/spruce v0.1.0
 	github.com/dogmatiq/sqltest v0.3.0
 	github.com/google/go-cmp v0.6.0
+	github.com/jackc/pgconn v1.14.3
 	go.opentelemetry.io/otel v1.24.0
 	go.opentelemetry.io/otel/metric v1.24.0
 	go.opentelemetry.io/otel/trace v1.24.0
@@ -31,7 +32,6 @@ require (
 	github.com/aws/smithy-go v1.20.1 // indirect
 	github.com/go-sql-driver/mysql v1.5.0 // indirect
 	github.com/jackc/chunkreader/v2 v2.0.1 // indirect
-	github.com/jackc/pgconn v1.14.3 // indirect
 	github.com/jackc/pgio v1.0.0 // indirect
 	github.com/jackc/pgpassfile v1.0.0 // indirect
 	github.com/jackc/pgproto3/v2 v2.3.3 // indirect

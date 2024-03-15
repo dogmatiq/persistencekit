@@ -22,10 +22,6 @@ func TestStore(t *testing.T) {
 		t.Fatalf("cannot open test database: %s", err)
 	}
 
-	if err := CreateSchema(ctx, db); err != nil {
-		t.Fatalf("cannot create schema: %s", err)
-	}
-
 	t.Cleanup(func() {
 		if err := db.Close(); err != nil {
 			t.Fatalf("cannot close database: %s", err)

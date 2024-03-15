@@ -142,7 +142,7 @@ func (j *journ) Truncate(ctx context.Context, end journal.Position) error {
 		j.ID,
 		end,
 	); err != nil {
-		return fmt.Errorf("cannot update journal bounds: %w", err)
+		return fmt.Errorf("cannot truncate journal records: %w", err)
 	}
 
 	return nil

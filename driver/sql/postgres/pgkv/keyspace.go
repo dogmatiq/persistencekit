@@ -3,115 +3,112 @@ package pgkv
 import (
 	"context"
 	"database/sql"
+	"fmt"
 
 	"github.com/dogmatiq/persistencekit/kv"
 )
 
 type keyspace struct {
-	Name string
-	DB   *sql.DB
+	db *sql.DB
+	id uint64
 }
 
-func (ks *keyspace) Get(ctx context.Context, k []byte) (v []byte, err error) {
-	row := ks.DB.QueryRowContext(
+func (ks *keyspace) Get(ctx context.Context, k []byte) ([]byte, error) {
+	row := ks.db.QueryRowContext(
 		ctx,
-		`SELECT
-			value
-		FROM persistencekit.kv
-		WHERE keyspace = $1
+		`SELECT value
+		FROM persistencekit.keyspace_pair
+		WHERE keyspace_id = $1
 		AND key = $2`,
-		ks.Name,
+		ks.id,
 		k,
 	)
 
 	var value []byte
-	err = row.Scan(&value)
-	if err == sql.ErrNoRows {
-		err = nil
+	if err := row.Scan(&value); err != nil {
+		if err == sql.ErrNoRows {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("cannot scan keyspace pair: %w", err)
 	}
 
-	return value, err
+	return value, nil
 }
 
-func (ks *keyspace) Has(ctx context.Context, k []byte) (ok bool, err error) {
-	row := ks.DB.QueryRowContext(
+func (ks *keyspace) Has(ctx context.Context, k []byte) (bool, error) {
+	row := ks.db.QueryRowContext(
 		ctx,
-		`SELECT
-			1
-		FROM persistencekit.kv
-		WHERE keyspace = $1
+		`SELECT COUNT(key) != 0
+		FROM persistencekit.keyspace_pair
+		WHERE keyspace_id = $1
 		AND key = $2`,
-		ks.Name,
+		ks.id,
 		k,
 	)
 
-	var value []byte
-	err = row.Scan(&value)
-	if err == sql.ErrNoRows {
-		return false, nil
+	var exists bool
+	if err := row.Scan(&exists); err != nil {
+		return false, fmt.Errorf("cannot scan keyspace pair: %w", err)
 	}
 
-	return true, err
+	return exists, nil
 }
 
 func (ks *keyspace) Set(ctx context.Context, k, v []byte) error {
 	if len(v) == 0 {
-		_, err := ks.DB.ExecContext(
+		if _, err := ks.db.ExecContext(
 			ctx,
-			`DELETE FROM persistencekit.kv
-			WHERE keyspace = $1
+			`DELETE FROM persistencekit.keyspace_pair
+			WHERE keyspace_id = $1
 			AND key = $2`,
-			ks.Name,
+			ks.id,
 			k,
-		)
-
-		return err
+		); err != nil {
+			return fmt.Errorf("cannot delete keyspace pair: %w", err)
+		}
+		return nil
 	}
 
-	_, err := ks.DB.ExecContext(
+	if _, err := ks.db.ExecContext(
 		ctx,
-		`INSERT INTO persistencekit.kv AS o (
-			keyspace,
+		`INSERT INTO persistencekit.keyspace_pair AS o (
+			keyspace_id,
 			key,
 			value
 		) VALUES (
 			$1, $2, $3
-		) ON CONFLICT (keyspace, key) DO UPDATE SET
+		) ON CONFLICT (keyspace_id, key) DO UPDATE SET
 			value = $3
 		`,
-		ks.Name,
+		ks.id,
 		k,
 		v,
-	)
-
-	return err
+	); err != nil {
+		return fmt.Errorf("cannot insert/update keyspace pair: %w", err)
+	}
+	return nil
 }
 
 func (ks *keyspace) Range(
 	ctx context.Context,
 	fn kv.RangeFunc,
 ) error {
-	rows, err := ks.DB.QueryContext(
+	rows, err := ks.db.QueryContext(
 		ctx,
-		`SELECT
-			key,
-			value
-		FROM persistencekit.kv
-		WHERE keyspace = $1`,
-		ks.Name,
+		`SELECT key, value
+		FROM persistencekit.keyspace_pair
+		WHERE keyspace_id = $1`,
+		ks.id,
 	)
 	if err != nil {
-		return err
+		return fmt.Errorf("cannot query keyspace pairs: %w", err)
 	}
 	defer rows.Close()
 
 	for rows.Next() {
-		var (
-			k []byte
-			v []byte
-		)
+		var k, v []byte
 		if err := rows.Scan(&k, &v); err != nil {
-			return err
+			return fmt.Errorf("cannot scan keyspace pair: %w", err)
 		}
 
 		ok, err := fn(ctx, k, v)
@@ -120,7 +117,11 @@ func (ks *keyspace) Range(
 		}
 	}
 
-	return rows.Err()
+	if err := rows.Err(); err != nil {
+		return fmt.Errorf("cannot range over keyspace pairs: %w", err)
+	}
+
+	return nil
 }
 
 func (ks *keyspace) Close() error {
