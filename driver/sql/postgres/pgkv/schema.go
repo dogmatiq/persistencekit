@@ -3,7 +3,6 @@ package pgkv
 import (
 	"context"
 	"database/sql"
-
 	_ "embed"
 
 	"github.com/dogmatiq/persistencekit/driver/sql/postgres/internal/pgerror"

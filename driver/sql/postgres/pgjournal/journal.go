@@ -11,19 +11,19 @@ import (
 // journ is an implementation of [journal.Journal] that persists to a PostgreSQL
 // database.
 type journ struct {
-	ID uint64
-	DB *sql.DB
+	db *sql.DB
+	id uint64
 }
 
 func (j *journ) Bounds(ctx context.Context) (begin, end journal.Position, err error) {
-	row := j.DB.QueryRowContext(
+	row := j.db.QueryRowContext(
 		ctx,
 		`SELECT
 			COALESCE(MIN(position),     0),
 			COALESCE(MAX(position) + 1, 0)
 		FROM persistencekit.journal_record
 		WHERE journal_id = $1`,
-		j.ID,
+		j.id,
 	)
 
 	if err := row.Scan(&begin, &end); err != nil {
@@ -34,13 +34,13 @@ func (j *journ) Bounds(ctx context.Context) (begin, end journal.Position, err er
 }
 
 func (j *journ) Get(ctx context.Context, pos journal.Position) ([]byte, error) {
-	row := j.DB.QueryRowContext(
+	row := j.db.QueryRowContext(
 		ctx,
 		`SELECT record
 		FROM persistencekit.journal_record
 		WHERE journal_id = $1
 		AND position = $2`,
-		j.ID,
+		j.id,
 		pos,
 	)
 
@@ -62,14 +62,14 @@ func (j *journ) Range(
 ) error {
 	// TODO: "paginate" results across multiple queries to avoid loading
 	// everything into memory at once.
-	rows, err := j.DB.QueryContext(
+	rows, err := j.db.QueryContext(
 		ctx,
 		`SELECT position, record
 		FROM persistencekit.journal_record
 		WHERE journal_id = $1
 		AND position >= $2
 		ORDER BY position`,
-		j.ID,
+		j.id,
 		begin,
 	)
 	if err != nil {
@@ -108,12 +108,12 @@ func (j *journ) Range(
 }
 
 func (j *journ) Append(ctx context.Context, end journal.Position, rec []byte) error {
-	res, err := j.DB.ExecContext(
+	res, err := j.db.ExecContext(
 		ctx,
 		`INSERT INTO persistencekit.journal_record
 		(journal_id, position, record) VALUES ($1, $2, $3)
 		ON CONFLICT (journal_id, position) DO NOTHING`,
-		j.ID,
+		j.id,
 		end,
 		rec,
 	)
@@ -134,12 +134,12 @@ func (j *journ) Append(ctx context.Context, end journal.Position, rec []byte) er
 }
 
 func (j *journ) Truncate(ctx context.Context, end journal.Position) error {
-	if _, err := j.DB.ExecContext(
+	if _, err := j.db.ExecContext(
 		ctx,
 		`DELETE FROM persistencekit.journal_record
 		WHERE journal_id = $1
 		AND position < $2`,
-		j.ID,
+		j.id,
 		end,
 	); err != nil {
 		return fmt.Errorf("cannot truncate journal records: %w", err)

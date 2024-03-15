@@ -17,15 +17,14 @@ type Store struct {
 
 // Open returns the keyspace with the given name.
 func (s *Store) Open(ctx context.Context, name string) (kv.Keyspace, error) {
-	id, err := s.keyspaceID(ctx, name)
+	id, err := s.getID(ctx, name)
 	if err != nil {
 		return nil, err
 	}
-
 	return &keyspace{s.DB, id}, nil
 }
 
-func (s *Store) keyspaceID(ctx context.Context, name string) (uint64, error) {
+func (s *Store) getID(ctx context.Context, name string) (uint64, error) {
 	for {
 		row := s.DB.QueryRowContext(
 			ctx,

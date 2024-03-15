@@ -14,13 +14,16 @@ The format is based on [Keep a Changelog], and this project adheres to
 
 ### Changed
 
-- **[BC]** Changed the SQL schema for the `pgkv` driver to assign each keyspace
-  a sequential ID to avoid duplicating the keyspace name in every record.
+- **[BC]** The PostgreSQL drivers `pgjournal` and `pgkv` now assign each journal
+  and keyspace a sequential ID to avoid repeating the journal/keyspace name in
+  every row.
 
 ### Removed
 
-- **[BC]** Removed `pgkv.CreateSchema()`, the schema creation is now managed at
-  runtime by the keyspace store.
+- **[BC]** Removed `pgjournal.CreateSchema()` and `pgkv.CreateSchema()`. The
+  schema creation is now managed at runtime by the journal and keyspace stores.
+  This change is in preparation for the stores also managing other schema
+  changes, such as table partitioning.
 
 ### Fixed
 

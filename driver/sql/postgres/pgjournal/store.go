@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 
+	"github.com/dogmatiq/persistencekit/driver/sql/postgres/internal/pgerror"
 	"github.com/dogmatiq/persistencekit/journal"
 )
 
@@ -17,23 +18,40 @@ type Store struct {
 
 // Open returns the journal with the given name.
 func (s *Store) Open(ctx context.Context, name string) (journal.Journal, error) {
-	row := s.DB.QueryRowContext(
-		ctx,
-		`INSERT INTO persistencekit.journal (name)
-		VALUES ($1)
-		ON CONFLICT (name) DO UPDATE
-		SET name = EXCLUDED.name
-		RETURNING id`,
-		name,
-	)
-
-	var id uint64
-	if err := row.Scan(&id); err != nil {
-		return nil, fmt.Errorf("cannot scan journal ID: %w", err)
+	id, err := s.getID(ctx, name)
+	if err != nil {
+		return nil, err
 	}
+	return &journ{s.DB, id}, nil
+}
 
-	return &journ{
-		ID: id,
-		DB: s.DB,
-	}, nil
+func (s *Store) getID(ctx context.Context, name string) (uint64, error) {
+	for {
+		row := s.DB.QueryRowContext(
+			ctx,
+			`INSERT INTO persistencekit.journal (
+				name
+			) VALUES (
+				$1
+			) ON CONFLICT (name) DO UPDATE SET
+				name = EXCLUDED.name
+			RETURNING id`,
+			name,
+		)
+
+		var id uint64
+		err := row.Scan(&id)
+
+		if err == nil {
+			return id, nil
+		}
+
+		if !pgerror.Is(err, pgerror.CodeUndefinedTable) {
+			return 0, fmt.Errorf("cannot scan journal ID: %w", err)
+		}
+
+		if err := createSchema(ctx, s.DB); err != nil {
+			return 0, fmt.Errorf("cannot create journal schema: %w", err)
+		}
+	}
 }
