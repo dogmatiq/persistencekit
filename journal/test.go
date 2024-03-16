@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -223,6 +224,17 @@ func RunTests(
 					)
 				}
 			})
+
+			t.Run("handles maximum position value", func(t *testing.T) {
+				t.Parallel()
+
+				ctx, deps := setup(t, newStore)
+
+				_, err := deps.Journal.Get(ctx, math.MaxUint64)
+				if !errors.Is(err, ErrNotFound) {
+					t.Fatal(err)
+				}
+			})
 		})
 
 		t.Run("Range", func(t *testing.T) {
@@ -282,6 +294,24 @@ func RunTests(
 					},
 				); err != nil {
 					t.Fatal(err)
+				}
+			})
+
+			t.Run("it returns ErrNotFound if journal is empty", func(t *testing.T) {
+				t.Parallel()
+
+				ctx, deps := setup(t, newStore)
+
+				err := deps.Journal.Range(
+					ctx,
+					0,
+					func(ctx context.Context, pos Position, rec []byte) (bool, error) {
+						panic("unexpected call")
+					},
+				)
+
+				if !errors.Is(err, ErrNotFound) {
+					t.Fatalf("unexpected error: got %q, want %q", err, ErrNotFound)
 				}
 			})
 
@@ -363,6 +393,24 @@ func RunTests(
 						string(got),
 						string(want),
 					)
+				}
+			})
+
+			t.Run("handles maximum position value", func(t *testing.T) {
+				t.Parallel()
+
+				ctx, deps := setup(t, newStore)
+
+				err := deps.Journal.Range(
+					ctx,
+					math.MaxUint64,
+					func(ctx context.Context, pos Position, rec []byte) (bool, error) {
+						panic("unexpected call")
+					},
+				)
+
+				if !errors.Is(err, ErrNotFound) {
+					t.Fatalf("unexpected error: got %q, want %q", err, ErrNotFound)
 				}
 			})
 		})

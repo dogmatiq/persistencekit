@@ -20,6 +20,18 @@ The format is based on [Keep a Changelog], and this project adheres to
   order. The `journal.position` column has been renamed to `encoded_position` to
   make it clearer that the value can not be used as-is.
 
+### Fixed
+
+- Calling `Range()` on an empty journal now correctly returns
+  `journal.ErrNotFound`. This issue affected all journal implementations.
+
+### Removed
+
+- **[BC]** Removed `journal.MaxPosition`. All implementations now support the
+  full unsigned 64-bit range of `journal.Position` values. Technically, the
+  `memoryjournal` implementation is limited to `math.MaxInt` non-truncated
+  records at any given time, but this is not practical anyway.
+
 ## [0.6.0] - 2024-03-16
 
 ### Added

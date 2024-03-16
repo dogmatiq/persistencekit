@@ -3,19 +3,11 @@ package journal
 import (
 	"context"
 	"errors"
-	"math"
 )
 
 // Position is the index of a record within a [Journal]. The first record is always
 // at position 0.
 type Position uint64
-
-// MaxPosition the largest value that can be safely represented by a [Position].
-//
-// All journal implementations must be able to represent records at position up
-// to and including this position, though they may choose to support the full
-// range of the 64-bit unsigned [Position].
-const MaxPosition Position = math.MaxInt64
 
 // A RangeFunc is a function used to range over the records in a [Journal].
 //

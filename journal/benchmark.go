@@ -84,11 +84,7 @@ func RunBenchmarks(
 					nil,
 					// BEFORE EACH
 					func(context.Context, Journal) error {
-						pos = Position(
-							rand.Int63n(
-								int64(MaxPosition),
-							),
-						)
+						pos = Position(rand.Uint64())
 						return nil
 					},
 					// BENCHMARKED CODE

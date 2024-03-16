@@ -138,6 +138,9 @@ func (j *journ) Range(
 		}
 
 		if out.LastEvaluatedKey == nil {
+			if expectPos == begin {
+				return journal.ErrNotFound
+			}
 			return nil
 		}
 

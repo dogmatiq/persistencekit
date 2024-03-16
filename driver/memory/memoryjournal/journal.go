@@ -70,6 +70,11 @@ func (j *journ) Range(
 	}
 
 	start := begin - first
+
+	if start >= journal.Position(len(records)) {
+		return journal.ErrNotFound
+	}
+
 	for i, rec := range records[start:] {
 		v := start + journal.Position(i)
 		ok, err := fn(ctx, v, slices.Clone(rec))

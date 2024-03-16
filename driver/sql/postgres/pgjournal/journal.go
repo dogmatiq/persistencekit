@@ -111,6 +111,10 @@ func (j *journ) Range(
 		return fmt.Errorf("cannot range over journal records: %w", err)
 	}
 
+	if expectPos == begin {
+		return journal.ErrNotFound
+	}
+
 	return nil
 }
 
