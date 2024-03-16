@@ -201,7 +201,7 @@ func RunBenchmarks(
 				// SETUP
 				func(ctx context.Context, store Store, j Journal) error {
 					rec := []byte("<record>")
-					for pos := 0; pos < b.N; pos++ {
+					for pos := 0; pos <= b.N; pos++ {
 						if err := j.Append(ctx, Position(pos), rec); err != nil {
 							return err
 						}
