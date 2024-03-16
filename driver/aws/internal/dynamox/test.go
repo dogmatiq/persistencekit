@@ -12,7 +12,7 @@ import (
 )
 
 // NewTestClient returns a new DynamoDB client for use in a test.
-func NewTestClient(t *testing.T) *dynamodb.Client {
+func NewTestClient(t testing.TB) *dynamodb.Client {
 	endpoint := os.Getenv("DOGMATIQ_TEST_DYNAMODB_ENDPOINT")
 	if endpoint == "" {
 		endpoint = "http://localhost:28000"

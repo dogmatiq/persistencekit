@@ -51,10 +51,10 @@ func RunTests(
 		return ctx, deps
 	}
 
-	t.Run("type Store", func(t *testing.T) {
+	t.Run("Store", func(t *testing.T) {
 		t.Parallel()
 
-		t.Run("func Open()", func(t *testing.T) {
+		t.Run("Open", func(t *testing.T) {
 			t.Parallel()
 
 			t.Run("allows a journal to be opened multiple times", func(t *testing.T) {
@@ -94,10 +94,10 @@ func RunTests(
 		})
 	})
 
-	t.Run("type Journal", func(t *testing.T) {
+	t.Run("Journal", func(t *testing.T) {
 		t.Parallel()
 
-		t.Run("func Bounds()", func(t *testing.T) {
+		t.Run("Bounds", func(t *testing.T) {
 			t.Parallel()
 
 			t.Run("it returns the expected bounds", func(t *testing.T) {
@@ -155,7 +155,7 @@ func RunTests(
 			})
 		})
 
-		t.Run("func Get()", func(t *testing.T) {
+		t.Run("Get", func(t *testing.T) {
 			t.Parallel()
 
 			t.Run("it returns ErrNotFound if there is no record at the given position", func(t *testing.T) {
@@ -225,7 +225,7 @@ func RunTests(
 			})
 		})
 
-		t.Run("func Range()", func(t *testing.T) {
+		t.Run("Range", func(t *testing.T) {
 			t.Parallel()
 
 			t.Run("calls the function for each record in the journal", func(t *testing.T) {
@@ -367,7 +367,7 @@ func RunTests(
 			})
 		})
 
-		t.Run("func Append()", func(t *testing.T) {
+		t.Run("Append", func(t *testing.T) {
 			t.Parallel()
 
 			t.Run("it does not return an error if there is no record at the given position", func(t *testing.T) {
@@ -439,7 +439,7 @@ func RunTests(
 			})
 		})
 
-		t.Run("func Truncate()", func(t *testing.T) {
+		t.Run("Truncate", func(t *testing.T) {
 			t.Parallel()
 
 			t.Run("it truncates the journal", func(t *testing.T) {

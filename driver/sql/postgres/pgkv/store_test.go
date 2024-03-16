@@ -2,7 +2,9 @@ package pgkv_test
 
 import (
 	"context"
+	"database/sql"
 	"testing"
+	"time"
 
 	. "github.com/dogmatiq/persistencekit/driver/sql/postgres/pgkv"
 	"github.com/dogmatiq/persistencekit/kv"
@@ -10,7 +12,32 @@ import (
 )
 
 func TestStore(t *testing.T) {
-	ctx := context.Background()
+	db := setup(t)
+	kv.RunTests(
+		t,
+		func(t *testing.T) kv.Store {
+			return &Store{
+				DB: db,
+			}
+		},
+	)
+}
+
+func BenchmarkStore(b *testing.B) {
+	db := setup(b)
+	kv.RunBenchmarks(
+		b,
+		func(b *testing.B) kv.Store {
+			return &Store{
+				DB: db,
+			}
+		},
+	)
+}
+
+func setup(t testing.TB) *sql.DB {
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
 
 	database, err := sqltest.NewDatabase(ctx, sqltest.PGXDriver, sqltest.PostgreSQL)
 	if err != nil {
@@ -32,12 +59,5 @@ func TestStore(t *testing.T) {
 		}
 	})
 
-	kv.RunTests(
-		t,
-		func(t *testing.T) kv.Store {
-			return &Store{
-				DB: db,
-			}
-		},
-	)
+	return db
 }

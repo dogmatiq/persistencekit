@@ -12,15 +12,15 @@ import (
 	"github.com/google/go-cmp/cmp"
 )
 
-// RunTests runs tests that confirm a journal implementation behaves correctly.
+// RunTests runs tests that confirm a [Store] implementation behaves correctly.
 func RunTests(
 	t *testing.T,
 	newStore func(t *testing.T) Store,
 ) {
-	t.Run("type Store", func(t *testing.T) {
+	t.Run("Store", func(t *testing.T) {
 		t.Parallel()
 
-		t.Run("func Open()", func(t *testing.T) {
+		t.Run("Open", func(t *testing.T) {
 			t.Parallel()
 
 			t.Run("allows keyspaces to be opened multiple times", func(t *testing.T) {
@@ -64,10 +64,10 @@ func RunTests(
 		})
 	})
 
-	t.Run("type Keyspace", func(t *testing.T) {
+	t.Run("Keyspace", func(t *testing.T) {
 		t.Parallel()
 
-		t.Run("func Get()", func(t *testing.T) {
+		t.Run("Get", func(t *testing.T) {
 			t.Parallel()
 
 			t.Run("it returns an empty value if the key doesn't exist", func(t *testing.T) {
@@ -174,7 +174,7 @@ func RunTests(
 			})
 		})
 
-		t.Run("func Set()", func(t *testing.T) {
+		t.Run("Set", func(t *testing.T) {
 			t.Parallel()
 
 			t.Run("it does not keep a reference to the key slice", func(t *testing.T) {
@@ -243,7 +243,7 @@ func RunTests(
 			})
 		})
 
-		t.Run("func Has()", func(t *testing.T) {
+		t.Run("Has", func(t *testing.T) {
 			t.Parallel()
 
 			t.Run("it returns false if the key doesn't exist", func(t *testing.T) {
@@ -305,7 +305,7 @@ func RunTests(
 			})
 		})
 
-		t.Run("func Range()", func(t *testing.T) {
+		t.Run("Range", func(t *testing.T) {
 			t.Parallel()
 
 			t.Run("calls the function for each key in the keyspace", func(t *testing.T) {
@@ -535,6 +535,10 @@ func RunTests(
 
 var keyspaceID atomic.Uint64
 
+func uniqueKeyspaceName() string {
+	return fmt.Sprintf("<keyspace-%d>", keyspaceID.Add(1))
+}
+
 func setup(
 	t *testing.T,
 	newStore func(t *testing.T) Store,
@@ -544,8 +548,7 @@ func setup(
 
 	store := newStore(t)
 
-	name := fmt.Sprintf("<keyspace-%d>", keyspaceID.Add(1))
-	ks, err := store.Open(ctx, name)
+	ks, err := store.Open(ctx, uniqueKeyspaceName())
 	if err != nil {
 		t.Fatal(err)
 	}

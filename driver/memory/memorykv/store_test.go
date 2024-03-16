@@ -15,3 +15,12 @@ func TestStore(t *testing.T) {
 		},
 	)
 }
+
+func BenchmarkStore(b *testing.B) {
+	kv.RunBenchmarks(
+		b,
+		func(b *testing.B) kv.Store {
+			return &Store{}
+		},
+	)
+}
