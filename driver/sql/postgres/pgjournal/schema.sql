@@ -11,7 +11,7 @@ CREATE TABLE
 CREATE TABLE
     IF NOT EXISTS persistencekit.journal_record (
         journal_id BIGINT NOT NULL,
-        position BIGINT NOT NULL,
+        encoded_position BIGINT NOT NULL, -- see `bigint` package
         record BYTEA NOT NULL,
-        PRIMARY KEY (journal_id, position)
+        PRIMARY KEY (journal_id, encoded_position)
     );

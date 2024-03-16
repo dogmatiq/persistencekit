@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 
+	"github.com/dogmatiq/persistencekit/driver/sql/postgres/internal/bigint"
 	"github.com/dogmatiq/persistencekit/journal"
 )
 
@@ -19,14 +20,17 @@ func (j *journ) Bounds(ctx context.Context) (begin, end journal.Position, err er
 	row := j.db.QueryRowContext(
 		ctx,
 		`SELECT
-			COALESCE(MIN(position),     0),
-			COALESCE(MAX(position) + 1, 0)
+			COALESCE(MIN(encoded_position),     -1::BIGINT << 63),
+			COALESCE(MAX(encoded_position) + 1, -1::BIGINT << 63)
 		FROM persistencekit.journal_record
 		WHERE journal_id = $1`,
 		j.id,
 	)
 
-	if err := row.Scan(&begin, &end); err != nil {
+	if err := row.Scan(
+		bigint.ConvertUnsigned(&begin),
+		bigint.ConvertUnsigned(&end),
+	); err != nil {
 		return 0, 0, fmt.Errorf("cannot query journal bounds: %w", err)
 	}
 
@@ -39,9 +43,9 @@ func (j *journ) Get(ctx context.Context, pos journal.Position) ([]byte, error) {
 		`SELECT record
 		FROM persistencekit.journal_record
 		WHERE journal_id = $1
-		AND position = $2`,
+		AND encoded_position = $2`,
 		j.id,
-		pos,
+		bigint.ConvertUnsigned(&pos),
 	)
 
 	var rec []byte
@@ -64,13 +68,13 @@ func (j *journ) Range(
 	// everything into memory at once.
 	rows, err := j.db.QueryContext(
 		ctx,
-		`SELECT position, record
+		`SELECT encoded_position, record
 		FROM persistencekit.journal_record
 		WHERE journal_id = $1
-		AND position >= $2
-		ORDER BY position`,
+		AND encoded_position >= $2
+		ORDER BY encoded_position`,
 		j.id,
-		begin,
+		bigint.ConvertUnsigned(&begin),
 	)
 	if err != nil {
 		return fmt.Errorf("cannot query journal records: %w", err)
@@ -84,7 +88,10 @@ func (j *journ) Range(
 			pos journal.Position
 			rec []byte
 		)
-		if err := rows.Scan(&pos, &rec); err != nil {
+		if err := rows.Scan(
+			bigint.ConvertUnsigned(&pos),
+			&rec,
+		); err != nil {
 			return fmt.Errorf("cannot scan journal record: %w", err)
 		}
 
@@ -111,10 +118,10 @@ func (j *journ) Append(ctx context.Context, end journal.Position, rec []byte) er
 	res, err := j.db.ExecContext(
 		ctx,
 		`INSERT INTO persistencekit.journal_record
-		(journal_id, position, record) VALUES ($1, $2, $3)
-		ON CONFLICT (journal_id, position) DO NOTHING`,
+		(journal_id, encoded_position, record) VALUES ($1, $2, $3)
+		ON CONFLICT (journal_id, encoded_position) DO NOTHING`,
 		j.id,
-		end,
+		bigint.ConvertUnsigned(&end),
 		rec,
 	)
 	if err != nil {
@@ -138,9 +145,9 @@ func (j *journ) Truncate(ctx context.Context, end journal.Position) error {
 		ctx,
 		`DELETE FROM persistencekit.journal_record
 		WHERE journal_id = $1
-		AND position < $2`,
+		AND encoded_position < $2`,
 		j.id,
-		end,
+		bigint.ConvertUnsigned(&end),
 	); err != nil {
 		return fmt.Errorf("cannot truncate journal records: %w", err)
 	}
