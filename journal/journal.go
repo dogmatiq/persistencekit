@@ -10,10 +10,11 @@ import (
 // at position 0.
 type Position uint64
 
-// MaxPosition the largest value that can be represented by a [Position].
+// MaxPosition the largest value that can be safely represented by a [Position].
 //
-// Even though [Position] is defined as a 64-bit unsigned integer, some
-// implementations use signed 64-bit integers internally.
+// All journal implementations must be able to represent records at position up
+// to and including this position, though they may choose to support the full
+// range of the 64-bit unsigned [Position].
 const MaxPosition Position = math.MaxInt64
 
 // A RangeFunc is a function used to range over the records in a [Journal].
