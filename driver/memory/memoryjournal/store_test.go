@@ -15,3 +15,12 @@ func TestStore(t *testing.T) {
 		},
 	)
 }
+
+func BenchmarkStore(b *testing.B) {
+	journal.RunBenchmarks(
+		b,
+		func(b *testing.B) journal.Store {
+			return &Store{}
+		},
+	)
+}

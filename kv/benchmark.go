@@ -6,10 +6,9 @@ import (
 	"fmt"
 	"io"
 	"testing"
-	"time"
-)
 
-const iterationThreshold = 1_000_000
+	"github.com/dogmatiq/persistencekit/internal/benchmark"
+)
 
 // RunBenchmarks runs benchmarks against a [Store] implementation.
 func RunBenchmarks(
@@ -26,7 +25,7 @@ func RunBenchmarks(
 					newStore,
 					// SETUP
 					func(ctx context.Context, store Store) error {
-						name = uniqueKeyspaceName()
+						name = uniqueName()
 
 						// pre-create the keyspace
 						ks, err := store.Open(ctx, name)
@@ -58,7 +57,7 @@ func RunBenchmarks(
 					nil,
 					// BEFORE EACH
 					func(context.Context, Store) error {
-						name = uniqueKeyspaceName()
+						name = uniqueName()
 						return nil
 					},
 					// BENCHMARKED CODE
@@ -112,7 +111,7 @@ func RunBenchmarks(
 						if _, err := io.ReadFull(rand.Reader, key[:]); err != nil {
 							return err
 						}
-						return ks.Set(ctx, key[:], []byte("value"))
+						return ks.Set(ctx, key[:], []byte("<value>"))
 					},
 					// BENCHMARKED CODE
 					func(ctx context.Context, ks Keyspace) error {
@@ -162,7 +161,7 @@ func RunBenchmarks(
 						if _, err := io.ReadFull(rand.Reader, key[:]); err != nil {
 							return err
 						}
-						return ks.Set(ctx, key[:], []byte("value"))
+						return ks.Set(ctx, key[:], []byte("<value>"))
 					},
 					// BENCHMARKED CODE
 					func(ctx context.Context, ks Keyspace) error {
@@ -191,7 +190,7 @@ func RunBenchmarks(
 					},
 					// BENCHMARKED CODE
 					func(ctx context.Context, ks Keyspace) error {
-						return ks.Set(ctx, key[:], []byte("value"))
+						return ks.Set(ctx, key[:], []byte("<value>"))
 					},
 					// AFTER EACH
 					nil,
@@ -211,11 +210,11 @@ func RunBenchmarks(
 						if _, err := io.ReadFull(rand.Reader, key[:]); err != nil {
 							return err
 						}
-						return ks.Set(ctx, key[:], []byte("value-1"))
+						return ks.Set(ctx, key[:], []byte("<value-1>"))
 					},
 					// BENCHMARKED CODE
 					func(ctx context.Context, ks Keyspace) error {
-						return ks.Set(ctx, key[:], []byte("value-2"))
+						return ks.Set(ctx, key[:], []byte("<value-2>"))
 					},
 					// AFTER EACH
 					nil,
@@ -235,7 +234,7 @@ func RunBenchmarks(
 						if _, err := io.ReadFull(rand.Reader, key[:]); err != nil {
 							return err
 						}
-						return ks.Set(ctx, key[:], []byte("value"))
+						return ks.Set(ctx, key[:], []byte("<value>"))
 					},
 					// BENCHMARKED CODE
 					func(ctx context.Context, ks Keyspace) error {
@@ -247,16 +246,15 @@ func RunBenchmarks(
 			})
 		})
 
-		b.Run("Range (10k pairs)", func(b *testing.B) {
+		b.Run("Range (3k pairs)", func(b *testing.B) {
 			benchmarkKeyspace(
 				b,
 				newStore,
 				// SETUP
 				func(ctx context.Context, _ Store, ks Keyspace) error {
-					for i := 0; i < 10000; i++ {
-						k := []byte(fmt.Sprintf("key-%d", i))
-						v := []byte(fmt.Sprintf("value-%d", i))
-
+					for i := 0; i < 3000; i++ {
+						k := []byte(fmt.Sprintf("<key-%d>", i))
+						v := []byte("<value>")
 						if err := ks.Set(ctx, k, v); err != nil {
 							return err
 						}
@@ -269,7 +267,7 @@ func RunBenchmarks(
 				func(ctx context.Context, ks Keyspace) error {
 					return ks.Range(
 						ctx,
-						func(ctx context.Context, k, v []byte) (bool, error) {
+						func(context.Context, []byte, []byte) (bool, error) {
 							return true, nil
 						},
 					)
@@ -285,114 +283,94 @@ func benchmarkStore[T any](
 	b *testing.B,
 	newStore func(b *testing.B) Store,
 	setup func(context.Context, Store) error,
-	beforeEach func(context.Context, Store) error,
-	run func(context.Context, Store) (T, error),
-	afterEach func(T) error,
+	before func(context.Context, Store) error,
+	fn func(context.Context, Store) (T, error),
+	after func(T) error,
 ) {
-	b.StopTimer()
+	var (
+		store  Store
+		result T
+	)
 
-	if b.N >= iterationThreshold {
-		b.Skipf("too many iterations (%d); benchmarked code is likely too fast to measure meaningfully", b.N)
-	}
+	benchmark.Run(
+		b,
+		func(ctx context.Context) error {
+			store = newStore(b)
 
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
-
-	store := newStore(b)
-
-	if setup != nil {
-		err := setup(ctx, store)
-		if err != nil {
-			b.Fatal(err)
-		}
-	}
-
-	for i := 0; i < b.N; i++ {
-		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-
-		if beforeEach != nil {
-			if err := beforeEach(ctx, store); err != nil {
-				cancel()
-				b.Fatal(err)
+			if setup != nil {
+				return setup(ctx, store)
 			}
-		}
 
-		b.StartTimer()
-		result, err := run(ctx, store)
-		b.StopTimer()
-
-		cancel()
-
-		if err != nil {
-			b.Fatal(err)
-		}
-
-		if afterEach != nil {
-			if err := afterEach(result); err != nil {
-				b.Fatal(err)
+			return nil
+		},
+		func(ctx context.Context) error {
+			if before != nil {
+				return before(ctx, store)
 			}
-		}
-	}
+			return nil
+		},
+		func(ctx context.Context) error {
+			var err error
+			result, err = fn(ctx, store)
+			return err
+		},
+		func(ctx context.Context) error {
+			if after != nil {
+				return after(result)
+			}
+			return nil
+		},
+	)
 }
 
 func benchmarkKeyspace(
 	b *testing.B,
 	newStore func(b *testing.B) Store,
 	setup func(context.Context, Store, Keyspace) error,
-	beforeEach func(context.Context, Keyspace) error,
-	run func(context.Context, Keyspace) error,
-	afterEach func() error,
+	before func(context.Context, Keyspace) error,
+	fn func(context.Context, Keyspace) error,
+	after func() error,
 ) {
-	b.StopTimer()
+	var (
+		store    Store
+		keyspace Keyspace
+	)
 
-	if b.N >= iterationThreshold {
-		b.Skipf("too many iterations (%d); benchmarked code is likely too fast to measure meaningfully", b.N)
-	}
+	benchmark.Run(
+		b,
+		func(ctx context.Context) error {
+			store = newStore(b)
 
-	store := newStore(b)
-
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
-
-	ks, err := store.Open(ctx, uniqueKeyspaceName())
-	if err != nil {
-		b.Fatal(err)
-	}
-
-	if setup != nil {
-		err := setup(ctx, store, ks)
-		if err != nil {
-			b.Fatal(err)
-		}
-	}
-
-	for i := 0; i < b.N; i++ {
-		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-		if err != nil {
-			cancel()
-		}
-
-		if beforeEach != nil {
-			if err := beforeEach(ctx, ks); err != nil {
-				cancel()
-				b.Fatal(err)
+			var err error
+			keyspace, err = store.Open(ctx, uniqueName())
+			if err != nil {
+				return err
 			}
-		}
 
-		b.StartTimer()
-		err := run(ctx, ks)
-		b.StopTimer()
+			b.Cleanup(func() {
+				keyspace.Close()
+			})
 
-		cancel()
-
-		if err != nil {
-			b.Fatal(err)
-		}
-
-		if afterEach != nil {
-			if err := afterEach(); err != nil {
-				b.Fatal(err)
+			if setup != nil {
+				return setup(ctx, store, keyspace)
 			}
-		}
-	}
+
+			return nil
+		},
+		func(ctx context.Context) error {
+			if before != nil {
+				return before(ctx, keyspace)
+			}
+			return nil
+		},
+		func(ctx context.Context) error {
+			return fn(ctx, keyspace)
+		},
+		func(ctx context.Context) error {
+			if after != nil {
+				return after()
+			}
+			return nil
+		},
+	)
 }

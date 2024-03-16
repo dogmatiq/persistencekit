@@ -12,6 +12,11 @@ The format is based on [Keep a Changelog], and this project adheres to
 
 ## Unreleased
 
+### Added
+
+- Added `journal.RunBenchmarks()` and `kv.RunBenchmarks()` to run generic
+  benchmarks for a journal or key-value store implementation.
+
 ### Changed
 
 - **[BC]** The PostgreSQL drivers `pgjournal` and `pgkv` now assign each journal

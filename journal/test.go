@@ -32,7 +32,7 @@ func RunTests(
 
 		deps := &dependencies{
 			Store:       newStore(t),
-			JournalName: fmt.Sprintf("<journal-%d>", journalCounter.Add(1)),
+			JournalName: uniqueName(),
 		}
 
 		j, err := deps.Store.Open(ctx, deps.JournalName)
@@ -493,7 +493,11 @@ func RunTests(
 	})
 }
 
-var journalCounter atomic.Uint64
+var nameCounter atomic.Uint64
+
+func uniqueName() string {
+	return fmt.Sprintf("<journal-%d>", nameCounter.Add(1))
+}
 
 // appendRecords appends records to j.
 func appendRecords(

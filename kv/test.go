@@ -533,10 +533,10 @@ func RunTests(
 	})
 }
 
-var keyspaceID atomic.Uint64
+var nameCounter atomic.Uint64
 
-func uniqueKeyspaceName() string {
-	return fmt.Sprintf("<keyspace-%d>", keyspaceID.Add(1))
+func uniqueName() string {
+	return fmt.Sprintf("<keyspace-%d>", nameCounter.Add(1))
 }
 
 func setup(
@@ -548,7 +548,7 @@ func setup(
 
 	store := newStore(t)
 
-	ks, err := store.Open(ctx, uniqueKeyspaceName())
+	ks, err := store.Open(ctx, uniqueName())
 	if err != nil {
 		t.Fatal(err)
 	}
