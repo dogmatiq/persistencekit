@@ -10,7 +10,7 @@ The format is based on [Keep a Changelog], and this project adheres to
 [Keep a Changelog]: https://keepachangelog.com/en/1.0.0/
 [Semantic Versioning]: https://semver.org/spec/v2.0.0.html
 
-### Unsigned
+### [0.7.0] - 2024-03-17
 
 ### Changed
 
@@ -134,6 +134,7 @@ The format is based on [Keep a Changelog], and this project adheres to
 [0.4.0]: https://github.com/dogmatiq/persistencekit/releases/tag/v0.4.0
 [0.5.0]: https://github.com/dogmatiq/persistencekit/releases/tag/v0.5.0
 [0.6.0]: https://github.com/dogmatiq/persistencekit/releases/tag/v0.6.0
+[0.7.0]: https://github.com/dogmatiq/persistencekit/releases/tag/v0.7.0
 
 <!-- version template
 ## [0.0.1] - YYYY-MM-DD
