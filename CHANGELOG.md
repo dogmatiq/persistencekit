@@ -17,8 +17,8 @@ The format is based on [Keep a Changelog], and this project adheres to
 - **[BC]** The `pgjournal` implementation now supports the full range of
   unsigned `journal.Position` values. The `uint64` value-space is "mapped" onto
   the `int64` space such that `uint64(0) == math.MinInt64`, thereby preserving
-  order. The `journal.position` column has been renamed to `encoded_position` to
-  make it clearer that the value can not be used as-is.
+  order. The `journal_record.position` column has been renamed to
+  `encoded_position` to make it clearer that the value can not be used as-is.
 
 ### Fixed
 
