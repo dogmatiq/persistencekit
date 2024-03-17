@@ -10,7 +10,7 @@ The format is based on [Keep a Changelog], and this project adheres to
 [Keep a Changelog]: https://keepachangelog.com/en/1.0.0/
 [Semantic Versioning]: https://semver.org/spec/v2.0.0.html
 
-## [v0.8.0] - 2024-03-17
+## [0.8.0] - 2024-03-17
 
 This release changes the `journal.Store` and `journal.Journal` interfaces to be
 generic types, parameterized over records of type `T`, and the `kv.Store` and
