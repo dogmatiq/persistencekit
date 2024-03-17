@@ -7,7 +7,7 @@ import (
 	"reflect"
 	"sync"
 
-	"github.com/dogmatiq/dyad"
+	"github.com/dogmatiq/persistencekit/driver/memory/internal/clone"
 	"github.com/dogmatiq/persistencekit/kv"
 )
 
@@ -37,7 +37,7 @@ func (h *keyspace[K, V, C]) Get(ctx context.Context, k K) (v V, err error) {
 	defer h.state.RUnlock()
 
 	c := h.marshalKey(k)
-	return dyad.Clone(h.state.Values[c]), ctx.Err()
+	return clone.Clone(h.state.Values[c]), ctx.Err()
 }
 
 func (h *keyspace[K, V, C]) Has(ctx context.Context, k K) (ok bool, err error) {
@@ -58,7 +58,7 @@ func (h *keyspace[K, V, C]) Set(ctx context.Context, k K, v V) error {
 		panic("keyspace is closed")
 	}
 
-	v = dyad.Clone(v)
+	v = clone.Clone(v)
 
 	h.state.Lock()
 	defer h.state.Unlock()
@@ -101,7 +101,7 @@ func (h *keyspace[K, V, C]) Range(ctx context.Context, fn kv.RangeFunc[K, V]) er
 
 	for c, v := range values {
 		k := h.unmarshalKey(c)
-		ok, err := fn(ctx, k, dyad.Clone(v))
+		ok, err := fn(ctx, k, clone.Clone(v))
 		if !ok || err != nil {
 			return err
 		}

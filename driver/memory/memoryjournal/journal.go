@@ -5,7 +5,7 @@ import (
 	"errors"
 	"sync"
 
-	"github.com/dogmatiq/dyad"
+	"github.com/dogmatiq/persistencekit/driver/memory/internal/clone"
 	"github.com/dogmatiq/persistencekit/journal"
 )
 
@@ -49,7 +49,7 @@ func (j *journ[T]) Get(ctx context.Context, pos journal.Position) (T, error) {
 		return zero, journal.ErrNotFound
 	}
 
-	return dyad.Clone(j.state.Records[pos-j.state.Begin]), ctx.Err()
+	return clone.Clone(j.state.Records[pos-j.state.Begin]), ctx.Err()
 }
 
 func (j *journ[T]) Range(
@@ -78,7 +78,7 @@ func (j *journ[T]) Range(
 
 	for i, rec := range records[start:] {
 		v := start + journal.Position(i)
-		ok, err := fn(ctx, v, dyad.Clone(rec))
+		ok, err := fn(ctx, v, clone.Clone(rec))
 		if !ok || err != nil {
 			return err
 		}
@@ -93,7 +93,7 @@ func (j *journ[T]) Append(ctx context.Context, end journal.Position, rec T) erro
 		panic("journal is closed")
 	}
 
-	rec = dyad.Clone(rec)
+	rec = clone.Clone(rec)
 
 	j.state.Lock()
 	defer j.state.Unlock()
