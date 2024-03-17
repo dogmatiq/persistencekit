@@ -7,19 +7,20 @@ import (
 	"github.com/dogmatiq/persistencekit/journal"
 )
 
-// A Journal is an append-only log of records of type R.
-type Journal[
-	Record any,
-	Marshaler typedmarshaler.Marshaler[Record],
+// A journ is an implementation of [journal.Journal] that marshals/unmarshals
+// records of type T to/from an underlying [journal.BinaryJournal].
+type journ[
+	T any,
+	M typedmarshaler.Marshaler[T],
 ] struct {
 	journal.BinaryJournal
-	marshaler Marshaler
+	marshaler M
 }
 
 // Get returns the record at the given position.
 //
 // It returns [journal.ErrNotFound] if there is no record at the given position.
-func (j *Journal[R, M]) Get(ctx context.Context, pos journal.Position) (R, error) {
+func (j *journ[R, M]) Get(ctx context.Context, pos journal.Position) (R, error) {
 	data, err := j.BinaryJournal.Get(ctx, pos)
 	if err != nil {
 		return typedmarshaler.Zero[R](), err
@@ -32,7 +33,7 @@ func (j *Journal[R, M]) Get(ctx context.Context, pos journal.Position) (R, error
 // the record at the given position.
 //
 // It returns [journal.ErrNotFound] if there is no record at the given position.
-func (j *Journal[R, M]) Range(ctx context.Context, pos journal.Position, fn journal.RangeFunc[R]) error {
+func (j *journ[R, M]) Range(ctx context.Context, pos journal.Position, fn journal.RangeFunc[R]) error {
 	return j.BinaryJournal.Range(
 		ctx,
 		pos,
@@ -56,7 +57,7 @@ func (j *Journal[R, M]) Range(ctx context.Context, pos journal.Position, fn jour
 // is returned, indicating an optimistic concurrency conflict.
 //
 // The behavior is undefined if end is greater than the next position.
-func (j *Journal[R, M]) Append(ctx context.Context, end journal.Position, rec R) error {
+func (j *journ[R, M]) Append(ctx context.Context, end journal.Position, rec R) error {
 	data, err := j.marshaler.Marshal(rec)
 	if err != nil {
 		return err

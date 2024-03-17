@@ -7,24 +7,19 @@ import (
 	"github.com/dogmatiq/persistencekit/journal"
 )
 
-// Store is a collection of keyspaces that store values of type R.
-type Store[
-	Record any,
-	Marshaler typedmarshaler.Marshaler[Record],
-] struct {
+// Store is an implementation of [journal.Store] that marshals/unmarshals
+// records of type T to/from an underlying [journal.BinaryStore].
+type Store[T any, M typedmarshaler.Marshaler[T]] struct {
 	journal.BinaryStore
-	Marshaler Marshaler
+	Marshaler M
 }
 
 // Open returns the journal with the given name.
-func (s Store[R, M]) Open(ctx context.Context, name string) (*Journal[R, M], error) {
+func (s Store[R, M]) Open(ctx context.Context, name string) (journal.Journal[R], error) {
 	j, err := s.BinaryStore.Open(ctx, name)
 	if err != nil {
 		return nil, err
 	}
 
-	return &Journal[R, M]{
-		j,
-		s.Marshaler,
-	}, nil
+	return &journ[R, M]{j, s.Marshaler}, nil
 }
