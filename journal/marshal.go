@@ -3,14 +3,14 @@ package journal
 import (
 	"context"
 
-	"github.com/dogmatiq/persistencekit/marshal"
+	"github.com/dogmatiq/persistencekit/marshaler"
 )
 
 // NewMarshalingStore returns a new [Store] that marshals/unmarshals records of
 // type T to/from an underlying [BinaryStore].
 func NewMarshalingStore[T any](
 	s BinaryStore,
-	m marshal.Marshaler[T],
+	m marshaler.Marshaler[T],
 ) Store[T] {
 	return &mstore[T]{s, m}
 }
@@ -19,7 +19,7 @@ func NewMarshalingStore[T any](
 // type T to/from an underlying [BinaryStore].
 type mstore[T any] struct {
 	BinaryStore
-	m marshal.Marshaler[T]
+	m marshaler.Marshaler[T]
 }
 
 func (s *mstore[T]) Open(ctx context.Context, name string) (Journal[T], error) {
@@ -34,7 +34,7 @@ func (s *mstore[T]) Open(ctx context.Context, name string) (Journal[T], error) {
 // type T to/from an underlying [BinaryJournal].
 type mjourn[T any] struct {
 	BinaryJournal
-	m marshal.Marshaler[T]
+	m marshaler.Marshaler[T]
 }
 
 func (j *mjourn[T]) Get(ctx context.Context, pos Position) (T, error) {

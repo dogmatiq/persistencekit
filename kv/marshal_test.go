@@ -8,7 +8,7 @@ import (
 
 	"github.com/dogmatiq/persistencekit/driver/memory/memorykv"
 	. "github.com/dogmatiq/persistencekit/kv"
-	"github.com/dogmatiq/persistencekit/marshal"
+	"github.com/dogmatiq/persistencekit/marshaler"
 )
 
 func TestStore(t *testing.T) {
@@ -17,8 +17,8 @@ func TestStore(t *testing.T) {
 
 	store := NewMarshalingStore(
 		&memorykv.BinaryStore{},
-		marshal.JSON[string]{},
-		marshal.JSON[int]{},
+		marshaler.NewJSON[string](),
+		marshaler.NewJSON[int](),
 	)
 
 	ks, err := store.Open(ctx, "<name>")
