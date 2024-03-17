@@ -11,8 +11,8 @@ import (
 // equal to the datum.
 type CompareFunc[T any] func(context.Context, Position, T) (cmp int, err error)
 
-// Search performs a binary search of j to find the position of the record for
-// which cmp() returns zero.
+// Search performs a binary search of j within the half-open range [begin, end)
+// to find the position of the record for which cmp() returns zero.
 func Search[T any](
 	ctx context.Context,
 	j Journal[T],

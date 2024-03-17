@@ -32,6 +32,7 @@ This eliminates the need for duplicating all of the generic algorithms (such as
 - Added `journal.NewMarshalingStore()` and `kv.NewMarshalingStore()`, which wrap
   binary implementations with a `marshal.Marshaler`, serving as a replacement
   for the `typedjournal` and `typedkv` packages, respectively.
+- Added `journal.Scan()` and `ScanFromSearchResult()`
 
 ### Changed
 
