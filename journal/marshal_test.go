@@ -1,23 +1,23 @@
-package typedjournal_test
+package journal_test
 
 import (
 	"context"
 	"testing"
 	"time"
 
-	. "github.com/dogmatiq/persistencekit/adaptor/typed/typedjournal"
 	"github.com/dogmatiq/persistencekit/adaptor/typed/typedmarshaler"
 	"github.com/dogmatiq/persistencekit/driver/memory/memoryjournal"
-	"github.com/dogmatiq/persistencekit/journal"
+	. "github.com/dogmatiq/persistencekit/journal"
 )
 
-func TestStore(t *testing.T) {
+func TestMarshal(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
 	defer cancel()
 
-	store := Store[int, typedmarshaler.JSON[int]]{
-		BinaryStore: &memoryjournal.BinaryStore{},
-	}
+	store := NewMarshalingStore(
+		&memoryjournal.BinaryStore{},
+		typedmarshaler.JSON[int]{},
+	)
 
 	j, err := store.Open(ctx, "<name>")
 	if err != nil {
@@ -33,7 +33,7 @@ func TestStore(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	fn := func(ctx context.Context, pos journal.Position, rec int) (bool, error) {
+	fn := func(ctx context.Context, pos Position, rec int) (bool, error) {
 		expect := int(pos) + 100
 		if rec != expect {
 			t.Fatalf("unexpected value at position %d: got %d, want %d", pos, rec, expect)
@@ -45,7 +45,7 @@ func TestStore(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	for pos := journal.Position(0); pos < 2; pos++ {
+	for pos := Position(0); pos < 2; pos++ {
 		rec, err := j.Get(ctx, pos)
 		if err != nil {
 			t.Fatal(err)

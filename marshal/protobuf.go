@@ -1,4 +1,4 @@
-package typedmarshaler
+package marshal
 
 import (
 	"google.golang.org/protobuf/proto"

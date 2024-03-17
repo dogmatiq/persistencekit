@@ -1,4 +1,4 @@
-package typedkv_test
+package kv_test
 
 import (
 	"context"
@@ -6,18 +6,20 @@ import (
 	"testing"
 	"time"
 
-	. "github.com/dogmatiq/persistencekit/adaptor/typed/typedkv"
 	"github.com/dogmatiq/persistencekit/adaptor/typed/typedmarshaler"
 	"github.com/dogmatiq/persistencekit/driver/memory/memorykv"
+	. "github.com/dogmatiq/persistencekit/kv"
 )
 
 func TestStore(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
 	defer cancel()
 
-	store := Store[string, int, typedmarshaler.String, typedmarshaler.JSON[int]]{
-		BinaryStore: &memorykv.BinaryStore{},
-	}
+	store := NewMarshalingStore(
+		&memorykv.BinaryStore{},
+		typedmarshaler.JSON[string]{},
+		typedmarshaler.JSON[int]{},
+	)
 
 	ks, err := store.Open(ctx, "<name>")
 	if err != nil {

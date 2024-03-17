@@ -1,4 +1,4 @@
-package typedmarshaler
+package marshal
 
 import "encoding/json"
 

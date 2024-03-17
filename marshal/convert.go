@@ -1,11 +1,4 @@
-package typedmarshaler
-
-// Identity is the "identity" marshaler, it does not perform any conversion.
-type Identity = Convert[[]byte]
-
-// String is a [Marshaler] that performs type conversion between []byte and
-// string without changing the underlying data.
-type String = Convert[string]
+package marshal
 
 // Convert is a [Marshaler] that performs a type conversion between types
 // without changing the underlying data.
