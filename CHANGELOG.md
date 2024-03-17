@@ -28,6 +28,10 @@ The format is based on [Keep a Changelog], and this project adheres to
   The table creation is now managed at runtime by the journal and keyspace
   stores.
 
+### Fixed
+
+- `pgjournal` can now correctly truncate all remaining journal records.
+
 ## [0.8.0] - 2024-03-17
 
 This release changes the `journal.Store` and `journal.Journal` interfaces to be

@@ -24,11 +24,11 @@ func RunBenchmarks(
 					b,
 					newStore,
 					// SETUP
-					func(ctx context.Context, store BinaryStore) error {
+					func(ctx context.Context, s BinaryStore) error {
 						name = uniqueName()
 
 						// pre-create the keyspace
-						ks, err := store.Open(ctx, name)
+						ks, err := s.Open(ctx, name)
 						if err != nil {
 							return err
 						}
@@ -37,8 +37,8 @@ func RunBenchmarks(
 					// BEFORE EACH
 					nil,
 					// BENCHMARKED CODE
-					func(ctx context.Context, store BinaryStore) (BinaryKeyspace, error) {
-						return store.Open(ctx, name)
+					func(ctx context.Context, s BinaryStore) (BinaryKeyspace, error) {
+						return s.Open(ctx, name)
 					},
 					// AFTER EACH
 					func(ks BinaryKeyspace) error {
@@ -61,8 +61,8 @@ func RunBenchmarks(
 						return nil
 					},
 					// BENCHMARKED CODE
-					func(ctx context.Context, store BinaryStore) (BinaryKeyspace, error) {
-						return store.Open(ctx, name)
+					func(ctx context.Context, s BinaryStore) (BinaryKeyspace, error) {
+						return s.Open(ctx, name)
 					},
 					// AFTER EACH
 					func(ks BinaryKeyspace) error {

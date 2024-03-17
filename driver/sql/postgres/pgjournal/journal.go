@@ -20,10 +20,13 @@ func (j *journ) Bounds(ctx context.Context) (begin, end journal.Position, err er
 	row := j.db.QueryRowContext(
 		ctx,
 		`SELECT
-			COALESCE(MIN(encoded_position),     -1::BIGINT << 63),
-			COALESCE(MAX(encoded_position) + 1, -1::BIGINT << 63)
-		FROM persistencekit.journal_record
-		WHERE journal_id = $1`,
+			j.encoded_begin,
+			COALESCE(MAX(r.encoded_position) + 1, j.encoded_begin)
+		FROM persistencekit.journal AS j
+		LEFT JOIN persistencekit.journal_record AS r
+		ON r.journal_id = j.id
+		WHERE j.id = $1
+		GROUP BY j.id`,
 		j.id,
 	)
 
@@ -145,7 +148,34 @@ func (j *journ) Append(ctx context.Context, end journal.Position, rec []byte) er
 }
 
 func (j *journ) Truncate(ctx context.Context, end journal.Position) error {
-	if _, err := j.db.ExecContext(
+	tx, err := j.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("cannot begin transaction: %w", err)
+	}
+	defer tx.Rollback()
+
+	res, err := tx.ExecContext(
+		ctx,
+		`UPDATE persistencekit.journal
+		SET encoded_begin = $2
+		WHERE id = $1
+		AND encoded_begin < $2`,
+		j.id,
+		bigint.ConvertUnsigned(&end),
+	)
+	if err != nil {
+		return fmt.Errorf("cannot update journal bounds: %w", err)
+	}
+
+	n, err := res.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("cannot determine affected rows: %w", err)
+	}
+	if n == 0 {
+		return nil
+	}
+
+	if _, err := tx.ExecContext(
 		ctx,
 		`DELETE FROM persistencekit.journal_record
 		WHERE journal_id = $1
@@ -154,6 +184,10 @@ func (j *journ) Truncate(ctx context.Context, end journal.Position) error {
 		bigint.ConvertUnsigned(&end),
 	); err != nil {
 		return fmt.Errorf("cannot truncate journal records: %w", err)
+	}
+
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("cannot commit transaction: %w", err)
 	}
 
 	return nil

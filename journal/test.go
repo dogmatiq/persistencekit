@@ -512,6 +512,33 @@ func RunTests(
 				}
 			})
 
+			t.Run("it allows truncating all records", func(t *testing.T) {
+				t.Parallel()
+
+				ctx, deps := setup(t, newStore)
+
+				appendRecords(ctx, t, deps.Journal, 3)
+
+				if err := deps.Journal.Truncate(ctx, 3); err != nil {
+					t.Fatal(err)
+				}
+
+				gotBegin, gotEnd, err := deps.Journal.Bounds(ctx)
+				if err != nil {
+					t.Fatal(err)
+				}
+
+				want := Position(3)
+
+				if gotBegin != want {
+					t.Fatalf("unexpected begin position: got %d, want %d", gotBegin, want)
+				}
+
+				if gotEnd != want {
+					t.Fatalf("unexpected end position: got %d, want %d", gotEnd, want)
+				}
+			})
+
 			t.Run("it truncates the journal when it has already been truncated", func(t *testing.T) {
 				t.Parallel()
 

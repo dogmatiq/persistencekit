@@ -23,11 +23,11 @@ func RunBenchmarks(
 					b,
 					newStore,
 					// SETUP
-					func(ctx context.Context, store BinaryStore) error {
+					func(ctx context.Context, s BinaryStore) error {
 						name = uniqueName()
 
 						// pre-create the journal
-						ks, err := store.Open(ctx, name)
+						ks, err := s.Open(ctx, name)
 						if err != nil {
 							return err
 						}
@@ -36,8 +36,8 @@ func RunBenchmarks(
 					// BEFORE EACH
 					nil,
 					// BENCHMARKED CODE
-					func(ctx context.Context, store BinaryStore) (BinaryJournal, error) {
-						return store.Open(ctx, name)
+					func(ctx context.Context, s BinaryStore) (BinaryJournal, error) {
+						return s.Open(ctx, name)
 					},
 					// AFTER EACH
 					func(j BinaryJournal) error {
@@ -60,8 +60,8 @@ func RunBenchmarks(
 						return nil
 					},
 					// BENCHMARKED CODE
-					func(ctx context.Context, store BinaryStore) (BinaryJournal, error) {
-						return store.Open(ctx, name)
+					func(ctx context.Context, s BinaryStore) (BinaryJournal, error) {
+						return s.Open(ctx, name)
 					},
 					// AFTER EACH
 					func(j BinaryJournal) error {
@@ -73,6 +73,79 @@ func RunBenchmarks(
 	})
 
 	b.Run("Journal", func(b *testing.B) {
+		b.Run("Bounds", func(b *testing.B) {
+			b.Run("empty journal", func(b *testing.B) {
+				benchmarkJournal(
+					b,
+					newStore,
+					// SETUP
+					nil,
+					// BEFORE EACH
+					nil,
+					// BENCHMARKED CODE
+					func(ctx context.Context, j BinaryJournal) error {
+						_, _, err := j.Bounds(ctx)
+						return err
+					},
+					// AFTER EACH
+					nil,
+				)
+			})
+
+			b.Run("non-empty journal", func(b *testing.B) {
+				benchmarkJournal(
+					b,
+					newStore,
+					// SETUP
+					func(ctx context.Context, s BinaryStore, j BinaryJournal) error {
+						for pos := Position(0); pos < 10000; pos++ {
+							rec := []byte(fmt.Sprintf("<record-%d>", pos))
+							if err := j.Append(ctx, pos, rec); err != nil {
+								return err
+							}
+						}
+						return nil
+					},
+					// BEFORE EACH
+					nil,
+					// BENCHMARKED CODE
+					func(ctx context.Context, j BinaryJournal) error {
+						_, _, err := j.Bounds(ctx)
+						return err
+					},
+					// AFTER EACH
+					nil,
+				)
+			})
+
+			b.Run("truncated journal", func(b *testing.B) {
+				benchmarkJournal(
+					b,
+					newStore,
+					// SETUP
+					func(ctx context.Context, s BinaryStore, j BinaryJournal) error {
+						for pos := Position(0); pos < 10000; pos++ {
+							rec := []byte(fmt.Sprintf("<record-%d>", pos))
+							if err := j.Append(ctx, pos, rec); err != nil {
+								return err
+							}
+						}
+
+						return j.Truncate(ctx, 5000)
+					},
+					// BEFORE EACH
+					nil,
+					// BENCHMARKED CODE
+					func(ctx context.Context, j BinaryJournal) error {
+						_, _, err := j.Bounds(ctx)
+						return err
+					},
+					// AFTER EACH
+					nil,
+				)
+			})
+		})
+
 		b.Run("Get", func(b *testing.B) {
 			b.Run("non-existent record", func(b *testing.B) {
 				var pos Position
@@ -195,7 +268,7 @@ func RunBenchmarks(
 				b,
 				newStore,
 				// SETUP
-				func(ctx context.Context, store BinaryStore, j BinaryJournal) error {
+				func(ctx context.Context, _ BinaryStore, j BinaryJournal) error {
 					rec := []byte("<record>")
 					for pos := 0; pos <= b.N; pos++ {
 						if err := j.Append(ctx, Position(pos), rec); err != nil {
