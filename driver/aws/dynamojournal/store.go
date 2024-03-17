@@ -13,27 +13,51 @@ import (
 	"github.com/dogmatiq/persistencekit/journal"
 )
 
-// BinaryStore is an implementation of [journal.BinaryStore] that persists to a
+// store is an implementation of [journal.BinaryStore] that persists to a
 // DynamoDB table.
-type BinaryStore struct {
-	// Client is the DynamoDB client to use.
-	Client *dynamodb.Client
-
-	// Table is the table name used for storage of journal records.
-	Table string
-
-	// OnRequest is a hook that is called before each DynamoDB request.
-	//
-	// It is passed a pointer to the input struct, e.g. [dynamodb.GetItemInput],
-	// which it may modify in-place. It may be called with any DynamoDB request
-	// type. The types of requests used may change in any version without
-	// notice.
-	//
-	// Any functions returned by the function will be applied to the request's
-	// options before the request is sent.
+type store struct {
+	Client    *dynamodb.Client
+	Table     string
 	OnRequest func(any) []func(*dynamodb.Options)
 
 	create syncx.SucceedOnce
+}
+
+// NewBinaryStore returns a new [journal.BinaryStore] that uses the given
+// DynamoDB client to store journal records in the given table.
+func NewBinaryStore(
+	client *dynamodb.Client,
+	table string,
+	options ...Option,
+) journal.BinaryStore {
+	s := &store{
+		Client: client,
+		Table:  table,
+	}
+
+	for _, opt := range options {
+		opt(s)
+	}
+
+	return s
+}
+
+// Option is a functional option that changes the behavior of [NewBinaryStore].
+type Option func(*store)
+
+// WithRequestHook is an [Option] that configures fn as a pre-request hook.
+//
+// Before each DynamoDB API request, fn is passed a pointer to the input struct,
+// e.g. [dynamodb.GetItemInput], which it may modify in-place. It may be called
+// with any DynamoDB request type. The types of requests used may change in any
+// version without notice.
+//
+// Any functions returned by fn will be applied to the request's options before
+// the request is sent.
+func WithRequestHook(fn func(any) []func(*dynamodb.Options)) Option {
+	return func(s *store) {
+		s.OnRequest = fn
+	}
 }
 
 const (
@@ -43,7 +67,7 @@ const (
 )
 
 // Open returns the journal with the given name.
-func (s *BinaryStore) Open(ctx context.Context, name string) (journal.BinaryJournal, error) {
+func (s *store) Open(ctx context.Context, name string) (journal.BinaryJournal, error) {
 	if s.Table == "" {
 		panic("table name must not be empty")
 	}
@@ -127,7 +151,7 @@ func (s *BinaryStore) Open(ctx context.Context, name string) (journal.BinaryJour
 	return j, nil
 }
 
-func (s *BinaryStore) createTable(ctx context.Context) error {
+func (s *store) createTable(ctx context.Context) error {
 	return s.create.Do(
 		func() error {
 			if _, err := awsx.Do(

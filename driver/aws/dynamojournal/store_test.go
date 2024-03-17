@@ -16,10 +16,7 @@ func TestStore(t *testing.T) {
 	journal.RunTests(
 		t,
 		func(t *testing.T) journal.BinaryStore {
-			return &BinaryStore{
-				Client: client,
-				Table:  table,
-			}
+			return NewBinaryStore(client, table)
 		},
 	)
 }
@@ -29,10 +26,7 @@ func BenchmarkStore(b *testing.B) {
 	journal.RunBenchmarks(
 		b,
 		func(b *testing.B) journal.BinaryStore {
-			return &BinaryStore{
-				Client: client,
-				Table:  table,
-			}
+			return NewBinaryStore(client, table)
 		},
 	)
 }

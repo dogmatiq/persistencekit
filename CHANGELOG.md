@@ -14,15 +14,16 @@ The format is based on [Keep a Changelog], and this project adheres to
 
 ### Added
 
-- Added `OnRequest` hook to `journal.Store` and `kv.Store` to allow for
-  intercepting and modifying requests before they are sent to the DynamoDB API.
-  This is a more flexible replacement for the request-type-specific decorator
-  fields that were removed in this release.
+- Added `dynamojournal.NewBinaryStore()` and `dynamokv.NewBinaryStore()`.
+- Added `Option` type and `WithRequestHook()` option to `dynamojournal` and
+  `dynamokv`. The request hook is a more flexible replacement for the
+  request-type-specific decorator fields that were on the `BinaryStore` structs,
+  which were removed in this release.
 
 ### Removed
 
-- **[BC]** Removed all decorator fields from `dynamojournal.Store` and
-  `dynamokv.Store`. Use the `OnRequest` hook instead.
+- **[BC]** Removed `dynamojournal.BinaryStore` and `dynamokv.BinaryStore` use
+  each package's `NewBinaryStore()` function instead.
 - **[BC]** Removed `dynamojournal.CreateTable()` and `dynamokv.CreateTable()`.
   The table creation is now managed at runtime by the journal and keyspace
   stores.
