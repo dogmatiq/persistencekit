@@ -9,8 +9,9 @@ import (
 	"github.com/dogmatiq/persistencekit/kv"
 )
 
-// Store is an implementation of [kv.Store] that persists to a DynamoDB table.
-type Store struct {
+// BinaryStore is an implementation of [kv.BinaryStore] that persists to a
+// DynamoDB table.
+type BinaryStore struct {
 	// Client is the DynamoDB client to use.
 	Client *dynamodb.Client
 
@@ -47,7 +48,7 @@ type Store struct {
 }
 
 // Open returns the keyspace with the given name.
-func (s *Store) Open(_ context.Context, name string) (kv.Keyspace, error) {
+func (s *BinaryStore) Open(_ context.Context, name string) (kv.BinaryKeyspace, error) {
 	ks := &keyspace{
 		Client:             s.Client,
 		DecorateGetItem:    s.DecorateGetItem,

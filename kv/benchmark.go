@@ -10,10 +10,10 @@ import (
 	"github.com/dogmatiq/persistencekit/internal/benchmark"
 )
 
-// RunBenchmarks runs benchmarks against a [Store] implementation.
+// RunBenchmarks runs benchmarks against a [BinaryStore] implementation.
 func RunBenchmarks(
 	b *testing.B,
-	newStore func(b *testing.B) Store,
+	newStore func(b *testing.B) BinaryStore,
 ) {
 	b.Run("Store", func(b *testing.B) {
 		b.Run("Open", func(b *testing.B) {
@@ -24,7 +24,7 @@ func RunBenchmarks(
 					b,
 					newStore,
 					// SETUP
-					func(ctx context.Context, store Store) error {
+					func(ctx context.Context, store BinaryStore) error {
 						name = uniqueName()
 
 						// pre-create the keyspace
@@ -37,11 +37,11 @@ func RunBenchmarks(
 					// BEFORE EACH
 					nil,
 					// BENCHMARKED CODE
-					func(ctx context.Context, store Store) (Keyspace, error) {
+					func(ctx context.Context, store BinaryStore) (BinaryKeyspace, error) {
 						return store.Open(ctx, name)
 					},
 					// AFTER EACH
-					func(ks Keyspace) error {
+					func(ks BinaryKeyspace) error {
 						return ks.Close()
 					},
 				)
@@ -56,16 +56,16 @@ func RunBenchmarks(
 					// SETUP
 					nil,
 					// BEFORE EACH
-					func(context.Context, Store) error {
+					func(context.Context, BinaryStore) error {
 						name = uniqueName()
 						return nil
 					},
 					// BENCHMARKED CODE
-					func(ctx context.Context, store Store) (Keyspace, error) {
+					func(ctx context.Context, store BinaryStore) (BinaryKeyspace, error) {
 						return store.Open(ctx, name)
 					},
 					// AFTER EACH
-					func(ks Keyspace) error {
+					func(ks BinaryKeyspace) error {
 						return ks.Close()
 					},
 				)
@@ -84,12 +84,12 @@ func RunBenchmarks(
 					// SETUP
 					nil,
 					// BEFORE EACH
-					func(context.Context, Keyspace) error {
+					func(context.Context, BinaryKeyspace) error {
 						_, err := io.ReadFull(rand.Reader, key[:])
 						return err
 					},
 					// BENCHMARKED CODE
-					func(ctx context.Context, ks Keyspace) error {
+					func(ctx context.Context, ks BinaryKeyspace) error {
 						_, err := ks.Get(ctx, key[:])
 						return err
 					},
@@ -107,14 +107,14 @@ func RunBenchmarks(
 					// SETUP
 					nil,
 					// BEFORE EACH
-					func(ctx context.Context, ks Keyspace) error {
+					func(ctx context.Context, ks BinaryKeyspace) error {
 						if _, err := io.ReadFull(rand.Reader, key[:]); err != nil {
 							return err
 						}
 						return ks.Set(ctx, key[:], []byte("<value>"))
 					},
 					// BENCHMARKED CODE
-					func(ctx context.Context, ks Keyspace) error {
+					func(ctx context.Context, ks BinaryKeyspace) error {
 						_, err := ks.Get(ctx, key[:])
 						return err
 					},
@@ -134,12 +134,12 @@ func RunBenchmarks(
 					// SETUP
 					nil,
 					// BEFORE EACH
-					func(context.Context, Keyspace) error {
+					func(context.Context, BinaryKeyspace) error {
 						_, err := io.ReadFull(rand.Reader, key[:])
 						return err
 					},
 					// BENCHMARKED CODE
-					func(ctx context.Context, ks Keyspace) error {
+					func(ctx context.Context, ks BinaryKeyspace) error {
 						_, err := ks.Has(ctx, key[:])
 						return err
 					},
@@ -157,14 +157,14 @@ func RunBenchmarks(
 					// SETUP
 					nil,
 					// BEFORE EACH
-					func(ctx context.Context, ks Keyspace) error {
+					func(ctx context.Context, ks BinaryKeyspace) error {
 						if _, err := io.ReadFull(rand.Reader, key[:]); err != nil {
 							return err
 						}
 						return ks.Set(ctx, key[:], []byte("<value>"))
 					},
 					// BENCHMARKED CODE
-					func(ctx context.Context, ks Keyspace) error {
+					func(ctx context.Context, ks BinaryKeyspace) error {
 						_, err := ks.Has(ctx, key[:])
 						return err
 					},
@@ -184,12 +184,12 @@ func RunBenchmarks(
 					// SETUP
 					nil,
 					// BEFORE EACH
-					func(context.Context, Keyspace) error {
+					func(context.Context, BinaryKeyspace) error {
 						_, err := io.ReadFull(rand.Reader, key[:])
 						return err
 					},
 					// BENCHMARKED CODE
-					func(ctx context.Context, ks Keyspace) error {
+					func(ctx context.Context, ks BinaryKeyspace) error {
 						return ks.Set(ctx, key[:], []byte("<value>"))
 					},
 					// AFTER EACH
@@ -206,14 +206,14 @@ func RunBenchmarks(
 					// SETUP
 					nil,
 					// BEFORE EACH
-					func(ctx context.Context, ks Keyspace) error {
+					func(ctx context.Context, ks BinaryKeyspace) error {
 						if _, err := io.ReadFull(rand.Reader, key[:]); err != nil {
 							return err
 						}
 						return ks.Set(ctx, key[:], []byte("<value-1>"))
 					},
 					// BENCHMARKED CODE
-					func(ctx context.Context, ks Keyspace) error {
+					func(ctx context.Context, ks BinaryKeyspace) error {
 						return ks.Set(ctx, key[:], []byte("<value-2>"))
 					},
 					// AFTER EACH
@@ -230,14 +230,14 @@ func RunBenchmarks(
 					// SETUP
 					nil,
 					// BEFORE EACH
-					func(ctx context.Context, ks Keyspace) error {
+					func(ctx context.Context, ks BinaryKeyspace) error {
 						if _, err := io.ReadFull(rand.Reader, key[:]); err != nil {
 							return err
 						}
 						return ks.Set(ctx, key[:], []byte("<value>"))
 					},
 					// BENCHMARKED CODE
-					func(ctx context.Context, ks Keyspace) error {
+					func(ctx context.Context, ks BinaryKeyspace) error {
 						return ks.Set(ctx, key[:], nil)
 					},
 					// AFTER EACH
@@ -251,7 +251,7 @@ func RunBenchmarks(
 				b,
 				newStore,
 				// SETUP
-				func(ctx context.Context, _ Store, ks Keyspace) error {
+				func(ctx context.Context, _ BinaryStore, ks BinaryKeyspace) error {
 					for i := 0; i < 3000; i++ {
 						k := []byte(fmt.Sprintf("<key-%d>", i))
 						v := []byte("<value>")
@@ -264,7 +264,7 @@ func RunBenchmarks(
 				// BEFORE EACH
 				nil,
 				// BENCHMARKED CODE
-				func(ctx context.Context, ks Keyspace) error {
+				func(ctx context.Context, ks BinaryKeyspace) error {
 					return ks.Range(
 						ctx,
 						func(context.Context, []byte, []byte) (bool, error) {
@@ -281,14 +281,14 @@ func RunBenchmarks(
 
 func benchmarkStore[T any](
 	b *testing.B,
-	newStore func(b *testing.B) Store,
-	setup func(context.Context, Store) error,
-	before func(context.Context, Store) error,
-	fn func(context.Context, Store) (T, error),
+	newStore func(b *testing.B) BinaryStore,
+	setup func(context.Context, BinaryStore) error,
+	before func(context.Context, BinaryStore) error,
+	fn func(context.Context, BinaryStore) (T, error),
 	after func(T) error,
 ) {
 	var (
-		store  Store
+		store  BinaryStore
 		result T
 	)
 
@@ -325,15 +325,15 @@ func benchmarkStore[T any](
 
 func benchmarkKeyspace(
 	b *testing.B,
-	newStore func(b *testing.B) Store,
-	setup func(context.Context, Store, Keyspace) error,
-	before func(context.Context, Keyspace) error,
-	fn func(context.Context, Keyspace) error,
+	newStore func(b *testing.B) BinaryStore,
+	setup func(context.Context, BinaryStore, BinaryKeyspace) error,
+	before func(context.Context, BinaryKeyspace) error,
+	fn func(context.Context, BinaryKeyspace) error,
 	after func() error,
 ) {
 	var (
-		store    Store
-		keyspace Keyspace
+		store    BinaryStore
+		keyspace BinaryKeyspace
 	)
 
 	benchmark.Run(

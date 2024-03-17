@@ -89,10 +89,7 @@ func (ks *keyspace) Set(ctx context.Context, k, v []byte) error {
 	return nil
 }
 
-func (ks *keyspace) Range(
-	ctx context.Context,
-	fn kv.RangeFunc,
-) error {
+func (ks *keyspace) Range(ctx context.Context, fn kv.BinaryRangeFunc) error {
 	rows, err := ks.db.QueryContext(
 		ctx,
 		`SELECT key, value

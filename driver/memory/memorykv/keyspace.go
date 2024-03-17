@@ -4,28 +4,31 @@ import (
 	"context"
 	"errors"
 	"maps"
-	"slices"
+	"reflect"
 	"sync"
 
+	"github.com/dogmatiq/dyad"
 	"github.com/dogmatiq/persistencekit/kv"
 )
 
 // state is the in-memory state of a keyspace.
-type state struct {
+type state[C comparable, V any] struct {
 	sync.RWMutex
-	Values map[string][]byte
+	Values map[C]V
 }
 
-// journ is an implementation of [kv.Keyspace] that manipulates a keyspace's
+// journ is an implementation of [kv.BinaryKeyspace] that manipulates a keyspace's
 // in-memory [state].
-type keyspace struct {
-	name      string
-	state     *state
-	beforeSet func(ks string, k, v []byte) error
-	afterSet  func(ks string, k, v []byte) error
+type keyspace[K, V any, C comparable] struct {
+	name         string
+	state        *state[C, V]
+	beforeSet    func(ks string, k K, v V) error
+	afterSet     func(ks string, k K, v V) error
+	marshalKey   func(K) C
+	unmarshalKey func(C) K
 }
 
-func (h *keyspace) Get(ctx context.Context, k []byte) (v []byte, err error) {
+func (h *keyspace[K, V, C]) Get(ctx context.Context, k K) (v V, err error) {
 	if h.state == nil {
 		panic("keyspace is closed")
 	}
@@ -33,10 +36,11 @@ func (h *keyspace) Get(ctx context.Context, k []byte) (v []byte, err error) {
 	h.state.RLock()
 	defer h.state.RUnlock()
 
-	return slices.Clone(h.state.Values[string(k)]), ctx.Err()
+	c := h.marshalKey(k)
+	return dyad.Clone(h.state.Values[c]), ctx.Err()
 }
 
-func (h *keyspace) Has(ctx context.Context, k []byte) (ok bool, err error) {
+func (h *keyspace[K, V, C]) Has(ctx context.Context, k K) (ok bool, err error) {
 	if h.state == nil {
 		panic("keyspace is closed")
 	}
@@ -44,16 +48,17 @@ func (h *keyspace) Has(ctx context.Context, k []byte) (ok bool, err error) {
 	h.state.RLock()
 	defer h.state.RUnlock()
 
-	_, ok = h.state.Values[string(k)]
+	c := h.marshalKey(k)
+	_, ok = h.state.Values[c]
 	return ok, ctx.Err()
 }
 
-func (h *keyspace) Set(ctx context.Context, k, v []byte) error {
+func (h *keyspace[K, V, C]) Set(ctx context.Context, k K, v V) error {
 	if h.state == nil {
 		panic("keyspace is closed")
 	}
 
-	v = slices.Clone(v)
+	v = dyad.Clone(v)
 
 	h.state.Lock()
 	defer h.state.Unlock()
@@ -64,14 +69,16 @@ func (h *keyspace) Set(ctx context.Context, k, v []byte) error {
 		}
 	}
 
-	if len(v) == 0 {
-		delete(h.state.Values, string(k))
+	c := h.marshalKey(k)
+
+	if reflect.ValueOf(v).IsZero() {
+		delete(h.state.Values, c)
 	} else {
 		if h.state.Values == nil {
-			h.state.Values = map[string][]byte{}
+			h.state.Values = map[C]V{}
 		}
 
-		h.state.Values[string(k)] = v
+		h.state.Values[c] = v
 	}
 
 	if h.afterSet != nil {
@@ -83,10 +90,7 @@ func (h *keyspace) Set(ctx context.Context, k, v []byte) error {
 	return ctx.Err()
 }
 
-func (h *keyspace) Range(
-	ctx context.Context,
-	fn kv.RangeFunc,
-) error {
+func (h *keyspace[K, V, C]) Range(ctx context.Context, fn kv.RangeFunc[K, V]) error {
 	if h.state == nil {
 		panic("keyspace is closed")
 	}
@@ -95,8 +99,9 @@ func (h *keyspace) Range(
 	values := maps.Clone(h.state.Values)
 	h.state.RUnlock()
 
-	for k, v := range values {
-		ok, err := fn(ctx, []byte(k), slices.Clone(v))
+	for c, v := range values {
+		k := h.unmarshalKey(c)
+		ok, err := fn(ctx, k, dyad.Clone(v))
 		if !ok || err != nil {
 			return err
 		}
@@ -105,7 +110,7 @@ func (h *keyspace) Range(
 	return nil
 }
 
-func (h *keyspace) Close() error {
+func (h *keyspace[K, V, C]) Close() error {
 	if h.state == nil {
 		return errors.New("keyspace is already closed")
 	}

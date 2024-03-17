@@ -9,14 +9,14 @@ import (
 	"github.com/dogmatiq/persistencekit/kv"
 )
 
-// Store is an implementation of [kv.Store] that persists to a PostgreSQL
-// database.
-type Store struct {
+// BinaryStore is an implementation of [kv.BinaryStore] that persists to a
+// PostgreSQL database.
+type BinaryStore struct {
 	DB *sql.DB
 }
 
 // Open returns the keyspace with the given name.
-func (s *Store) Open(ctx context.Context, name string) (kv.Keyspace, error) {
+func (s *BinaryStore) Open(ctx context.Context, name string) (kv.BinaryKeyspace, error) {
 	id, err := s.getID(ctx, name)
 	if err != nil {
 		return nil, err
@@ -24,7 +24,7 @@ func (s *Store) Open(ctx context.Context, name string) (kv.Keyspace, error) {
 	return &keyspace{s.DB, id}, nil
 }
 
-func (s *Store) getID(ctx context.Context, name string) (uint64, error) {
+func (s *BinaryStore) getID(ctx context.Context, name string) (uint64, error) {
 	for {
 		row := s.DB.QueryRowContext(
 			ctx,

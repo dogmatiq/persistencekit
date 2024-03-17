@@ -12,10 +12,10 @@ import (
 	"github.com/google/go-cmp/cmp"
 )
 
-// RunTests runs tests that confirm a [Store] implementation behaves correctly.
+// RunTests runs tests that confirm a [BinaryStore] implementation behaves correctly.
 func RunTests(
 	t *testing.T,
-	newStore func(t *testing.T) Store,
+	newStore func(t *testing.T) BinaryStore,
 ) {
 	t.Run("Store", func(t *testing.T) {
 		t.Parallel()
@@ -541,8 +541,8 @@ func uniqueName() string {
 
 func setup(
 	t *testing.T,
-	newStore func(t *testing.T) Store,
-) (context.Context, Keyspace) {
+	newStore func(t *testing.T) BinaryStore,
+) (context.Context, BinaryKeyspace) {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	t.Cleanup(cancel)
 

@@ -9,13 +9,13 @@ import (
 	"go.opentelemetry.io/otel/trace"
 )
 
-// WithTelemetry returns a [Store] that adds telemetry to s.
+// WithTelemetry returns a [BinaryStore] that adds telemetry to s.
 func WithTelemetry(
-	s Store,
+	s BinaryStore,
 	p trace.TracerProvider,
 	m metric.MeterProvider,
 	l *slog.Logger,
-) Store {
+) BinaryStore {
 	return &instrumentedStore{
 		Next: s,
 		Telemetry: telemetry.Provider{
@@ -26,14 +26,14 @@ func WithTelemetry(
 	}
 }
 
-// instrumentedStore is a decorator that adds instrumentation to a [Store].
+// instrumentedStore is a decorator that adds instrumentation to a [BinaryStore].
 type instrumentedStore struct {
-	Next      Store
+	Next      BinaryStore
 	Telemetry telemetry.Provider
 }
 
 // Open returns the keyspace with the given name.
-func (s *instrumentedStore) Open(ctx context.Context, name string) (Keyspace, error) {
+func (s *instrumentedStore) Open(ctx context.Context, name string) (BinaryKeyspace, error) {
 	r := s.Telemetry.Recorder(
 		"github.com/dogmatiq/persistencekit",
 		"keyspace",
@@ -88,7 +88,7 @@ func (s *instrumentedStore) Open(ctx context.Context, name string) (Keyspace, er
 }
 
 type instrumentedKeyspace struct {
-	Next      Keyspace
+	Next      BinaryKeyspace
 	Telemetry *telemetry.Recorder
 
 	OpenCount metric.Int64UpDownCounter
@@ -213,7 +213,7 @@ func (ks *instrumentedKeyspace) Set(ctx context.Context, k, v []byte) error {
 	return nil
 }
 
-func (ks *instrumentedKeyspace) Range(ctx context.Context, fn RangeFunc) error {
+func (ks *instrumentedKeyspace) Range(ctx context.Context, fn BinaryRangeFunc) error {
 	ctx, span := ks.Telemetry.StartSpan(ctx, "keyspace.range")
 	defer span.End()
 
@@ -228,8 +228,8 @@ func (ks *instrumentedKeyspace) Range(ctx context.Context, fn RangeFunc) error {
 func (ks *instrumentedKeyspace) instrumentRange(
 	ctx context.Context,
 	span *telemetry.Span,
-	fn RangeFunc,
-	doRange func(context.Context, RangeFunc) error,
+	fn BinaryRangeFunc,
+	doRange func(context.Context, BinaryRangeFunc) error,
 ) error {
 	var (
 		count     uint64

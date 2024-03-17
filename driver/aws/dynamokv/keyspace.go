@@ -101,10 +101,7 @@ func (ks *keyspace) delete(ctx context.Context, k []byte) error {
 	return err
 }
 
-func (ks *keyspace) Range(
-	ctx context.Context,
-	fn kv.RangeFunc,
-) error {
+func (ks *keyspace) Range(ctx context.Context, fn kv.BinaryRangeFunc) error {
 	ks.queryRequest.ExclusiveStartKey = nil
 
 	for {

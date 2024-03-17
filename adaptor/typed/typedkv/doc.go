@@ -1,3 +1,3 @@
 // Package typedkv provides "type-safe" (generic) wrapper around a
-// [kv.Keyspace].
+// [kv.BinaryKeyspace].
 package typedkv

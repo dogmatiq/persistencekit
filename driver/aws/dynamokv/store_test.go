@@ -15,8 +15,8 @@ func TestStore(t *testing.T) {
 	client, table := setup(t)
 	kv.RunTests(
 		t,
-		func(t *testing.T) kv.Store {
-			return &Store{
+		func(t *testing.T) kv.BinaryStore {
+			return &BinaryStore{
 				Client: client,
 				Table:  table,
 			}
@@ -28,8 +28,8 @@ func BenchmarkStore(b *testing.B) {
 	client, table := setup(b)
 	kv.RunBenchmarks(
 		b,
-		func(b *testing.B) kv.Store {
-			return &Store{
+		func(b *testing.B) kv.BinaryStore {
+			return &BinaryStore{
 				Client: client,
 				Table:  table,
 			}

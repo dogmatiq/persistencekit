@@ -16,7 +16,7 @@ func TestStore(t *testing.T) {
 	defer cancel()
 
 	store := Store[string, int, typedmarshaler.String, typedmarshaler.JSON[int]]{
-		Store: &memorykv.Store{},
+		BinaryStore: &memorykv.BinaryStore{},
 	}
 
 	ks, err := store.Open(ctx, "<name>")
@@ -57,16 +57,13 @@ func TestStore(t *testing.T) {
 			t.Fatalf("expected key %q to exist", k)
 		}
 
-		v, ok, err := ks.Get(ctx, k)
+		v, err := ks.Get(ctx, k)
 		if err != nil {
 			t.Fatal(err)
 		}
-		if !ok {
-			t.Fatalf("expected key %q to exist", k)
-		}
 		fn(ctx, k, v)
 
-		if err := ks.Delete(ctx, k); err != nil {
+		if err := ks.Set(ctx, k, 0); err != nil {
 			t.Fatal(err)
 		}
 
@@ -78,7 +75,7 @@ func TestStore(t *testing.T) {
 			t.Fatalf("expected key %q to be deleted", k)
 		}
 
-		_, ok, err = ks.Get(ctx, k)
+		ok, err = ks.Has(ctx, k)
 		if err != nil {
 			t.Fatal(err)
 		}

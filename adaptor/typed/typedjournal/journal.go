@@ -14,7 +14,7 @@ type journ[
 	M typedmarshaler.Marshaler[T],
 ] struct {
 	journal.BinaryJournal
-	marshaler M
+	m M
 }
 
 // Get returns the record at the given position.
@@ -26,7 +26,7 @@ func (j *journ[R, M]) Get(ctx context.Context, pos journal.Position) (R, error) 
 		return typedmarshaler.Zero[R](), err
 	}
 
-	return j.marshaler.Unmarshal(data)
+	return j.m.Unmarshal(data)
 }
 
 // Range invokes fn for each record in the journal, in order, starting with
@@ -38,7 +38,7 @@ func (j *journ[R, M]) Range(ctx context.Context, pos journal.Position, fn journa
 		ctx,
 		pos,
 		func(ctx context.Context, pos journal.Position, data []byte) (bool, error) {
-			rec, err := j.marshaler.Unmarshal(data)
+			rec, err := j.m.Unmarshal(data)
 			if err != nil {
 				return false, err
 			}
@@ -58,7 +58,7 @@ func (j *journ[R, M]) Range(ctx context.Context, pos journal.Position, fn journa
 //
 // The behavior is undefined if end is greater than the next position.
 func (j *journ[R, M]) Append(ctx context.Context, end journal.Position, rec R) error {
-	data, err := j.marshaler.Marshal(rec)
+	data, err := j.m.Marshal(rec)
 	if err != nil {
 		return err
 	}
