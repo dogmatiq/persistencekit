@@ -2,10 +2,15 @@ package dynamojournal
 
 import (
 	"context"
+	"errors"
+	"fmt"
+	"sync"
+	"sync/atomic"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
+	"github.com/dogmatiq/persistencekit/driver/aws/internal/awsx"
 	"github.com/dogmatiq/persistencekit/journal"
 )
 
@@ -28,10 +33,23 @@ type BinaryStore struct {
 	// Any functions returned by the function will be applied to the request's
 	// options before the request is sent.
 	OnRequest func(any) []func(*dynamodb.Options)
+
+	created  atomic.Bool
+	createdM sync.Mutex
 }
 
+const (
+	nameAttr     = "Name"
+	positionAttr = "Position"
+	recordAttr   = "Record"
+)
+
 // Open returns the journal with the given name.
-func (s *BinaryStore) Open(_ context.Context, name string) (journal.BinaryJournal, error) {
+func (s *BinaryStore) Open(ctx context.Context, name string) (journal.BinaryJournal, error) {
+	if err := s.createTable(ctx); err != nil {
+		return nil, err
+	}
+
 	j := &journ{
 		Client:    s.Client,
 		OnRequest: s.OnRequest,
@@ -105,4 +123,53 @@ func (s *BinaryStore) Open(_ context.Context, name string) (journal.BinaryJourna
 	}
 
 	return j, nil
+}
+
+func (s *BinaryStore) createTable(ctx context.Context) error {
+	if s.created.Load() {
+		return nil
+	}
+
+	s.createdM.Lock()
+	defer s.createdM.Unlock()
+
+	if s.created.Load() {
+		return nil
+	}
+
+	if _, err := awsx.Do(
+		ctx,
+		s.Client.CreateTable,
+		s.OnRequest,
+		&dynamodb.CreateTableInput{
+			TableName: aws.String(s.Table),
+			AttributeDefinitions: []types.AttributeDefinition{
+				{
+					AttributeName: aws.String(nameAttr),
+					AttributeType: types.ScalarAttributeTypeS,
+				},
+				{
+					AttributeName: aws.String(positionAttr),
+					AttributeType: types.ScalarAttributeTypeN,
+				},
+			},
+			KeySchema: []types.KeySchemaElement{
+				{
+					AttributeName: aws.String(nameAttr),
+					KeyType:       types.KeyTypeHash,
+				},
+				{
+					AttributeName: aws.String(positionAttr),
+					KeyType:       types.KeyTypeRange,
+				},
+			},
+			BillingMode: types.BillingModePayPerRequest,
+		},
+	); err != nil && !errors.As(err, new(*types.ResourceInUseException)) {
+		return fmt.Errorf("unable to create DynamoDB table: %w", err)
+	}
+
+	s.created.Store(true)
+
+	return nil
 }

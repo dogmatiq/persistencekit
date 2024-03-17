@@ -555,7 +555,7 @@ func setup(
 
 	t.Cleanup(func() {
 		if err := ks.Close(); err != nil {
-			t.Fatal(err)
+			t.Error(err)
 		}
 	})
 

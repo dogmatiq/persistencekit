@@ -12,6 +12,8 @@ The format is based on [Keep a Changelog], and this project adheres to
 
 ## [Unreleased]
 
+### Added
+
 - Added `OnRequest` hook to `journal.Store` and `kv.Store` to allow for
   intercepting and modifying requests before they are sent to the DynamoDB API.
   This is a more flexible replacement for the request-type-specific decorator
@@ -21,6 +23,8 @@ The format is based on [Keep a Changelog], and this project adheres to
 
 - **[BC]** Removed all decorator fields from `dynamojournal.Store` and
   `dynamokv.Store`. Use the `OnRequest` hook instead.
+- **[BC]** Removed `dynamojournal.CreateTable()`. The table creation is now
+  managed at runtime by the journal store.
 
 ## [0.8.0] - 2024-03-17
 

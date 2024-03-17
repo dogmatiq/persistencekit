@@ -51,11 +51,11 @@ func setup(t testing.TB) *sql.DB {
 
 	t.Cleanup(func() {
 		if err := db.Close(); err != nil {
-			t.Fatalf("cannot close database: %s", err)
+			t.Errorf("cannot close database: %s", err)
 		}
 
 		if err := database.Close(); err != nil {
-			t.Fatalf("cannot close test database: %s", err)
+			t.Errorf("cannot close test database: %s", err)
 		}
 	})
 

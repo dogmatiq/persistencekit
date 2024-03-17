@@ -43,7 +43,7 @@ func RunTests(
 
 		t.Cleanup(func() {
 			if err := j.Close(); err != nil {
-				t.Fatal(err)
+				t.Error(err)
 			}
 		})
 

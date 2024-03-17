@@ -53,7 +53,7 @@ func setup(t testing.TB) (*dynamodb.Client, string) {
 		defer cancel()
 
 		if err := dynamox.DeleteTableIfNotExists(ctx, client, table); err != nil {
-			t.Fatal(err)
+			t.Error(err)
 		}
 	})
 

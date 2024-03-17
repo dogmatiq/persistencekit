@@ -41,19 +41,12 @@ func setup(t testing.TB) (*dynamodb.Client, string) {
 	client := dynamox.NewTestClient(t)
 	table := "journal"
 
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-	defer cancel()
-
-	if err := CreateTable(ctx, client, table); err != nil {
-		t.Fatal(err)
-	}
-
 	t.Cleanup(func() {
 		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 		defer cancel()
 
 		if err := dynamox.DeleteTableIfNotExists(ctx, client, table); err != nil {
-			t.Fatal(err)
+			t.Error(err)
 		}
 	})
 
