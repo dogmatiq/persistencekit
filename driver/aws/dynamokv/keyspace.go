@@ -2,6 +2,7 @@ package dynamokv
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
@@ -34,7 +35,10 @@ func (ks *keyspace) Get(ctx context.Context, k []byte) ([]byte, error) {
 		ks.OnRequest,
 		&ks.getRequest,
 	)
-	if err != nil || out.Item == nil {
+	if err != nil {
+		return nil, fmt.Errorf("unable to get keyspace pair: %w", err)
+	}
+	if out.Item == nil {
 		return nil, err
 	}
 
@@ -57,7 +61,7 @@ func (ks *keyspace) Has(ctx context.Context, k []byte) (bool, error) {
 		&ks.hasRequest,
 	)
 	if err != nil {
-		return false, err
+		return false, fmt.Errorf("unable to get keyspace pair: %w", err)
 	}
 
 	return out.Item != nil, nil
@@ -75,27 +79,31 @@ func (ks *keyspace) set(ctx context.Context, k, v []byte) error {
 	ks.key.Value = k
 	ks.value.Value = v
 
-	_, err := awsx.Do(
+	if _, err := awsx.Do(
 		ctx,
 		ks.Client.PutItem,
 		ks.OnRequest,
 		&ks.putRequest,
-	)
+	); err != nil {
+		return fmt.Errorf("unable to put keyspace pair: %w", err)
+	}
 
-	return err
+	return nil
 }
 
 func (ks *keyspace) delete(ctx context.Context, k []byte) error {
 	ks.key.Value = k
 
-	_, err := awsx.Do(
+	if _, err := awsx.Do(
 		ctx,
 		ks.Client.DeleteItem,
 		ks.OnRequest,
 		&ks.deleteRequest,
-	)
+	); err != nil {
+		return fmt.Errorf("unable to delete keyspace pair: %w", err)
+	}
 
-	return err
+	return nil
 }
 
 func (ks *keyspace) Range(ctx context.Context, fn kv.BinaryRangeFunc) error {
@@ -109,7 +117,7 @@ func (ks *keyspace) Range(ctx context.Context, fn kv.BinaryRangeFunc) error {
 			&ks.queryRequest,
 		)
 		if err != nil {
-			return err
+			return fmt.Errorf("unable to query keyspace: %w", err)
 		}
 
 		for _, item := range out.Items {

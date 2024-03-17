@@ -38,8 +38,11 @@ func (j *journ) Bounds(ctx context.Context) (begin, end journal.Position, err er
 		j.OnRequest,
 		&j.boundsQueryRequest,
 	)
-	if err != nil || len(out.Items) == 0 {
-		return 0, 0, err
+	if err != nil {
+		return 0, 0, fmt.Errorf("unable to query first journal record: %w", err)
+	}
+	if len(out.Items) == 0 {
+		return 0, 0, nil
 	}
 
 	begin, err = parsePosition(out.Items[0])
@@ -54,8 +57,11 @@ func (j *journ) Bounds(ctx context.Context) (begin, end journal.Position, err er
 		j.OnRequest,
 		&j.boundsQueryRequest,
 	)
-	if err != nil || len(out.Items) == 0 {
-		return 0, 0, err
+	if err != nil {
+		return 0, 0, fmt.Errorf("unable to query last journal record: %w", err)
+	}
+	if len(out.Items) == 0 {
+		return 0, 0, nil
 	}
 
 	end, err = parsePosition(out.Items[0])
@@ -76,7 +82,7 @@ func (j *journ) Get(ctx context.Context, pos journal.Position) ([]byte, error) {
 		&j.getRequest,
 	)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("unable to get journal record: %w", err)
 	}
 	if out.Item == nil {
 		return nil, journal.ErrNotFound
@@ -108,7 +114,7 @@ func (j *journ) Range(
 			&j.rangeQueryRequest,
 		)
 		if err != nil {
-			return err
+			return fmt.Errorf("unable to query journal records: %w", err)
 		}
 
 		for _, item := range out.Items {
@@ -149,18 +155,19 @@ func (j *journ) Append(ctx context.Context, end journal.Position, rec []byte) er
 	j.position.Value = formatPosition(end)
 	j.record.Value = rec
 
-	_, err := awsx.Do(
+	if _, err := awsx.Do(
 		ctx,
 		j.Client.PutItem,
 		j.OnRequest,
 		&j.putRequest,
-	)
-
-	if errors.As(err, new(*types.ConditionalCheckFailedException)) {
-		return journal.ErrConflict
+	); err != nil {
+		if errors.As(err, new(*types.ConditionalCheckFailedException)) {
+			return journal.ErrConflict
+		}
+		return fmt.Errorf("unable to put journal record: %w", err)
 	}
 
-	return err
+	return nil
 }
 
 func (j *journ) Truncate(ctx context.Context, end journal.Position) error {
@@ -182,7 +189,7 @@ func (j *journ) Truncate(ctx context.Context, end journal.Position) error {
 			j.OnRequest,
 			&j.deleteRequest,
 		); err != nil {
-			return err
+			return fmt.Errorf("unable to delete journal record: %w", err)
 		}
 	}
 

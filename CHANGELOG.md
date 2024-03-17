@@ -23,8 +23,9 @@ The format is based on [Keep a Changelog], and this project adheres to
 
 - **[BC]** Removed all decorator fields from `dynamojournal.Store` and
   `dynamokv.Store`. Use the `OnRequest` hook instead.
-- **[BC]** Removed `dynamojournal.CreateTable()`. The table creation is now
-  managed at runtime by the journal store.
+- **[BC]** Removed `dynamojournal.CreateTable()` and `dynamokv.CreateTable()`.
+  The table creation is now managed at runtime by the journal and keyspace
+  stores.
 
 ## [0.8.0] - 2024-03-17
 

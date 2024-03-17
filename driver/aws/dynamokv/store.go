@@ -2,10 +2,14 @@ package dynamokv
 
 import (
 	"context"
+	"errors"
+	"fmt"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
+	"github.com/dogmatiq/persistencekit/driver/aws/internal/awsx"
+	"github.com/dogmatiq/persistencekit/internal/syncx"
 	"github.com/dogmatiq/persistencekit/kv"
 )
 
@@ -28,10 +32,26 @@ type BinaryStore struct {
 	// Any functions returned by the function will be applied to the request's
 	// options before the request is sent.
 	OnRequest func(any) []func(*dynamodb.Options)
+
+	create syncx.SucceedOnce
 }
 
+const (
+	keyspaceAttr = "Keyspace"
+	keyAttr      = "Key"
+	valueAttr    = "Value"
+)
+
 // Open returns the keyspace with the given name.
-func (s *BinaryStore) Open(_ context.Context, name string) (kv.BinaryKeyspace, error) {
+func (s *BinaryStore) Open(ctx context.Context, name string) (kv.BinaryKeyspace, error) {
+	if s.Table == "" {
+		panic("table name must not be empty")
+	}
+
+	if err := s.createTable(ctx); err != nil {
+		return nil, err
+	}
+
 	ks := &keyspace{
 		Client:    s.Client,
 		OnRequest: s.OnRequest,
@@ -95,4 +115,43 @@ func (s *BinaryStore) Open(_ context.Context, name string) (kv.BinaryKeyspace, e
 	}
 
 	return ks, nil
+}
+
+func (s *BinaryStore) createTable(ctx context.Context) error {
+	return s.create.Do(
+		func() error {
+			if _, err := awsx.Do(
+				ctx,
+				s.Client.CreateTable,
+				s.OnRequest,
+				&dynamodb.CreateTableInput{
+					TableName: aws.String(s.Table),
+					AttributeDefinitions: []types.AttributeDefinition{
+						{
+							AttributeName: aws.String(keyspaceAttr),
+							AttributeType: types.ScalarAttributeTypeS,
+						},
+						{
+							AttributeName: aws.String(keyAttr),
+							AttributeType: types.ScalarAttributeTypeB,
+						},
+					},
+					KeySchema: []types.KeySchemaElement{
+						{
+							AttributeName: aws.String(keyspaceAttr),
+							KeyType:       types.KeyTypeHash,
+						},
+						{
+							AttributeName: aws.String(keyAttr),
+							KeyType:       types.KeyTypeRange,
+						},
+					},
+					BillingMode: types.BillingModePayPerRequest,
+				},
+			); err != nil && !errors.As(err, new(*types.ResourceInUseException)) {
+				return fmt.Errorf("unable to create DynamoDB table: %w", err)
+			}
+			return nil
+		},
+	)
 }
