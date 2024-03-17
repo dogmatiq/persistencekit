@@ -28,7 +28,8 @@ This eliminates the need for duplicating all of the generic algorithms (such as
 - Added `kv.BinaryStore`, `BinaryKeyspace` and `BinaryRangeFunc` aliases,
   equivalent to prior (non-generic) definitions of `Store`, `Keyspace` and
   `RangeFunc`, respectively.
-- Added `marshal.ProtocolBuffers` marshaler implementation.
+- Added `marshal.ProtocolBuffers` marshaler.
+- Added `marshal.Bool` marshaler.
 - Added `journal.NewMarshalingStore()` and `kv.NewMarshalingStore()`, which wrap
   binary implementations with a `marshal.Marshaler`, serving as a replacement
   for the `typedjournal` and `typedkv` packages, respectively.
