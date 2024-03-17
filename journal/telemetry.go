@@ -10,13 +10,13 @@ import (
 	"go.opentelemetry.io/otel/trace"
 )
 
-// WithTelemetry returns a [Store] that adds telemetry to s.
+// WithTelemetry returns a [BinaryStore] that adds telemetry to s.
 func WithTelemetry(
-	s Store,
+	s BinaryStore,
 	p trace.TracerProvider,
 	m metric.MeterProvider,
 	l *slog.Logger,
-) Store {
+) BinaryStore {
 	return &instrumentedStore{
 		Next: s,
 		Telemetry: telemetry.Provider{
@@ -27,14 +27,14 @@ func WithTelemetry(
 	}
 }
 
-// instrumentedStore is a decorator that adds instrumentation to a [Store].
+// instrumentedStore is a decorator that adds instrumentation to a [BinaryStore].
 type instrumentedStore struct {
-	Next      Store
+	Next      BinaryStore
 	Telemetry telemetry.Provider
 }
 
 // Open returns the journal with the given name.
-func (s *instrumentedStore) Open(ctx context.Context, name string) (Journal, error) {
+func (s *instrumentedStore) Open(ctx context.Context, name string) (BinaryJournal, error) {
 	r := s.Telemetry.Recorder(
 		"github.com/dogmatiq/persistencekit",
 		"journal",
@@ -89,7 +89,7 @@ func (s *instrumentedStore) Open(ctx context.Context, name string) (Journal, err
 }
 
 type instrumentedJournal struct {
-	Next      Journal
+	Next      BinaryJournal
 	Telemetry *telemetry.Recorder
 
 	OpenCount     metric.Int64UpDownCounter
@@ -154,7 +154,7 @@ func (j *instrumentedJournal) Get(ctx context.Context, pos Position) ([]byte, er
 func (j *instrumentedJournal) Range(
 	ctx context.Context,
 	begin Position,
-	fn RangeFunc,
+	fn BinaryRangeFunc,
 ) error {
 	ctx, span := j.Telemetry.StartSpan(
 		ctx,

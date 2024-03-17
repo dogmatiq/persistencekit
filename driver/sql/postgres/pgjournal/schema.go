@@ -11,7 +11,7 @@ import (
 //go:embed schema.sql
 var schema string
 
-// createSchema creates the PostgreSQL schema elements required by [Store].
+// createSchema creates the PostgreSQL schema elements required by [BinaryStore].
 func createSchema(
 	ctx context.Context,
 	db *sql.DB,

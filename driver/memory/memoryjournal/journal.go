@@ -3,29 +3,29 @@ package memoryjournal
 import (
 	"context"
 	"errors"
-	"slices"
 	"sync"
 
+	"github.com/dogmatiq/dyad"
 	"github.com/dogmatiq/persistencekit/journal"
 )
 
 // state is the in-memory state of a journal.
-type state struct {
+type state[T any] struct {
 	sync.RWMutex
 	Begin, End journal.Position
-	Records    [][]byte
+	Records    []T
 }
 
 // journ is an implementation of [journal.Journal] that manipulates a journal's
 // in-memory [state].
-type journ struct {
+type journ[T any] struct {
 	name         string
-	state        *state
-	beforeAppend func(name string, rec []byte) error
-	afterAppend  func(name string, rec []byte) error
+	state        *state[T]
+	beforeAppend func(name string, rec T) error
+	afterAppend  func(name string, rec T) error
 }
 
-func (j *journ) Bounds(ctx context.Context) (begin, end journal.Position, err error) {
+func (j *journ[T]) Bounds(ctx context.Context) (begin, end journal.Position, err error) {
 	if j.state == nil {
 		panic("journal is closed")
 	}
@@ -36,7 +36,7 @@ func (j *journ) Bounds(ctx context.Context) (begin, end journal.Position, err er
 	return j.state.Begin, j.state.End, ctx.Err()
 }
 
-func (j *journ) Get(ctx context.Context, pos journal.Position) ([]byte, error) {
+func (j *journ[T]) Get(ctx context.Context, pos journal.Position) (T, error) {
 	if j.state == nil {
 		panic("journal is closed")
 	}
@@ -45,16 +45,17 @@ func (j *journ) Get(ctx context.Context, pos journal.Position) ([]byte, error) {
 	defer j.state.RUnlock()
 
 	if pos < j.state.Begin || pos >= j.state.End {
-		return nil, journal.ErrNotFound
+		var zero T
+		return zero, journal.ErrNotFound
 	}
 
-	return slices.Clone(j.state.Records[pos-j.state.Begin]), ctx.Err()
+	return dyad.Clone(j.state.Records[pos-j.state.Begin]), ctx.Err()
 }
 
-func (j *journ) Range(
+func (j *journ[T]) Range(
 	ctx context.Context,
 	begin journal.Position,
-	fn journal.RangeFunc,
+	fn journal.RangeFunc[T],
 ) error {
 	if j.state == nil {
 		panic("journal is closed")
@@ -77,7 +78,7 @@ func (j *journ) Range(
 
 	for i, rec := range records[start:] {
 		v := start + journal.Position(i)
-		ok, err := fn(ctx, v, slices.Clone(rec))
+		ok, err := fn(ctx, v, dyad.Clone(rec))
 		if !ok || err != nil {
 			return err
 		}
@@ -87,12 +88,12 @@ func (j *journ) Range(
 	return ctx.Err()
 }
 
-func (j *journ) Append(ctx context.Context, end journal.Position, rec []byte) error {
+func (j *journ[T]) Append(ctx context.Context, end journal.Position, rec T) error {
 	if j.state == nil {
 		panic("journal is closed")
 	}
 
-	rec = slices.Clone(rec)
+	rec = dyad.Clone(rec)
 
 	j.state.Lock()
 	defer j.state.Unlock()
@@ -122,7 +123,7 @@ func (j *journ) Append(ctx context.Context, end journal.Position, rec []byte) er
 	return ctx.Err()
 }
 
-func (j *journ) Truncate(ctx context.Context, end journal.Position) error {
+func (j *journ[T]) Truncate(ctx context.Context, end journal.Position) error {
 	if j.state == nil {
 		panic("journal is closed")
 	}
@@ -142,7 +143,7 @@ func (j *journ) Truncate(ctx context.Context, end journal.Position) error {
 	return ctx.Err()
 }
 
-func (j *journ) Close() error {
+func (j *journ[T]) Close() error {
 	if j.state == nil {
 		return errors.New("journal is already closed")
 	}

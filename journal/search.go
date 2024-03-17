@@ -9,27 +9,27 @@ import (
 // If the record is less than the datum, cmp is negative. If the record is
 // greater than the datum, cmp is positive. Otherwise, the record is considered
 // equal to the datum.
-type CompareFunc func(context.Context, Position, []byte) (cmp int, err error)
+type CompareFunc[T any] func(context.Context, Position, T) (cmp int, err error)
 
-// BinarySearch performs a binary search of j to find the position of the record
-// for which cmp() returns zero.
-func BinarySearch(
+// Search performs a binary search of j to find the position of the record for
+// which cmp() returns zero.
+func Search[T any](
 	ctx context.Context,
-	j Journal,
+	j Journal[T],
 	begin, end Position,
-	cmp CompareFunc,
-) (pos Position, rec []byte, err error) {
+	cmp CompareFunc[T],
+) (pos Position, rec T, err error) {
 	for begin < end {
 		pos := (begin >> 1) + (end >> 1)
 
 		rec, err := j.Get(ctx, pos)
 		if err != nil {
-			return 0, nil, err
+			return 0, rec, err
 		}
 
 		result, err := cmp(ctx, pos, rec)
 		if err != nil {
-			return 0, nil, err
+			return 0, rec, err
 		}
 
 		if result > 0 {
@@ -41,5 +41,5 @@ func BinarySearch(
 		}
 	}
 
-	return 0, nil, ErrNotFound
+	return 0, rec, ErrNotFound
 }

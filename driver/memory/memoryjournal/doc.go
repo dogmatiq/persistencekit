@@ -1,3 +1,3 @@
 // Package memoryjournal provides an in-memory implementation of
-// [journal.Store].
+// [journal.BinaryStore].
 package memoryjournal

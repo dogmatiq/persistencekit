@@ -9,9 +9,9 @@ import (
 	"github.com/dogmatiq/persistencekit/journal"
 )
 
-// Store is an implementation of [journal.Store] that persists to a DynamoDB
-// table.
-type Store struct {
+// BinaryStore is an implementation of [journal.BinaryStore] that persists to a
+// DynamoDB table.
+type BinaryStore struct {
 	// Client is the DynamoDB client to use.
 	Client *dynamodb.Client
 
@@ -48,7 +48,7 @@ type Store struct {
 }
 
 // Open returns the journal with the given name.
-func (s *Store) Open(_ context.Context, name string) (journal.Journal, error) {
+func (s *BinaryStore) Open(_ context.Context, name string) (journal.BinaryJournal, error) {
 	j := &journ{
 		Client:             s.Client,
 		DecorateGetItem:    s.DecorateGetItem,

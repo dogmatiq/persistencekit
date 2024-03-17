@@ -16,7 +16,7 @@ const (
 	recordAttr   = "Record"
 )
 
-// CreateTable creates a DynamoDB table for use with a [Store].
+// CreateTable creates a DynamoDB table for use with a [BinaryStore].
 func CreateTable(
 	ctx context.Context,
 	client *dynamodb.Client,

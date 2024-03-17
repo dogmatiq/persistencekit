@@ -16,7 +16,7 @@ func TestStore(t *testing.T) {
 	defer cancel()
 
 	store := Store[int, typedmarshaler.JSON[int]]{
-		Store: &memoryjournal.Store{},
+		BinaryStore: &memoryjournal.BinaryStore{},
 	}
 
 	j, err := store.Open(ctx, "<name>")

@@ -10,8 +10,8 @@ import (
 func TestStore(t *testing.T) {
 	journal.RunTests(
 		t,
-		func(t *testing.T) journal.Store {
-			return &Store{}
+		func(t *testing.T) journal.BinaryStore {
+			return &BinaryStore{}
 		},
 	)
 }
@@ -19,8 +19,8 @@ func TestStore(t *testing.T) {
 func BenchmarkStore(b *testing.B) {
 	journal.RunBenchmarks(
 		b,
-		func(b *testing.B) journal.Store {
-			return &Store{}
+		func(b *testing.B) journal.BinaryStore {
+			return &BinaryStore{}
 		},
 	)
 }

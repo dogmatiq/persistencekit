@@ -8,6 +8,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/credentials v1.17.7
 	github.com/aws/aws-sdk-go-v2/service/dynamodb v1.30.4
 	github.com/aws/aws-sdk-go-v2/service/sso v1.20.2
+	github.com/dogmatiq/dyad v0.2.2
 	github.com/dogmatiq/enginekit v0.0.0-20230922231755-43a18006bf1c
 	github.com/dogmatiq/spruce v0.1.0
 	github.com/dogmatiq/sqltest v0.3.0
@@ -17,6 +18,7 @@ require (
 	go.opentelemetry.io/otel/metric v1.24.0
 	go.opentelemetry.io/otel/trace v1.24.0
 	golang.org/x/exp v0.0.0-20230810033253-352e893a4cad
+	google.golang.org/protobuf v1.33.0
 )
 
 require (
@@ -41,10 +43,10 @@ require (
 	github.com/jmespath/go-jmespath v0.4.0 // indirect
 	github.com/lib/pq v1.10.2 // indirect
 	github.com/mattn/go-sqlite3 v1.14.17 // indirect
+	github.com/onsi/ginkgo/v2 v2.11.0 // indirect
 	github.com/onsi/gomega v1.27.10 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
 	golang.org/x/crypto v0.20.0 // indirect
 	golang.org/x/text v0.14.0 // indirect
-	google.golang.org/protobuf v1.33.0 // indirect
 )

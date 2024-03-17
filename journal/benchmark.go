@@ -9,10 +9,10 @@ import (
 	"github.com/dogmatiq/persistencekit/internal/benchmark"
 )
 
-// RunBenchmarks runs benchmarks against a [Store] implementation.
+// RunBenchmarks runs benchmarks against a [BinaryStore] implementation.
 func RunBenchmarks(
 	b *testing.B,
-	newStore func(b *testing.B) Store,
+	newStore func(b *testing.B) BinaryStore,
 ) {
 	b.Run("Store", func(b *testing.B) {
 		b.Run("Open", func(b *testing.B) {
@@ -23,7 +23,7 @@ func RunBenchmarks(
 					b,
 					newStore,
 					// SETUP
-					func(ctx context.Context, store Store) error {
+					func(ctx context.Context, store BinaryStore) error {
 						name = uniqueName()
 
 						// pre-create the journal
@@ -36,11 +36,11 @@ func RunBenchmarks(
 					// BEFORE EACH
 					nil,
 					// BENCHMARKED CODE
-					func(ctx context.Context, store Store) (Journal, error) {
+					func(ctx context.Context, store BinaryStore) (BinaryJournal, error) {
 						return store.Open(ctx, name)
 					},
 					// AFTER EACH
-					func(j Journal) error {
+					func(j BinaryJournal) error {
 						return j.Close()
 					},
 				)
@@ -55,16 +55,16 @@ func RunBenchmarks(
 					// SETUP
 					nil,
 					// BEFORE EACH
-					func(context.Context, Store) error {
+					func(context.Context, BinaryStore) error {
 						name = uniqueName()
 						return nil
 					},
 					// BENCHMARKED CODE
-					func(ctx context.Context, store Store) (Journal, error) {
+					func(ctx context.Context, store BinaryStore) (BinaryJournal, error) {
 						return store.Open(ctx, name)
 					},
 					// AFTER EACH
-					func(j Journal) error {
+					func(j BinaryJournal) error {
 						return j.Close()
 					},
 				)
@@ -83,12 +83,12 @@ func RunBenchmarks(
 					// SETUP
 					nil,
 					// BEFORE EACH
-					func(context.Context, Journal) error {
+					func(context.Context, BinaryJournal) error {
 						pos = Position(rand.Uint64())
 						return nil
 					},
 					// BENCHMARKED CODE
-					func(ctx context.Context, j Journal) error {
+					func(ctx context.Context, j BinaryJournal) error {
 						_, err := j.Get(ctx, pos)
 						if err == ErrNotFound {
 							return nil
@@ -107,7 +107,7 @@ func RunBenchmarks(
 					b,
 					newStore,
 					// SETUP
-					func(ctx context.Context, _ Store, j Journal) error {
+					func(ctx context.Context, _ BinaryStore, j BinaryJournal) error {
 						for pos := Position(0); pos < 10000; pos++ {
 							rec := []byte(fmt.Sprintf("<record-%d>", pos))
 							if err := j.Append(ctx, pos, rec); err != nil {
@@ -117,12 +117,12 @@ func RunBenchmarks(
 						return nil
 					},
 					// BEFORE EACH
-					func(ctx context.Context, j Journal) error {
+					func(ctx context.Context, j BinaryJournal) error {
 						pos = Position(rand.Uint64() % 10000)
 						return nil
 					},
 					// BENCHMARKED CODE
-					func(ctx context.Context, j Journal) error {
+					func(ctx context.Context, j BinaryJournal) error {
 						_, err := j.Get(ctx, pos)
 						if err == ErrNotFound {
 							return nil
@@ -146,7 +146,7 @@ func RunBenchmarks(
 				// BEFORE EACH
 				nil,
 				// BENCHMARKED CODE
-				func(ctx context.Context, j Journal) error {
+				func(ctx context.Context, j BinaryJournal) error {
 					return j.Append(ctx, pos, []byte("<value>"))
 				},
 				// AFTER EACH
@@ -162,7 +162,7 @@ func RunBenchmarks(
 				b,
 				newStore,
 				// SETUP
-				func(ctx context.Context, _ Store, j Journal) error {
+				func(ctx context.Context, _ BinaryStore, j BinaryJournal) error {
 					rec := []byte("<record>")
 					for pos := Position(0); pos < 3000; pos++ {
 						if err := j.Append(ctx, pos, rec); err != nil {
@@ -174,7 +174,7 @@ func RunBenchmarks(
 				// BEFORE EACH
 				nil,
 				// BENCHMARKED CODE
-				func(ctx context.Context, j Journal) error {
+				func(ctx context.Context, j BinaryJournal) error {
 					return j.Range(
 						ctx,
 						0,
@@ -195,7 +195,7 @@ func RunBenchmarks(
 				b,
 				newStore,
 				// SETUP
-				func(ctx context.Context, store Store, j Journal) error {
+				func(ctx context.Context, store BinaryStore, j BinaryJournal) error {
 					rec := []byte("<record>")
 					for pos := 0; pos <= b.N; pos++ {
 						if err := j.Append(ctx, Position(pos), rec); err != nil {
@@ -207,7 +207,7 @@ func RunBenchmarks(
 				// BEFORE EACH
 				nil,
 				// BENCHMARKED CODE
-				func(ctx context.Context, j Journal) error {
+				func(ctx context.Context, j BinaryJournal) error {
 					pos++
 					return j.Truncate(ctx, pos)
 				},
@@ -220,14 +220,14 @@ func RunBenchmarks(
 
 func benchmarkStore[T any](
 	b *testing.B,
-	newStore func(b *testing.B) Store,
-	setup func(context.Context, Store) error,
-	before func(context.Context, Store) error,
-	fn func(context.Context, Store) (T, error),
+	newStore func(b *testing.B) BinaryStore,
+	setup func(context.Context, BinaryStore) error,
+	before func(context.Context, BinaryStore) error,
+	fn func(context.Context, BinaryStore) (T, error),
 	after func(T) error,
 ) {
 	var (
-		store  Store
+		store  BinaryStore
 		result T
 	)
 
@@ -264,15 +264,15 @@ func benchmarkStore[T any](
 
 func benchmarkJournal(
 	b *testing.B,
-	newStore func(b *testing.B) Store,
-	setup func(context.Context, Store, Journal) error,
-	before func(context.Context, Journal) error,
-	fn func(context.Context, Journal) error,
+	newStore func(b *testing.B) BinaryStore,
+	setup func(context.Context, BinaryStore, BinaryJournal) error,
+	before func(context.Context, BinaryJournal) error,
+	fn func(context.Context, BinaryJournal) error,
 	after func() error,
 ) {
 	var (
-		store Store
-		journ Journal
+		store BinaryStore
+		journ BinaryJournal
 	)
 
 	benchmark.Run(

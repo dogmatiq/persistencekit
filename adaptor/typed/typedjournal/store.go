@@ -12,13 +12,13 @@ type Store[
 	Record any,
 	Marshaler typedmarshaler.Marshaler[Record],
 ] struct {
-	journal.Store
+	journal.BinaryStore
 	Marshaler Marshaler
 }
 
 // Open returns the journal with the given name.
 func (s Store[R, M]) Open(ctx context.Context, name string) (*Journal[R, M], error) {
-	j, err := s.Store.Open(ctx, name)
+	j, err := s.BinaryStore.Open(ctx, name)
 	if err != nil {
 		return nil, err
 	}

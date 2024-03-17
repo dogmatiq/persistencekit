@@ -1,3 +1,3 @@
 // Package typedjournal provides "type-safe" (generic) wrapper around a
-// [journal.Journal].
+// [journal.BinaryJournal].
 package typedjournal

@@ -1,7 +1,6 @@
 package journal_test
 
 import (
-	"bytes"
 	"context"
 	"testing"
 	"time"
@@ -10,33 +9,33 @@ import (
 	. "github.com/dogmatiq/persistencekit/journal"
 )
 
-func TestBinarySearch(t *testing.T) {
+func TestSearch(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
 	defer cancel()
 
-	store := &memoryjournal.Store{}
+	store := &memoryjournal.Store[int]{}
 	j, err := store.Open(ctx, "test")
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer j.Close()
 
-	for pos := Position(0); pos < 100; pos++ {
-		if err := j.Append(ctx, pos, []byte{byte(pos)}); err != nil {
+	for i := 0; i < 100; i++ {
+		if err := j.Append(ctx, Position(i), i); err != nil {
 			t.Fatal(err)
 		}
 	}
 
-	datum := []byte{55}
+	datum := 55
 	fn := func(
 		ctx context.Context,
 		pos Position,
-		rec []byte,
+		rec int,
 	) (int, error) {
-		return bytes.Compare(rec, datum), nil
+		return rec - datum, nil
 	}
 
-	pos, rec, err := BinarySearch(ctx, j, 0, 100, fn)
+	pos, rec, err := Search(ctx, j, 0, 100, fn)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -46,12 +45,12 @@ func TestBinarySearch(t *testing.T) {
 		t.Fatalf("unexpected position: got %d, want %d", pos, expect)
 	}
 
-	if !bytes.Equal(rec, datum) {
-		t.Fatalf("unexpected record: got %v, want %v", rec, datum)
+	if rec != datum {
+		t.Fatalf("unexpected record: got %d, want %d", rec, datum)
 	}
 
-	datum = []byte{101}
-	if _, _, err = BinarySearch(ctx, j, 0, 100, fn); err != ErrNotFound {
+	datum = 101
+	if _, _, err = Search(ctx, j, 0, 100, fn); err != ErrNotFound {
 		t.Fatalf("unexpected error: got %q, want %q", err, ErrNotFound)
 	}
 }

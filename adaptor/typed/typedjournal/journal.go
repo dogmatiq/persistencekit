@@ -7,18 +7,12 @@ import (
 	"github.com/dogmatiq/persistencekit/journal"
 )
 
-// A RangeFunc is a function used to range over the records in a [Journal].
-//
-// If err is non-nil, ranging stops and err is propagated up the stack.
-// Otherwise, if ok is false, ranging stops without any error being propagated.
-type RangeFunc[Record any] func(context.Context, journal.Position, Record) (ok bool, err error)
-
 // A Journal is an append-only log of records of type R.
 type Journal[
 	Record any,
 	Marshaler typedmarshaler.Marshaler[Record],
 ] struct {
-	journal.Journal
+	journal.BinaryJournal
 	marshaler Marshaler
 }
 
@@ -26,7 +20,7 @@ type Journal[
 //
 // It returns [journal.ErrNotFound] if there is no record at the given position.
 func (j *Journal[R, M]) Get(ctx context.Context, pos journal.Position) (R, error) {
-	data, err := j.Journal.Get(ctx, pos)
+	data, err := j.BinaryJournal.Get(ctx, pos)
 	if err != nil {
 		return typedmarshaler.Zero[R](), err
 	}
@@ -38,8 +32,8 @@ func (j *Journal[R, M]) Get(ctx context.Context, pos journal.Position) (R, error
 // the record at the given position.
 //
 // It returns [journal.ErrNotFound] if there is no record at the given position.
-func (j *Journal[R, M]) Range(ctx context.Context, pos journal.Position, fn RangeFunc[R]) error {
-	return j.Journal.Range(
+func (j *Journal[R, M]) Range(ctx context.Context, pos journal.Position, fn journal.RangeFunc[R]) error {
+	return j.BinaryJournal.Range(
 		ctx,
 		pos,
 		func(ctx context.Context, pos journal.Position, data []byte) (bool, error) {
@@ -68,5 +62,5 @@ func (j *Journal[R, M]) Append(ctx context.Context, end journal.Position, rec R)
 		return err
 	}
 
-	return j.Journal.Append(ctx, end, data)
+	return j.BinaryJournal.Append(ctx, end, data)
 }

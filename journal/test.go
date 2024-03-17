@@ -16,17 +16,17 @@ import (
 // RunTests runs tests that confirm a journal implementation behaves correctly.
 func RunTests(
 	t *testing.T,
-	newStore func(t *testing.T) Store,
+	newStore func(t *testing.T) BinaryStore,
 ) {
 	type dependencies struct {
-		Store       Store
+		Store       BinaryStore
 		JournalName string
-		Journal     Journal
+		Journal     BinaryJournal
 	}
 
 	setup := func(
 		t *testing.T,
-		newStore func(t *testing.T) Store,
+		newStore func(t *testing.T) BinaryStore,
 	) (context.Context, *dependencies) {
 		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 		t.Cleanup(cancel)
@@ -105,24 +105,24 @@ func RunTests(
 				cases := []struct {
 					Desc                   string
 					ExpectBegin, ExpectEnd Position
-					Setup                  func(context.Context, *testing.T, Journal)
+					Setup                  func(context.Context, *testing.T, BinaryJournal)
 				}{
 					{
 						"empty",
 						0, 0,
-						func(ctx context.Context, t *testing.T, j Journal) {},
+						func(ctx context.Context, t *testing.T, j BinaryJournal) {},
 					},
 					{
 						"with records",
 						0, 10,
-						func(ctx context.Context, t *testing.T, j Journal) {
+						func(ctx context.Context, t *testing.T, j BinaryJournal) {
 							appendRecords(ctx, t, j, 10)
 						},
 					},
 					{
 						"with truncated records",
 						5, 10,
-						func(ctx context.Context, t *testing.T, j Journal) {
+						func(ctx context.Context, t *testing.T, j BinaryJournal) {
 							appendRecords(ctx, t, j, 10)
 							if err := j.Truncate(ctx, 5); err != nil {
 								t.Fatal(err)
@@ -551,7 +551,7 @@ func uniqueName() string {
 func appendRecords(
 	ctx context.Context,
 	t *testing.T,
-	j Journal,
+	j BinaryJournal,
 	n int,
 ) [][]byte {
 	var records [][]byte

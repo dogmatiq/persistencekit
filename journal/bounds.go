@@ -6,23 +6,24 @@ import (
 )
 
 // IsFresh returns true if j has never contained any records.
-func IsFresh(ctx context.Context, j Journal) (bool, error) {
+func IsFresh[T any](ctx context.Context, j Journal[T]) (bool, error) {
 	_, end, err := j.Bounds(ctx)
 	return end == 0, err
 }
 
 // IsEmpty returns true if j does not currently contain any records.
-func IsEmpty(ctx context.Context, j Journal) (bool, error) {
+func IsEmpty[T any](ctx context.Context, j Journal[T]) (bool, error) {
 	begin, end, err := j.Bounds(ctx)
 	return begin == end, err
 }
 
 // FirstRecord returns the oldest record in a journal.
-func FirstRecord(ctx context.Context, j Journal) (Position, []byte, bool, error) {
+func FirstRecord[T any](ctx context.Context, j Journal[T]) (Position, T, bool, error) {
 	for {
 		begin, end, err := j.Bounds(ctx)
 		if begin == end || err != nil {
-			return 0, nil, false, err
+			var zero T
+			return 0, zero, false, err
 		}
 
 		rec, err := j.Get(ctx, begin)
@@ -38,11 +39,12 @@ func FirstRecord(ctx context.Context, j Journal) (Position, []byte, bool, error)
 }
 
 // LastRecord returns the newest record in a journal.
-func LastRecord(ctx context.Context, j Journal) (Position, []byte, bool, error) {
+func LastRecord[T any](ctx context.Context, j Journal[T]) (Position, T, bool, error) {
 	for {
 		begin, end, err := j.Bounds(ctx)
 		if begin == end || err != nil {
-			return 0, nil, false, err
+			var zero T
+			return 0, zero, false, err
 		}
 
 		pos := end - 1

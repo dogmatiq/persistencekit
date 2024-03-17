@@ -13,8 +13,8 @@ import (
 	"github.com/dogmatiq/persistencekit/journal"
 )
 
-// journ is an implementation of [journal.Journal] that persists to a DynamoDB
-// table.
+// journ is an implementation of [journal.BinaryJournal] that persists to a
+// DynamoDB table.
 type journ struct {
 	Client             *dynamodb.Client
 	DecorateGetItem    func(*dynamodb.GetItemInput) []func(*dynamodb.Options)
@@ -96,7 +96,7 @@ func (j *journ) Get(ctx context.Context, pos journal.Position) ([]byte, error) {
 func (j *journ) Range(
 	ctx context.Context,
 	begin journal.Position,
-	fn journal.RangeFunc,
+	fn journal.BinaryRangeFunc,
 ) error {
 	j.rangeQueryRequest.ExclusiveStartKey = nil
 	j.position.Value = formatPosition(begin)

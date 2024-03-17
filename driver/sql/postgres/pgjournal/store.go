@@ -9,15 +9,15 @@ import (
 	"github.com/dogmatiq/persistencekit/journal"
 )
 
-// Store is an implementation of [journal.Store] that persists to a PostgreSQL
-// database.
-type Store struct {
+// BinaryStore is an implementation of [journal.BinaryStore] that persists to a
+// PostgreSQL database.
+type BinaryStore struct {
 	// DB is the PostgreSQL database connection.
 	DB *sql.DB
 }
 
 // Open returns the journal with the given name.
-func (s *Store) Open(ctx context.Context, name string) (journal.Journal, error) {
+func (s *BinaryStore) Open(ctx context.Context, name string) (journal.BinaryJournal, error) {
 	id, err := s.getID(ctx, name)
 	if err != nil {
 		return nil, err
@@ -25,7 +25,7 @@ func (s *Store) Open(ctx context.Context, name string) (journal.Journal, error) 
 	return &journ{s.DB, id}, nil
 }
 
-func (s *Store) getID(ctx context.Context, name string) (uint64, error) {
+func (s *BinaryStore) getID(ctx context.Context, name string) (uint64, error) {
 	for {
 		row := s.DB.QueryRowContext(
 			ctx,

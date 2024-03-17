@@ -9,7 +9,7 @@ import (
 	"github.com/dogmatiq/persistencekit/journal"
 )
 
-// journ is an implementation of [journal.Journal] that persists to a PostgreSQL
+// journ is an implementation of [journal.BinaryJournal] that persists to a PostgreSQL
 // database.
 type journ struct {
 	db *sql.DB
@@ -62,7 +62,7 @@ func (j *journ) Get(ctx context.Context, pos journal.Position) ([]byte, error) {
 func (j *journ) Range(
 	ctx context.Context,
 	begin journal.Position,
-	fn journal.RangeFunc,
+	fn journal.BinaryRangeFunc,
 ) error {
 	// TODO: "paginate" results across multiple queries to avoid loading
 	// everything into memory at once.

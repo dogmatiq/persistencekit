@@ -13,9 +13,9 @@ import (
 func TestWithTelemetry(t *testing.T) {
 	RunTests(
 		t,
-		func(t *testing.T) Store {
+		func(t *testing.T) BinaryStore {
 			return WithTelemetry(
-				&memoryjournal.Store{},
+				&memoryjournal.BinaryStore{},
 				nooptrace.NewTracerProvider(),
 				noopmetric.NewMeterProvider(),
 				spruce.NewLogger(t),
