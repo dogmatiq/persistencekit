@@ -5,9 +5,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/dogmatiq/persistencekit/adaptor/typed/typedmarshaler"
 	"github.com/dogmatiq/persistencekit/driver/memory/memoryjournal"
 	. "github.com/dogmatiq/persistencekit/journal"
+	"github.com/dogmatiq/persistencekit/marshal"
 )
 
 func TestMarshal(t *testing.T) {
@@ -16,7 +16,7 @@ func TestMarshal(t *testing.T) {
 
 	store := NewMarshalingStore(
 		&memoryjournal.BinaryStore{},
-		typedmarshaler.JSON[int]{},
+		marshal.JSON[int]{},
 	)
 
 	j, err := store.Open(ctx, "<name>")
