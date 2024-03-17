@@ -12,9 +12,35 @@ The format is based on [Keep a Changelog], and this project adheres to
 
 ## [Unreleased]
 
+This release changes the `journal.Store` and `journal.Journal` interfaces to be
+generic over records of type `T`, and the `kv.Store` and `kv.Keyspace` to be
+generic over types `K` and `V`, thereby making the `typedjournal` and `typedkv`
+packages obsolete.
+
+This eliminates the need for duplicating all of the generic algorithms (such as
+`Search()`, `LastRecord()`, etc) for both binary and typed implementations.
+
 ### Added
 
-- Added `typedmarshaler.ProtocolBuffers`.
+- Added `journal.BinaryStore`, `BinaryJournal` and `BinaryRangeFunc` aliases,
+  equivalent to prior (non-generic) definitions of `Store`, `Journal` and
+  `RangeFunc`, respectively.
+- Added `kv.BinaryStore`, `BinaryKeyspace` and `BinaryRangeFunc` aliases,
+  equivalent to prior (non-generic) definitions of `Store`, `Keyspace` and
+  `RangeFunc`, respectively.
+- Added `marshal.ProtocolBuffers` marshaler implementation.
+- Added `journal.NewMarshalingStore()` and `kv.NewMarshalingStore()`, which wrap
+  binary implementations with a `marshal.Marshaler`, serving as a replacement
+  for the `typedjournal` and `typedkv` packages, respectively.
+
+### Changed
+
+- **[BC]** Changed `journal` and `kv` interfaces to be generic.
+- **[BC]** Moved `typedmarshaler` package to `marshal` at the root of the module.
+
+### Removed
+
+- **[BC]** Removed `typedjournal`, `typedkv` and `typedmarshaler` packages.
 
 ## [0.7.0] - 2024-03-17
 
