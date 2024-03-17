@@ -21,17 +21,16 @@ func CreateTable(
 	ctx context.Context,
 	client *dynamodb.Client,
 	table string,
-	decorators ...func(*dynamodb.CreateTableInput) []func(*dynamodb.Options),
+	onRequest ...func(any) []func(*dynamodb.Options),
 ) error {
 	_, err := awsx.Do(
 		ctx,
 		client.CreateTable,
-		func(in *dynamodb.CreateTableInput) []func(*dynamodb.Options) {
+		func(in any) []func(*dynamodb.Options) {
 			var options []func(*dynamodb.Options)
-			for _, dec := range decorators {
-				options = append(options, dec(in)...)
+			for _, fn := range onRequest {
+				options = append(options, fn(in)...)
 			}
-
 			return options
 		},
 		&dynamodb.CreateTableInput{

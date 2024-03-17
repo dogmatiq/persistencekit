@@ -16,11 +16,8 @@ import (
 // journ is an implementation of [journal.BinaryJournal] that persists to a
 // DynamoDB table.
 type journ struct {
-	Client             *dynamodb.Client
-	DecorateGetItem    func(*dynamodb.GetItemInput) []func(*dynamodb.Options)
-	DecorateQuery      func(*dynamodb.QueryInput) []func(*dynamodb.Options)
-	DecoratePutItem    func(*dynamodb.PutItemInput) []func(*dynamodb.Options)
-	DecorateDeleteItem func(*dynamodb.DeleteItemInput) []func(*dynamodb.Options)
+	Client    *dynamodb.Client
+	OnRequest func(any) []func(*dynamodb.Options)
 
 	name     *types.AttributeValueMemberS
 	position *types.AttributeValueMemberN
@@ -38,7 +35,7 @@ func (j *journ) Bounds(ctx context.Context) (begin, end journal.Position, err er
 	out, err := awsx.Do(
 		ctx,
 		j.Client.Query,
-		j.DecorateQuery,
+		j.OnRequest,
 		&j.boundsQueryRequest,
 	)
 	if err != nil || len(out.Items) == 0 {
@@ -54,7 +51,7 @@ func (j *journ) Bounds(ctx context.Context) (begin, end journal.Position, err er
 	out, err = awsx.Do(
 		ctx,
 		j.Client.Query,
-		j.DecorateQuery,
+		j.OnRequest,
 		&j.boundsQueryRequest,
 	)
 	if err != nil || len(out.Items) == 0 {
@@ -75,7 +72,7 @@ func (j *journ) Get(ctx context.Context, pos journal.Position) ([]byte, error) {
 	out, err := awsx.Do(
 		ctx,
 		j.Client.GetItem,
-		j.DecorateGetItem,
+		j.OnRequest,
 		&j.getRequest,
 	)
 	if err != nil {
@@ -107,7 +104,7 @@ func (j *journ) Range(
 		out, err := awsx.Do(
 			ctx,
 			j.Client.Query,
-			j.DecorateQuery,
+			j.OnRequest,
 			&j.rangeQueryRequest,
 		)
 		if err != nil {
@@ -155,7 +152,7 @@ func (j *journ) Append(ctx context.Context, end journal.Position, rec []byte) er
 	_, err := awsx.Do(
 		ctx,
 		j.Client.PutItem,
-		j.DecoratePutItem,
+		j.OnRequest,
 		&j.putRequest,
 	)
 
@@ -182,7 +179,7 @@ func (j *journ) Truncate(ctx context.Context, end journal.Position) error {
 		if _, err := awsx.Do(
 			ctx,
 			j.Client.DeleteItem,
-			j.DecorateDeleteItem,
+			j.OnRequest,
 			&j.deleteRequest,
 		); err != nil {
 			return err

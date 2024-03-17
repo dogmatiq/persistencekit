@@ -18,43 +18,23 @@ type BinaryStore struct {
 	// Table is the table name used for storage of journal records.
 	Table string
 
-	// DecorateGetItem is an optional function that is called before each
-	// DynamoDB "GetItem" request.
+	// OnRequest is a hook that is called before each DynamoDB request.
 	//
-	// It may modify the API input in-place. It returns options that will be
-	// applied to the request.
-	DecorateGetItem func(*dynamodb.GetItemInput) []func(*dynamodb.Options)
-
-	// DecorateQuery is an optional function that is called before each DynamoDB
-	// "Query" request.
+	// It is passed a pointer to the input struct, e.g. [dynamodb.GetItemInput],
+	// which it may modify in-place. It may be called with any DynamoDB request
+	// type. The types of requests used may change in any version without
+	// notice.
 	//
-	// It may modify the API input in-place. It returns options that will be
-	// applied to the request.
-	DecorateQuery func(*dynamodb.QueryInput) []func(*dynamodb.Options)
-
-	// DecoratePutItem is an optional function that is called before each
-	// DynamoDB "PutItem" request.
-	//
-	// It may modify the API input in-place. It returns options that will be
-	// applied to the request.
-	DecoratePutItem func(*dynamodb.PutItemInput) []func(*dynamodb.Options)
-
-	// DecorateDeleteItem is an optional function that is called before each
-	// DynamoDB "DeleteItem" request.
-	//
-	// It may modify the API input in-place. It returns options that will be
-	// applied to the request.
-	DecorateDeleteItem func(*dynamodb.DeleteItemInput) []func(*dynamodb.Options)
+	// Any functions returned by the function will be applied to the request's
+	// options before the request is sent.
+	OnRequest func(any) []func(*dynamodb.Options)
 }
 
 // Open returns the journal with the given name.
 func (s *BinaryStore) Open(_ context.Context, name string) (journal.BinaryJournal, error) {
 	j := &journ{
-		Client:             s.Client,
-		DecorateGetItem:    s.DecorateGetItem,
-		DecorateQuery:      s.DecorateQuery,
-		DecoratePutItem:    s.DecoratePutItem,
-		DecorateDeleteItem: s.DecorateDeleteItem,
+		Client:    s.Client,
+		OnRequest: s.OnRequest,
 
 		name:     &types.AttributeValueMemberS{Value: name},
 		position: &types.AttributeValueMemberN{},

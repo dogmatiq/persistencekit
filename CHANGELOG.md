@@ -10,6 +10,18 @@ The format is based on [Keep a Changelog], and this project adheres to
 [Keep a Changelog]: https://keepachangelog.com/en/1.0.0/
 [Semantic Versioning]: https://semver.org/spec/v2.0.0.html
 
+## [Unreleased]
+
+- Added `OnRequest` hook to `journal.Store` and `kv.Store` to allow for
+  intercepting and modifying requests before they are sent to the DynamoDB API.
+  This is a more flexible replacement for the request-type-specific decorator
+  fields that were removed in this release.
+
+### Removed
+
+- **[BC]** Removed all decorator fields from `dynamojournal.Store` and
+  `dynamokv.Store`. Use the `OnRequest` hook instead.
+
 ## [0.8.0] - 2024-03-17
 
 This release changes the `journal.Store` and `journal.Journal` interfaces to be

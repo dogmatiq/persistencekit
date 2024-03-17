@@ -11,11 +11,8 @@ import (
 )
 
 type keyspace struct {
-	Client             *dynamodb.Client
-	DecorateGetItem    func(*dynamodb.GetItemInput) []func(*dynamodb.Options)
-	DecorateQuery      func(*dynamodb.QueryInput) []func(*dynamodb.Options)
-	DecoratePutItem    func(*dynamodb.PutItemInput) []func(*dynamodb.Options)
-	DecorateDeleteItem func(*dynamodb.DeleteItemInput) []func(*dynamodb.Options)
+	Client    *dynamodb.Client
+	OnRequest func(any) []func(*dynamodb.Options)
 
 	name  *types.AttributeValueMemberS
 	key   *types.AttributeValueMemberB
@@ -34,7 +31,7 @@ func (ks *keyspace) Get(ctx context.Context, k []byte) ([]byte, error) {
 	out, err := awsx.Do(
 		ctx,
 		ks.Client.GetItem,
-		ks.DecorateGetItem,
+		ks.OnRequest,
 		&ks.getRequest,
 	)
 	if err != nil || out.Item == nil {
@@ -56,7 +53,7 @@ func (ks *keyspace) Has(ctx context.Context, k []byte) (bool, error) {
 	out, err := awsx.Do(
 		ctx,
 		ks.Client.GetItem,
-		ks.DecorateGetItem,
+		ks.OnRequest,
 		&ks.hasRequest,
 	)
 	if err != nil {
@@ -81,7 +78,7 @@ func (ks *keyspace) set(ctx context.Context, k, v []byte) error {
 	_, err := awsx.Do(
 		ctx,
 		ks.Client.PutItem,
-		ks.DecoratePutItem,
+		ks.OnRequest,
 		&ks.putRequest,
 	)
 
@@ -94,7 +91,7 @@ func (ks *keyspace) delete(ctx context.Context, k []byte) error {
 	_, err := awsx.Do(
 		ctx,
 		ks.Client.DeleteItem,
-		ks.DecorateDeleteItem,
+		ks.OnRequest,
 		&ks.deleteRequest,
 	)
 
@@ -108,7 +105,7 @@ func (ks *keyspace) Range(ctx context.Context, fn kv.BinaryRangeFunc) error {
 		out, err := awsx.Do(
 			ctx,
 			ks.Client.Query,
-			ks.DecorateQuery,
+			ks.OnRequest,
 			&ks.queryRequest,
 		)
 		if err != nil {
