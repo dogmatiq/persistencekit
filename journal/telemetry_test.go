@@ -13,13 +13,11 @@ import (
 func TestWithTelemetry(t *testing.T) {
 	RunTests(
 		t,
-		func(t *testing.T) BinaryStore {
-			return WithTelemetry(
-				&memoryjournal.BinaryStore{},
-				nooptrace.NewTracerProvider(),
-				noopmetric.NewMeterProvider(),
-				spruce.NewLogger(t),
-			)
-		},
+		WithTelemetry(
+			&memoryjournal.BinaryStore{},
+			nooptrace.NewTracerProvider(),
+			noopmetric.NewMeterProvider(),
+			spruce.NewLogger(t),
+		),
 	)
 }
