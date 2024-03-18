@@ -61,9 +61,10 @@ func WithRequestHook(fn func(any) []func(*dynamodb.Options)) Option {
 }
 
 const (
-	nameAttr     = "Name"
-	positionAttr = "Position"
-	recordAttr   = "Record"
+	nameAttr      = "Name"
+	positionAttr  = "Position"
+	recordAttr    = "Record"
+	truncatedAttr = "Truncated"
 )
 
 // Open returns the journal with the given name.
@@ -88,10 +89,11 @@ func (s *store) Open(ctx context.Context, name string) (journal.BinaryJournal, e
 	j.boundsQueryRequest = dynamodb.QueryInput{
 		TableName:              aws.String(s.Table),
 		KeyConditionExpression: aws.String(`#N = :N`),
-		ProjectionExpression:   aws.String("#P"),
+		ProjectionExpression:   aws.String("#P, #T"),
 		ExpressionAttributeNames: map[string]string{
 			"#N": nameAttr,
 			"#P": positionAttr,
+			"#T": truncatedAttr,
 		},
 		ExpressionAttributeValues: map[string]types.AttributeValue{
 			":N": j.name,
@@ -106,20 +108,23 @@ func (s *store) Open(ctx context.Context, name string) (journal.BinaryJournal, e
 			nameAttr:     j.name,
 			positionAttr: j.position,
 		},
-		ProjectionExpression: aws.String(`#R`),
+		ProjectionExpression: aws.String(`#R, #T`),
 		ExpressionAttributeNames: map[string]string{
 			"#R": recordAttr,
+			"#T": truncatedAttr,
 		},
 	}
 
 	j.rangeQueryRequest = dynamodb.QueryInput{
 		TableName:              aws.String(s.Table),
 		KeyConditionExpression: aws.String(`#N = :N AND #P >= :P`),
+		FilterExpression:       aws.String(`attribute_not_exists(#T)`),
 		ProjectionExpression:   aws.String("#P, #R"),
 		ExpressionAttributeNames: map[string]string{
 			"#N": nameAttr,
 			"#P": positionAttr,
 			"#R": recordAttr,
+			"#T": truncatedAttr,
 		},
 		ExpressionAttributeValues: map[string]types.AttributeValue{
 			":N": j.name,
@@ -138,6 +143,23 @@ func (s *store) Open(ctx context.Context, name string) (journal.BinaryJournal, e
 			positionAttr: j.position,
 			recordAttr:   j.record,
 		},
+	}
+
+	j.truncateRequest = dynamodb.UpdateItemInput{
+		TableName:           aws.String(s.Table),
+		ConditionExpression: aws.String(`attribute_not_exists(#T)`),
+		Key: map[string]types.AttributeValue{
+			nameAttr:     j.name,
+			positionAttr: j.position,
+		},
+		ExpressionAttributeNames: map[string]string{
+			"#T": truncatedAttr,
+			"#R": recordAttr,
+		},
+		ExpressionAttributeValues: map[string]types.AttributeValue{
+			":T": &types.AttributeValueMemberBOOL{Value: true},
+		},
+		UpdateExpression: aws.String(`SET #T = :T REMOVE #R`),
 	}
 
 	j.deleteRequest = dynamodb.DeleteItemInput{

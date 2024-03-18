@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"strconv"
 
+	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 	"github.com/dogmatiq/persistencekit/driver/aws/internal/awsx"
@@ -27,49 +28,86 @@ type journ struct {
 	getRequest         dynamodb.GetItemInput
 	rangeQueryRequest  dynamodb.QueryInput
 	putRequest         dynamodb.PutItemInput
+	truncateRequest    dynamodb.UpdateItemInput
 	deleteRequest      dynamodb.DeleteItemInput
 }
 
 func (j *journ) Bounds(ctx context.Context) (begin, end journal.Position, err error) {
-	*j.boundsQueryRequest.ScanIndexForward = true
-	out, err := awsx.Do(
-		ctx,
-		j.Client.Query,
-		j.OnRequest,
-		&j.boundsQueryRequest,
-	)
-	if err != nil {
-		return 0, 0, fmt.Errorf("unable to query first journal record: %w", err)
-	}
-	if len(out.Items) == 0 {
-		return 0, 0, nil
-	}
+	for {
+		// First we look for the most recent record by scanning the table
+		// backwards.
+		*j.boundsQueryRequest.ScanIndexForward = false
 
-	begin, err = parsePosition(out.Items[0])
-	if err != nil {
-		return 0, 0, err
-	}
+		// We want to include all records, including those that have been
+		// truncated so that we can detect if the journal is empty.
+		j.boundsQueryRequest.FilterExpression = nil
 
-	*j.boundsQueryRequest.ScanIndexForward = false
-	out, err = awsx.Do(
-		ctx,
-		j.Client.Query,
-		j.OnRequest,
-		&j.boundsQueryRequest,
-	)
-	if err != nil {
-		return 0, 0, fmt.Errorf("unable to query last journal record: %w", err)
-	}
-	if len(out.Items) == 0 {
-		return 0, 0, nil
-	}
+		out, err := awsx.Do(
+			ctx,
+			j.Client.Query,
+			j.OnRequest,
+			&j.boundsQueryRequest,
+		)
+		if err != nil {
+			return 0, 0, fmt.Errorf("unable to query last journal record: %w", err)
+		}
 
-	end, err = parsePosition(out.Items[0])
-	if err != nil {
-		return 0, 0, err
-	}
+		// There are no records at all, so the journal is truly empty.
+		if len(out.Items) == 0 {
+			return 0, 0, nil
+		}
 
-	return begin, end + 1, nil
+		end, err = parsePosition(out.Items[0])
+		if err != nil {
+			return 0, 0, err
+		}
+
+		// The [begin, end) range is half-open, so the end position is the one
+		// AFTER the most recent record.
+		end++
+
+		truncated, err := isTruncated(out.Items[0])
+		if err != nil {
+			return 0, 0, err
+		}
+
+		// If the most recent record has been truncated, the journal is
+		// effectively empty with bounds of [end, end).
+		if truncated {
+			return end, end, nil
+		}
+
+		// We know there is at least one non-truncated record, so now we search
+		// for the oldest non-truncated record to find the lower bound.
+		*j.boundsQueryRequest.ScanIndexForward = true
+		j.boundsQueryRequest.FilterExpression = aws.String(`attribute_not_exists(#T)`)
+
+		out, err = awsx.Do(
+			ctx,
+			j.Client.Query,
+			j.OnRequest,
+			&j.boundsQueryRequest,
+		)
+		if err != nil {
+			return 0, 0, fmt.Errorf("unable to query first journal record: %w", err)
+		}
+
+		// We were expecting to find a record, because we know that the most
+		// recent record exists and is not truncated. If we find nothing it
+		// likely means that the journal has been truncated at some point in
+		// between the two queries we've made. We'll retry the whole process to
+		// ensure we get a consistent result.
+		if len(out.Items) == 0 {
+			continue
+		}
+
+		begin, err = parsePosition(out.Items[0])
+		if err != nil {
+			return 0, 0, err
+		}
+
+		return begin, end, nil
+	}
 }
 
 func (j *journ) Get(ctx context.Context, pos journal.Position) ([]byte, error) {
@@ -85,6 +123,14 @@ func (j *journ) Get(ctx context.Context, pos journal.Position) ([]byte, error) {
 		return nil, fmt.Errorf("unable to get journal record: %w", err)
 	}
 	if out.Item == nil {
+		return nil, journal.ErrNotFound
+	}
+
+	truncated, err := isTruncated(out.Item)
+	if err != nil {
+		return nil, err
+	}
+	if truncated {
 		return nil, journal.ErrNotFound
 	}
 
@@ -176,20 +222,32 @@ func (j *journ) Truncate(ctx context.Context, end journal.Position) error {
 		return err
 	}
 
-	if end >= actualEnd {
+	if end > actualEnd {
 		return errors.New("cannot truncate beyond the end of the journal")
 	}
 
 	for pos := begin; pos < end; pos++ {
 		j.position.Value = formatPosition(pos)
 
-		if _, err := awsx.Do(
-			ctx,
-			j.Client.DeleteItem,
-			j.OnRequest,
-			&j.deleteRequest,
-		); err != nil {
-			return fmt.Errorf("unable to delete journal record: %w", err)
+		var err error
+		if pos+1 == actualEnd {
+			_, err = awsx.Do(
+				ctx,
+				j.Client.UpdateItem,
+				j.OnRequest,
+				&j.truncateRequest,
+			)
+		} else {
+			_, err = awsx.Do(
+				ctx,
+				j.Client.DeleteItem,
+				j.OnRequest,
+				&j.deleteRequest,
+			)
+		}
+
+		if err != nil {
+			return err
 		}
 	}
 
@@ -217,4 +275,9 @@ func parsePosition(item map[string]types.AttributeValue) (journal.Position, erro
 
 func formatPosition(pos journal.Position) string {
 	return strconv.FormatUint(uint64(pos), 10)
+}
+
+func isTruncated(item map[string]types.AttributeValue) (bool, error) {
+	t, ok, err := dynamox.TryAttrAs[*types.AttributeValueMemberBOOL](item, truncatedAttr)
+	return ok && t.Value, err
 }

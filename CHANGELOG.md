@@ -30,7 +30,9 @@ The format is based on [Keep a Changelog], and this project adheres to
 
 ### Fixed
 
-- `pgjournal` can now correctly truncate all remaining journal records.
+- The `pgjournal` and `dynamojournal` implementations can now correctly truncate
+  all journal records. Previously they would only allow truncation up to but not
+  including the most recent record.
 
 ## [0.8.0] - 2024-03-17
 

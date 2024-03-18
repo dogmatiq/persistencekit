@@ -103,7 +103,7 @@ func RunTests(
 
 			t.Run("it returns the expected bounds", func(t *testing.T) {
 				cases := []struct {
-					Desc                   string
+					Name                   string
 					ExpectBegin, ExpectEnd Position
 					Setup                  func(context.Context, *testing.T, BinaryJournal)
 				}{
@@ -120,7 +120,7 @@ func RunTests(
 						},
 					},
 					{
-						"with truncated records",
+						"with some records truncated",
 						5, 10,
 						func(ctx context.Context, t *testing.T, j BinaryJournal) {
 							appendRecords(ctx, t, j, 10)
@@ -129,10 +129,20 @@ func RunTests(
 							}
 						},
 					},
+					{
+						"with all records truncated",
+						10, 10,
+						func(ctx context.Context, t *testing.T, j BinaryJournal) {
+							appendRecords(ctx, t, j, 10)
+							if err := j.Truncate(ctx, 10); err != nil {
+								t.Fatal(err)
+							}
+						},
+					},
 				}
 
 				for _, c := range cases {
-					t.Run(c.Desc, func(t *testing.T) {
+					t.Run(c.Name, func(t *testing.T) {
 						t.Parallel()
 
 						ctx, deps := setup(t, newStore)
@@ -144,12 +154,12 @@ func RunTests(
 							t.Fatal(err)
 						}
 
-						if begin != c.ExpectBegin {
-							t.Fatalf("unexpected begin position: got %d, want %d", begin, c.ExpectBegin)
-						}
-
-						if end != c.ExpectEnd {
-							t.Fatalf("unexpected end position: got %d, want %d", end, c.ExpectEnd)
+						if begin != c.ExpectBegin || end != c.ExpectEnd {
+							t.Fatalf(
+								"unexpected bounds: got [%d, %d), want [%d, %d)",
+								begin, end,
+								c.ExpectBegin, c.ExpectEnd,
+							)
 						}
 					})
 				}
@@ -192,6 +202,65 @@ func RunTests(
 							string(want),
 							string(got),
 						)
+					}
+				}
+			})
+
+			t.Run("it does not return truncated records", func(t *testing.T) {
+				t.Parallel()
+
+				ctx, deps := setup(t, newStore)
+
+				const recordCount = 5
+				const truncateBefore = 3
+				records := appendRecords(ctx, t, deps.Journal, recordCount)
+
+				err := deps.Journal.Truncate(ctx, truncateBefore)
+				if err != nil {
+					t.Fatal(err)
+				}
+
+				for pos, want := range records {
+					pos := Position(pos)
+
+					if pos < truncateBefore {
+						if _, err := deps.Journal.Get(ctx, pos); err != ErrNotFound {
+							t.Fatalf("unexpected error at position %d: got %q, want %q", pos, err, ErrNotFound)
+						}
+					} else {
+						got, err := deps.Journal.Get(ctx, pos)
+						if err != nil {
+							t.Fatal(err)
+						}
+
+						if !bytes.Equal(want, got) {
+							t.Fatalf(
+								"unexpected record at position %d, want %q, got %q",
+								pos,
+								string(want),
+								string(got),
+							)
+						}
+					}
+				}
+			})
+
+			t.Run("it does not return any records when all records are truncated", func(t *testing.T) {
+				t.Parallel()
+
+				ctx, deps := setup(t, newStore)
+
+				records := appendRecords(ctx, t, deps.Journal, 5)
+
+				err := deps.Journal.Truncate(ctx, 5)
+				if err != nil {
+					t.Fatal(err)
+				}
+
+				for i := range records {
+					pos := Position(i)
+					if _, err := deps.Journal.Get(ctx, pos); err != ErrNotFound {
+						t.Fatalf("unexpected error at position %d: got %q, want %q", i, err, ErrNotFound)
 					}
 				}
 			})
@@ -315,29 +384,79 @@ func RunTests(
 				}
 			})
 
-			t.Run("it returns ErrNotFound if the first record is truncated", func(t *testing.T) {
+			t.Run("it does not range over truncated records", func(t *testing.T) {
+				t.Parallel()
+
+				ctx, deps := setup(t, newStore)
+
+				const recordCount = 5
+				const truncateBefore = 3
+				records := appendRecords(ctx, t, deps.Journal, recordCount)
+
+				err := deps.Journal.Truncate(ctx, truncateBefore)
+				if err != nil {
+					t.Fatal(err)
+				}
+
+				for pos, want := range records {
+					pos := Position(pos)
+
+					if pos < truncateBefore {
+						if err := deps.Journal.Range(
+							ctx,
+							pos,
+							func(ctx context.Context, pos Position, rec []byte) (bool, error) {
+								panic("unexpected call")
+							},
+						); !errors.Is(err, ErrNotFound) {
+							t.Fatalf("unexpected error: got %q, want %q", err, ErrNotFound)
+						}
+					} else {
+						if err := deps.Journal.Range(
+							ctx,
+							pos,
+							func(ctx context.Context, pos Position, got []byte) (bool, error) {
+								if !bytes.Equal(want, got) {
+									return false, fmt.Errorf(
+										"unexpected record at position %d, want %q, got %q",
+										pos,
+										string(want),
+										string(got),
+									)
+								}
+								return false, nil
+							},
+						); err != nil {
+							t.Fatal(err)
+						}
+					}
+				}
+			})
+
+			t.Run("it does not range over truncated records when all records are truncated", func(t *testing.T) {
 				t.Parallel()
 
 				ctx, deps := setup(t, newStore)
 
 				records := appendRecords(ctx, t, deps.Journal, 5)
-				retainPos := Position(len(records) - 1)
 
-				err := deps.Journal.Truncate(ctx, retainPos)
+				err := deps.Journal.Truncate(ctx, 5)
 				if err != nil {
 					t.Fatal(err)
 				}
 
-				err = deps.Journal.Range(
-					ctx,
-					1,
-					func(ctx context.Context, pos Position, rec []byte) (bool, error) {
-						panic("unexpected call")
-					},
-				)
+				for pos := range records {
+					pos := Position(pos)
 
-				if !errors.Is(err, ErrNotFound) {
-					t.Fatalf("unexpected error: got %q, want %q", err, ErrNotFound)
+					if err := deps.Journal.Range(
+						ctx,
+						pos,
+						func(ctx context.Context, pos Position, rec []byte) (bool, error) {
+							panic("unexpected call")
+						},
+					); !errors.Is(err, ErrNotFound) {
+						t.Fatalf("unexpected error: got %q, want %q", err, ErrNotFound)
+					}
 				}
 			})
 
@@ -523,19 +642,19 @@ func RunTests(
 					t.Fatal(err)
 				}
 
-				gotBegin, gotEnd, err := deps.Journal.Bounds(ctx)
+				begin, end, err := deps.Journal.Bounds(ctx)
 				if err != nil {
 					t.Fatal(err)
 				}
 
 				want := Position(3)
 
-				if gotBegin != want {
-					t.Fatalf("unexpected begin position: got %d, want %d", gotBegin, want)
-				}
-
-				if gotEnd != want {
-					t.Fatalf("unexpected end position: got %d, want %d", gotEnd, want)
+				if begin != want || end != want {
+					t.Fatalf(
+						"unexpected bounds: got [%d, %d), want [%d, %d)",
+						begin, end,
+						want, want,
+					)
 				}
 			})
 
