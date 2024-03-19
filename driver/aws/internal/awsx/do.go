@@ -18,10 +18,10 @@ func Do[In, Out any](
 	fn func(context.Context, *In, ...func(*dynamodb.Options)) (Out, error),
 	m func(any) []func(*dynamodb.Options),
 	in *In,
-	options ...func(*dynamodb.Options),
 ) (out Out, err error) {
+	var options []func(*dynamodb.Options)
 	if m != nil {
-		options = append(options, m(in)...)
+		options = m(in)
 	}
 	return fn(ctx, in, options...)
 }

@@ -77,12 +77,13 @@ func (j *journ[T]) Range(
 	}
 
 	for i, rec := range records[start:] {
-		v := start + journal.Position(i)
-		ok, err := fn(ctx, v, clone.Clone(rec))
+		pos := begin + journal.Position(i)
+		rec = clone.Clone(rec)
+
+		ok, err := fn(ctx, pos, rec)
 		if !ok || err != nil {
 			return err
 		}
-		begin++
 	}
 
 	return ctx.Err()

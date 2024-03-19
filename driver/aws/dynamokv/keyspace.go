@@ -107,42 +107,28 @@ func (ks *keyspace) delete(ctx context.Context, k []byte) error {
 }
 
 func (ks *keyspace) Range(ctx context.Context, fn kv.BinaryRangeFunc) error {
-	ks.queryRequest.ExclusiveStartKey = nil
-
-	for {
-		out, err := awsx.Do(
-			ctx,
-			ks.Client.Query,
-			ks.OnRequest,
-			&ks.queryRequest,
-		)
-		if err != nil {
-			return fmt.Errorf("unable to query keyspace: %w", err)
-		}
-
-		for _, item := range out.Items {
+	if err := dynamox.Range(
+		ctx,
+		ks.Client,
+		ks.OnRequest,
+		&ks.queryRequest,
+		func(ctx context.Context, item map[string]types.AttributeValue) (bool, error) {
 			key, err := dynamox.AttrAs[*types.AttributeValueMemberB](item, keyAttr)
 			if err != nil {
-				return err
+				return false, err
 			}
 
 			value, err := dynamox.AttrAs[*types.AttributeValueMemberB](item, valueAttr)
 			if err != nil {
-				return err
+				return false, err
 			}
 
-			ok, err := fn(ctx, key.Value, value.Value)
-			if !ok || err != nil {
-				return err
-			}
-		}
-
-		if out.LastEvaluatedKey == nil {
-			return nil
-		}
-
-		ks.queryRequest.ExclusiveStartKey = out.LastEvaluatedKey
+			return fn(ctx, key.Value, value.Value)
+		},
+	); err != nil {
+		return fmt.Errorf("unable to range over keyspace: %w", err)
 	}
+	return nil
 }
 
 func (ks *keyspace) Close() error {

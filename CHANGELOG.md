@@ -10,6 +10,26 @@ The format is based on [Keep a Changelog], and this project adheres to
 [Keep a Changelog]: https://keepachangelog.com/en/1.0.0/
 [Semantic Versioning]: https://semver.org/spec/v2.0.0.html
 
+## [Unreleased]
+
+### Added
+
+- Added property-based tests for journal implementations using
+  [`rapid`](https://github.com/flyingmutant/rapid), which uncovered the bugs
+  that are described below.
+
+### Fixed
+
+- Fixed issue with `memoryjournal` `Range()` implementation that would pass the
+  wrong position to the `RangeFunc` after the journal was truncated.
+- Fixed issue with `dynamojournal` `Bounds()` implementation that could
+  potentially report the wrong lower bound after truncating (as of 0.9.0).
+
+### Changed
+
+- `dynamojournal` now cleans up (hard-deletes) records that have been marked as
+  truncated when scanning for lower bounds.
+
 ## [0.9.0] - 2024-03-18
 
 ### Added

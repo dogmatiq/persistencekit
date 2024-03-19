@@ -19,6 +19,7 @@ require (
 	go.opentelemetry.io/otel/trace v1.24.0
 	golang.org/x/exp v0.0.0-20230810033253-352e893a4cad
 	google.golang.org/protobuf v1.33.0
+	pgregory.net/rapid v1.1.0
 )
 
 require (

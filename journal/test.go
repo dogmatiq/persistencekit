@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/google/go-cmp/cmp"
+	"pgregory.net/rapid"
 )
 
 // RunTests runs tests that confirm a journal implementation behaves correctly.
@@ -26,7 +27,6 @@ func RunTests(
 		if err != nil {
 			t.Fatal(err)
 		}
-
 		t.Cleanup(func() {
 			if err := j.Close(); err != nil {
 				t.Error(err)
@@ -665,6 +665,239 @@ func RunTests(
 					t.Fatalf("unexpected begin position: got %d, want %d", got, want)
 				}
 			})
+		})
+	})
+
+	t.Run("property-based", func(t *testing.T) {
+		t.Parallel()
+
+		rapid.Check(t, func(t *rapid.T) {
+			ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+			defer cancel()
+
+			j, err := store.Open(ctx, uniqueName())
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer j.Close()
+
+			var begin, end Position
+			var records []string
+
+			t.Repeat(
+				map[string]func(*rapid.T){
+					"": func(t *rapid.T) {
+						b, e, err := j.Bounds(ctx)
+						if err != nil {
+							t.Fatal(err)
+						}
+						if b != begin || e != end {
+							t.Fatalf(
+								"unexpected bounds: got [%d, %d), want [%d, %d)",
+								b, e,
+								begin, end,
+							)
+						}
+					},
+					"Get (success)": func(t *rapid.T) {
+						if begin == end {
+							t.Skip("skip: journal is empty")
+						}
+
+						pos := Position(
+							rapid.Uint64Range(
+								uint64(begin),
+								uint64(end-1),
+							).Draw(t, "get position"),
+						)
+
+						rec, err := j.Get(ctx, pos)
+						if err != nil {
+							t.Fatal(err)
+						}
+
+						expect := records[pos]
+						if string(rec) != expect {
+							t.Fatalf(
+								"unexpected record at position %d: got %q, want %q",
+								pos,
+								string(rec),
+								string(expect),
+							)
+						}
+					},
+					"Get (truncated)": func(t *rapid.T) {
+						if begin == 0 {
+							t.Skip("skip: no records have been truncated")
+						}
+
+						pos := Position(
+							rapid.Uint64Range(
+								uint64(0),
+								uint64(begin-1),
+							).Draw(t, "get position"),
+						)
+
+						_, err := j.Get(ctx, pos)
+						if !errors.Is(err, ErrNotFound) {
+							t.Fatalf("unexpected error: got %q, want %q", err, ErrNotFound)
+						}
+					},
+					"Get (future)": func(t *rapid.T) {
+						pos := Position(
+							rapid.Uint64Min(
+								uint64(end),
+							).Draw(t, "get position"),
+						)
+
+						_, err := j.Get(ctx, pos)
+						if !errors.Is(err, ErrNotFound) {
+							t.Fatalf("unexpected error: got %q, want %q", err, ErrNotFound)
+						}
+					},
+					"Range (all)": func(t *rapid.T) {
+						if begin == end {
+							t.Skip("skip: journal is empty")
+						}
+
+						wantPos := begin
+
+						if err := j.Range(
+							ctx,
+							wantPos,
+							func(ctx context.Context, gotPos Position, gotRec []byte) (bool, error) {
+								if gotPos != wantPos {
+									return false, fmt.Errorf(
+										"unexpected position: got %d, want %d",
+										gotPos,
+										wantPos,
+									)
+								}
+
+								wantRec := records[gotPos]
+								if string(gotRec) != wantRec {
+									return false, fmt.Errorf(
+										"unexpected record at position %d: got %q, want %q",
+										gotPos,
+										gotRec,
+										string(wantRec),
+									)
+								}
+
+								wantPos++
+								return true, nil
+							},
+						); err != nil {
+							t.Fatal(err)
+						}
+					},
+					"Range (truncated)": func(t *rapid.T) {
+						if begin == 0 {
+							t.Skip("skip: no records have been truncated")
+						}
+
+						pos := Position(
+							rapid.Uint64Range(
+								uint64(0),
+								uint64(begin-1),
+							).Draw(t, "range begin position"),
+						)
+
+						if err := j.Range(
+							ctx,
+							pos,
+							func(context.Context, Position, []byte) (bool, error) {
+								return false, errors.New("unexpected call")
+							},
+						); !errors.Is(err, ErrNotFound) {
+							t.Fatalf("unexpected error: got %q, want %q", err, ErrNotFound)
+						}
+					},
+					"Range (future)": func(t *rapid.T) {
+						pos := Position(
+							rapid.Uint64Min(
+								uint64(end),
+							).Draw(t, "range begin position"),
+						)
+
+						if err := j.Range(
+							ctx,
+							pos,
+							func(context.Context, Position, []byte) (bool, error) {
+								return false, errors.New("unexpected call")
+							},
+						); !errors.Is(err, ErrNotFound) {
+							t.Fatalf("unexpected error: got %q, want %q", err, ErrNotFound)
+						}
+					},
+					"Append (success)": func(t *rapid.T) {
+						rec := rapid.String().Draw(t, "record data")
+
+						err := j.Append(ctx, end, []byte(rec))
+						if err != nil {
+							t.Fatalf("unable to append record at position %d: %s", end, err)
+						}
+
+						records = append(records, rec)
+						end++
+
+						t.Logf("appended record at position %d, bounds are now [%d, %d)", end-1, begin, end)
+					},
+					"Truncate (some)": func(t *rapid.T) {
+						if end-begin < 2 {
+							t.Skip("skip: need at least 2 records")
+						}
+
+						pos := Position(
+							rapid.Uint64Range(
+								uint64(begin),
+								uint64(end-1),
+							).Draw(t, "truncate position"),
+						)
+
+						err := j.Truncate(ctx, pos)
+						if err != nil {
+							t.Fatalf("unable to truncate records before position %d: %s", pos, err)
+						}
+
+						begin = pos
+
+						t.Logf("truncated records before position %d, bounds are now [%d, %d)", pos, begin, end)
+					},
+					"Truncate (all)": func(t *rapid.T) {
+						if begin == end {
+							t.Skip("skip: journal is empty")
+						}
+
+						err := j.Truncate(ctx, end)
+						if err != nil {
+							t.Fatalf("unable to truncate records before position %d: %s", end, err)
+						}
+
+						begin = end
+
+						t.Logf("truncated records before position %d, bounds are now [%d, %d)", end, begin, end)
+					},
+					"Truncate (already truncated)": func(t *rapid.T) {
+						if begin == 0 {
+							t.Skip("skip: no records have been truncated")
+						}
+
+						pos := Position(
+							rapid.Uint64Max(
+								uint64(begin),
+							).Draw(t, "truncate position"),
+						)
+
+						err := j.Truncate(ctx, pos)
+						if err != nil {
+							t.Fatalf("unable to truncate records before position %d: %s", pos, err)
+						}
+
+						t.Logf("truncated records before position %d, bounds are still [%d, %d)", pos, begin, end)
+					},
+				},
+			)
 		})
 	})
 }

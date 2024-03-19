@@ -18,6 +18,6 @@ func HandleID() string {
 	return fmt.Sprintf(
 		"#%d %s",
 		handleCounter.Add(1),
-		uuidpb.Generate().String(),
+		uuidpb.Generate().AsString(),
 	)
 }
