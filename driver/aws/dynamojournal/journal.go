@@ -23,12 +23,12 @@ type journ struct {
 	position *types.AttributeValueMemberN
 	record   *types.AttributeValueMemberB
 
-	boundsQueryRequest dynamodb.QueryInput
-	getRequest         dynamodb.GetItemInput
-	rangeQueryRequest  dynamodb.QueryInput
-	putRequest         dynamodb.PutItemInput
-	truncateRequest    dynamodb.UpdateItemInput
-	deleteRequest      dynamodb.DeleteItemInput
+	boundsReq   dynamodb.QueryInput
+	getReq      dynamodb.GetItemInput
+	rangeReq    dynamodb.QueryInput
+	appendReq   dynamodb.PutItemInput
+	truncateReq dynamodb.UpdateItemInput
+	deleteReq   dynamodb.DeleteItemInput
 }
 
 func (j *journ) Bounds(ctx context.Context) (begin, end journal.Position, err error) {
@@ -46,7 +46,7 @@ func (j *journ) Bounds(ctx context.Context) (begin, end journal.Position, err er
 // If empty is true, the journal is either truly empty or all records have been
 // truncated, and therefore the bounds are [end, end).
 func (j *journ) upperBound(ctx context.Context) (end journal.Position, empty bool, err error) {
-	*j.boundsQueryRequest.ScanIndexForward = false
+	*j.boundsReq.ScanIndexForward = false
 
 	empty = true
 
@@ -54,7 +54,7 @@ func (j *journ) upperBound(ctx context.Context) (end journal.Position, empty boo
 		ctx,
 		j.Client,
 		j.OnRequest,
-		&j.boundsQueryRequest,
+		&j.boundsReq,
 		func(ctx context.Context, item map[string]types.AttributeValue) (bool, error) {
 			pos, err := unmarshalPosition(item)
 			if err != nil {
@@ -79,13 +79,13 @@ func (j *journ) upperBound(ctx context.Context) (end journal.Position, empty boo
 
 // lowerBound returns the (inclusive) lower bound of the records in the journal.
 func (j *journ) lowerBound(ctx context.Context, end journal.Position) (begin journal.Position, err error) {
-	*j.boundsQueryRequest.ScanIndexForward = true
+	*j.boundsReq.ScanIndexForward = true
 
 	if err := dynamox.Range(
 		ctx,
 		j.Client,
 		j.OnRequest,
-		&j.boundsQueryRequest,
+		&j.boundsReq,
 		func(ctx context.Context, item map[string]types.AttributeValue) (bool, error) {
 			pos, err := unmarshalPosition(item)
 			if err != nil {
@@ -131,7 +131,7 @@ func (j *journ) Get(ctx context.Context, pos journal.Position) ([]byte, error) {
 		ctx,
 		j.Client.GetItem,
 		j.OnRequest,
-		&j.getRequest,
+		&j.getReq,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("unable to get journal record: %w", err)
@@ -168,7 +168,7 @@ func (j *journ) Range(
 		ctx,
 		j.Client,
 		j.OnRequest,
-		&j.rangeQueryRequest,
+		&j.rangeReq,
 		func(ctx context.Context, item map[string]types.AttributeValue) (bool, error) {
 			pos, err := unmarshalPosition(item)
 			if err != nil {
@@ -209,7 +209,7 @@ func (j *journ) Append(ctx context.Context, end journal.Position, rec []byte) er
 		ctx,
 		j.Client.PutItem,
 		j.OnRequest,
-		&j.putRequest,
+		&j.appendReq,
 	); err != nil {
 		if errors.As(err, new(*types.ConditionalCheckFailedException)) {
 			return journal.ErrConflict
@@ -255,7 +255,7 @@ func (j *journ) markRecordAsTruncated(ctx context.Context, pos journal.Position)
 		ctx,
 		j.Client.UpdateItem,
 		j.OnRequest,
-		&j.truncateRequest,
+		&j.truncateReq,
 	); err != nil {
 		return fmt.Errorf("unable to mark journal record as truncated: %w", err)
 	}
@@ -270,7 +270,7 @@ func (j *journ) deleteRecord(ctx context.Context, pos journal.Position) error {
 		ctx,
 		j.Client.DeleteItem,
 		j.OnRequest,
-		&j.deleteRequest,
+		&j.deleteReq,
 	); err != nil {
 		return fmt.Errorf("unable to delete journal record: %w", err)
 	}

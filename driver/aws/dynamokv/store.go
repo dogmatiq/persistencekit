@@ -85,7 +85,7 @@ func (s *store) Open(ctx context.Context, name string) (kv.BinaryKeyspace, error
 		value: &types.AttributeValueMemberB{},
 	}
 
-	ks.getRequest = dynamodb.GetItemInput{
+	ks.getReq = dynamodb.GetItemInput{
 		TableName: aws.String(s.Table),
 		Key: map[string]types.AttributeValue{
 			keyspaceAttr: ks.name,
@@ -98,7 +98,7 @@ func (s *store) Open(ctx context.Context, name string) (kv.BinaryKeyspace, error
 	}
 
 	// Has() requests an unknown attribute to avoid fetching unnecessary data.
-	ks.hasRequest = dynamodb.GetItemInput{
+	ks.hasReq = dynamodb.GetItemInput{
 		TableName: aws.String(s.Table),
 		Key: map[string]types.AttributeValue{
 			keyspaceAttr: ks.name,
@@ -107,7 +107,7 @@ func (s *store) Open(ctx context.Context, name string) (kv.BinaryKeyspace, error
 		ProjectionExpression: aws.String(`NonExistent`),
 	}
 
-	ks.queryRequest = dynamodb.QueryInput{
+	ks.rangeReq = dynamodb.QueryInput{
 		TableName:              aws.String(s.Table),
 		KeyConditionExpression: aws.String(`#S = :S`),
 		ProjectionExpression:   aws.String("#K, #V"),
@@ -121,7 +121,7 @@ func (s *store) Open(ctx context.Context, name string) (kv.BinaryKeyspace, error
 		},
 	}
 
-	ks.putRequest = dynamodb.PutItemInput{
+	ks.setReq = dynamodb.PutItemInput{
 		TableName: aws.String(s.Table),
 		Item: map[string]types.AttributeValue{
 			keyspaceAttr: ks.name,
@@ -130,7 +130,7 @@ func (s *store) Open(ctx context.Context, name string) (kv.BinaryKeyspace, error
 		},
 	}
 
-	ks.deleteRequest = dynamodb.DeleteItemInput{
+	ks.deleteReq = dynamodb.DeleteItemInput{
 		TableName: aws.String(s.Table),
 		Key: map[string]types.AttributeValue{
 			keyspaceAttr: ks.name,

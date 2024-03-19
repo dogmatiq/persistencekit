@@ -86,7 +86,7 @@ func (s *store) Open(ctx context.Context, name string) (journal.BinaryJournal, e
 		record:   &types.AttributeValueMemberB{},
 	}
 
-	j.boundsQueryRequest = dynamodb.QueryInput{
+	j.boundsReq = dynamodb.QueryInput{
 		TableName:              aws.String(s.Table),
 		KeyConditionExpression: aws.String(`#N = :N`),
 		ProjectionExpression:   aws.String("#P, #T"),
@@ -102,7 +102,7 @@ func (s *store) Open(ctx context.Context, name string) (journal.BinaryJournal, e
 		Limit:            aws.Int32(1),
 	}
 
-	j.getRequest = dynamodb.GetItemInput{
+	j.getReq = dynamodb.GetItemInput{
 		TableName: aws.String(s.Table),
 		Key: map[string]types.AttributeValue{
 			nameAttr:     j.name,
@@ -115,7 +115,7 @@ func (s *store) Open(ctx context.Context, name string) (journal.BinaryJournal, e
 		},
 	}
 
-	j.rangeQueryRequest = dynamodb.QueryInput{
+	j.rangeReq = dynamodb.QueryInput{
 		TableName:              aws.String(s.Table),
 		KeyConditionExpression: aws.String(`#N = :N AND #P >= :P`),
 		FilterExpression:       aws.String(`attribute_not_exists(#T)`),
@@ -132,7 +132,7 @@ func (s *store) Open(ctx context.Context, name string) (journal.BinaryJournal, e
 		},
 	}
 
-	j.putRequest = dynamodb.PutItemInput{
+	j.appendReq = dynamodb.PutItemInput{
 		TableName:           aws.String(s.Table),
 		ConditionExpression: aws.String(`attribute_not_exists(#N)`),
 		ExpressionAttributeNames: map[string]string{
@@ -145,7 +145,7 @@ func (s *store) Open(ctx context.Context, name string) (journal.BinaryJournal, e
 		},
 	}
 
-	j.truncateRequest = dynamodb.UpdateItemInput{
+	j.truncateReq = dynamodb.UpdateItemInput{
 		TableName:           aws.String(s.Table),
 		ConditionExpression: aws.String(`attribute_not_exists(#T)`),
 		Key: map[string]types.AttributeValue{
@@ -162,7 +162,7 @@ func (s *store) Open(ctx context.Context, name string) (journal.BinaryJournal, e
 		UpdateExpression: aws.String(`SET #T = :T REMOVE #R`),
 	}
 
-	j.deleteRequest = dynamodb.DeleteItemInput{
+	j.deleteReq = dynamodb.DeleteItemInput{
 		TableName: aws.String(s.Table),
 		Key: map[string]types.AttributeValue{
 			nameAttr:     j.name,
