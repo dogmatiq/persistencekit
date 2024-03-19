@@ -9,10 +9,10 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/dynamodb v1.30.5
 	github.com/aws/aws-sdk-go-v2/service/sso v1.20.3
 	github.com/dogmatiq/dyad v0.2.2
-	github.com/dogmatiq/enginekit v0.0.0-20230922231755-43a18006bf1c
 	github.com/dogmatiq/spruce v0.1.0
 	github.com/dogmatiq/sqltest v0.3.0
 	github.com/google/go-cmp v0.6.0
+	github.com/google/uuid v1.6.0
 	github.com/jackc/pgconn v1.14.3
 	go.opentelemetry.io/otel v1.24.0
 	go.opentelemetry.io/otel/metric v1.24.0
