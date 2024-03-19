@@ -5,6 +5,8 @@ package kv
 type BinaryStore = Store[[]byte, []byte]
 
 // A BinaryKeyspace is an isolated collection of binary key/value pairs.
+//
+// Keys in a binary keyspace cannot be an empty slice.
 type BinaryKeyspace = Keyspace[[]byte, []byte]
 
 // A BinaryRangeFunc is a function used to range over the key/value pairs in a

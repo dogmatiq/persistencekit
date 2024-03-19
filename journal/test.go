@@ -708,7 +708,7 @@ func RunTests(
 							rapid.Uint64Range(
 								uint64(begin),
 								uint64(end-1),
-							).Draw(t, "get position"),
+							).Draw(t, "pos"),
 						)
 
 						rec, err := j.Get(ctx, pos)
@@ -735,7 +735,7 @@ func RunTests(
 							rapid.Uint64Range(
 								uint64(0),
 								uint64(begin-1),
-							).Draw(t, "get position"),
+							).Draw(t, "pos"),
 						)
 
 						_, err := j.Get(ctx, pos)
@@ -747,7 +747,7 @@ func RunTests(
 						pos := Position(
 							rapid.Uint64Min(
 								uint64(end),
-							).Draw(t, "get position"),
+							).Draw(t, "pos"),
 						)
 
 						_, err := j.Get(ctx, pos)
@@ -800,7 +800,7 @@ func RunTests(
 							rapid.Uint64Range(
 								uint64(0),
 								uint64(begin-1),
-							).Draw(t, "range begin position"),
+							).Draw(t, "pos"),
 						)
 
 						if err := j.Range(
@@ -817,7 +817,7 @@ func RunTests(
 						pos := Position(
 							rapid.Uint64Min(
 								uint64(end),
-							).Draw(t, "range begin position"),
+							).Draw(t, "pos"),
 						)
 
 						if err := j.Range(
@@ -831,7 +831,7 @@ func RunTests(
 						}
 					},
 					"Append (success)": func(t *rapid.T) {
-						rec := rapid.String().Draw(t, "record data")
+						rec := rapid.String().Draw(t, "rec")
 
 						err := j.Append(ctx, end, []byte(rec))
 						if err != nil {
@@ -852,7 +852,7 @@ func RunTests(
 							rapid.Uint64Range(
 								uint64(begin),
 								uint64(end-1),
-							).Draw(t, "truncate position"),
+							).Draw(t, "pos"),
 						)
 
 						err := j.Truncate(ctx, pos)
@@ -886,7 +886,7 @@ func RunTests(
 						pos := Position(
 							rapid.Uint64Max(
 								uint64(begin),
-							).Draw(t, "truncate position"),
+							).Draw(t, "pos"),
 						)
 
 						err := j.Truncate(ctx, pos)

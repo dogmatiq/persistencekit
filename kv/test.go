@@ -5,11 +5,13 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 	"sync/atomic"
 	"testing"
 	"time"
 
 	"github.com/google/go-cmp/cmp"
+	"pgregory.net/rapid"
 )
 
 // RunTests runs tests that confirm a [BinaryStore] implementation behaves correctly.
@@ -545,6 +547,194 @@ func RunTests(
 					)
 				}
 			})
+		})
+	})
+
+	t.Run("property-based", func(t *testing.T) {
+		t.Parallel()
+
+		rapid.Check(t, func(t *rapid.T) {
+			ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+			defer cancel()
+
+			ks, err := store.Open(ctx, uniqueName())
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer ks.Close()
+
+			nonEmptyValue := rapid.StringN(1, -1, -1)
+
+			pairs := map[string][]byte{}
+			var keys [][]byte
+
+			t.Repeat(
+				map[string]func(*rapid.T){
+					"Get": func(t *rapid.T) {
+						key := []byte(nonEmptyValue.Draw(t, "key"))
+
+						value, err := ks.Get(ctx, key)
+						if err != nil {
+							t.Fatal(err)
+						}
+
+						expect := pairs[string(key)]
+						if !bytes.Equal(expect, value) {
+							t.Fatalf(
+								"unexpected value for key %q: got %q, want %q",
+								string(key),
+								string(value),
+								string(expect),
+							)
+						}
+					},
+					"Get (key exists)": func(t *rapid.T) {
+						if len(pairs) == 0 {
+							t.Skip("skip: keyspace is empty")
+						}
+
+						key := rapid.SampledFrom(keys).Draw(t, "key")
+
+						value, err := ks.Get(ctx, key)
+						if err != nil {
+							t.Fatal(err)
+						}
+
+						expect := pairs[string(key)]
+						if !bytes.Equal(expect, value) {
+							t.Fatalf(
+								"unexpected value for key %q: got %q, want %q",
+								string(key),
+								string(value),
+								string(expect),
+							)
+						}
+					},
+					"Has": func(t *rapid.T) {
+						key := []byte(nonEmptyValue.Draw(t, "key"))
+
+						ok, err := ks.Has(ctx, key)
+						if err != nil {
+							t.Fatal(err)
+						}
+
+						_, expect := pairs[string(key)]
+						if ok != expect {
+							t.Fatalf(
+								"unexpected has for key %q: got %t, want %t",
+								string(key),
+								ok,
+								expect,
+							)
+						}
+					},
+					"Has (key exists)": func(t *rapid.T) {
+						if len(pairs) == 0 {
+							t.Skip("skip: keyspace is empty")
+						}
+
+						key := rapid.SampledFrom(keys).Draw(t, "key")
+
+						ok, err := ks.Has(ctx, key)
+						if err != nil {
+							t.Fatal(err)
+						}
+
+						expect := true
+						if ok != expect {
+							t.Fatalf(
+								"unexpected has for key %q: got %t, want %t",
+								string(key),
+								ok,
+								expect,
+							)
+						}
+					},
+					"Set": func(t *rapid.T) {
+						key := []byte(nonEmptyValue.Draw(t, "key"))
+						value := []byte(nonEmptyValue.Draw(t, "value"))
+
+						if err := ks.Set(ctx, key, value); err != nil {
+							t.Fatal(err)
+						}
+
+						n := len(pairs)
+						pairs[string(key)] = value
+						if len(pairs) > n {
+							keys = append(keys, key)
+						}
+					},
+					"Set (replace)": func(t *rapid.T) {
+						if len(pairs) == 0 {
+							t.Skip("skip: keyspace is empty")
+						}
+
+						key := rapid.SampledFrom(keys).Draw(t, "key")
+						value := []byte(nonEmptyValue.Draw(t, "value"))
+
+						if err := ks.Set(ctx, key, value); err != nil {
+							t.Fatal(err)
+						}
+
+						pairs[string(key)] = value
+					},
+					"Set (delete)": func(t *rapid.T) {
+						if len(pairs) == 0 {
+							t.Skip("skip: keyspace is empty")
+						}
+
+						key := rapid.SampledFrom(keys).Draw(t, "key")
+
+						if err := ks.Set(ctx, key, nil); err != nil {
+							t.Fatal(err)
+						}
+
+						delete(pairs, string(key))
+						keys = slices.DeleteFunc(
+							keys,
+							func(k []byte) bool {
+								return bytes.Equal(k, key)
+							},
+						)
+					},
+					"Range": func(t *rapid.T) {
+						seen := map[string]struct{}{}
+
+						if err := ks.Range(
+							ctx,
+							func(ctx context.Context, key, value []byte) (bool, error) {
+								if _, ok := seen[string(key)]; ok {
+									t.Fatalf(
+										"key seen twice while ranging over pairs: %q",
+										string(key),
+									)
+								}
+								seen[string(key)] = struct{}{}
+
+								expect := pairs[string(key)]
+								if !bytes.Equal(expect, value) {
+									t.Fatalf(
+										"unexpected value for key %q: got %q, want %q",
+										string(key),
+										string(value),
+										string(expect),
+									)
+								}
+
+								return true, nil
+							},
+						); err != nil {
+							t.Fatal(err)
+						}
+
+						for key := range pairs {
+							if _, ok := seen[key]; !ok {
+								t.Fatalf("key not seen while ranging over pairs: %q", key)
+							}
+						}
+					},
+				},
+			)
 		})
 	})
 }

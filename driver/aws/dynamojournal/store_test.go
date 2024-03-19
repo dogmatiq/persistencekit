@@ -9,21 +9,13 @@ import (
 	. "github.com/dogmatiq/persistencekit/driver/aws/dynamojournal"
 	"github.com/dogmatiq/persistencekit/driver/aws/internal/dynamox"
 	"github.com/dogmatiq/persistencekit/journal"
-	"github.com/dogmatiq/spruce"
-	noopmetric "go.opentelemetry.io/otel/metric/noop"
-	nooptrace "go.opentelemetry.io/otel/trace/noop"
 )
 
 func TestStore(t *testing.T) {
 	client, table := setup(t)
 	journal.RunTests(
 		t,
-		journal.WithTelemetry( // TODO: remove telemetry
-			NewBinaryStore(client, table),
-			nooptrace.NewTracerProvider(),
-			noopmetric.NewMeterProvider(),
-			spruce.NewLogger(t),
-		),
+		NewBinaryStore(client, table),
 	)
 }
 

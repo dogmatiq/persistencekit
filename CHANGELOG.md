@@ -14,9 +14,9 @@ The format is based on [Keep a Changelog], and this project adheres to
 
 ### Added
 
-- Added property-based tests for journal implementations using
-  [`rapid`](https://github.com/flyingmutant/rapid), which uncovered the bugs
-  that are described below.
+- Added property-based tests for journal and key/value store implementations
+  using [`rapid`](https://github.com/flyingmutant/rapid). These new tests
+  uncovered the bugs described below.
 
 ### Fixed
 

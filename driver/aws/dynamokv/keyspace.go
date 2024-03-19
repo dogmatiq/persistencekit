@@ -48,7 +48,6 @@ func (ks *keyspace) Get(ctx context.Context, k []byte) ([]byte, error) {
 	}
 
 	return v.Value, nil
-
 }
 
 func (ks *keyspace) Has(ctx context.Context, k []byte) (bool, error) {
@@ -68,10 +67,9 @@ func (ks *keyspace) Has(ctx context.Context, k []byte) (bool, error) {
 }
 
 func (ks *keyspace) Set(ctx context.Context, k, v []byte) error {
-	if v == nil {
+	if len(v) == 0 {
 		return ks.delete(ctx, k)
 	}
-
 	return ks.set(ctx, k, v)
 }
 
