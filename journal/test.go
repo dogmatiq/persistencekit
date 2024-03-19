@@ -22,8 +22,7 @@ func RunTests(
 		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 		t.Cleanup(cancel)
 
-		name := uniqueName()
-		j, err := store.Open(ctx, name)
+		j, err := store.Open(ctx, uniqueName())
 		if err != nil {
 			t.Fatal(err)
 		}

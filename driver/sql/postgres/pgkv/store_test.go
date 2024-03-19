@@ -15,10 +15,8 @@ func TestStore(t *testing.T) {
 	db := setup(t)
 	kv.RunTests(
 		t,
-		func(t *testing.T) kv.BinaryStore {
-			return &BinaryStore{
-				DB: db,
-			}
+		&BinaryStore{
+			DB: db,
 		},
 	)
 }
@@ -27,10 +25,8 @@ func BenchmarkStore(b *testing.B) {
 	db := setup(b)
 	kv.RunBenchmarks(
 		b,
-		func(b *testing.B) kv.BinaryStore {
-			return &BinaryStore{
-				DB: db,
-			}
+		&BinaryStore{
+			DB: db,
 		},
 	)
 }

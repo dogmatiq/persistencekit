@@ -13,7 +13,7 @@ import (
 // RunBenchmarks runs benchmarks against a [BinaryStore] implementation.
 func RunBenchmarks(
 	b *testing.B,
-	newStore func(b *testing.B) BinaryStore,
+	store BinaryStore,
 ) {
 	b.Run("Store", func(b *testing.B) {
 		b.Run("Open", func(b *testing.B) {
@@ -22,7 +22,7 @@ func RunBenchmarks(
 
 				benchmarkStore(
 					b,
-					newStore,
+					store,
 					// SETUP
 					func(ctx context.Context, s BinaryStore) error {
 						name = uniqueName()
@@ -52,7 +52,7 @@ func RunBenchmarks(
 
 				benchmarkStore(
 					b,
-					newStore,
+					store,
 					// SETUP
 					nil,
 					// BEFORE EACH
@@ -80,7 +80,7 @@ func RunBenchmarks(
 
 				benchmarkKeyspace(
 					b,
-					newStore,
+					store,
 					// SETUP
 					nil,
 					// BEFORE EACH
@@ -103,7 +103,7 @@ func RunBenchmarks(
 
 				benchmarkKeyspace(
 					b,
-					newStore,
+					store,
 					// SETUP
 					nil,
 					// BEFORE EACH
@@ -130,7 +130,7 @@ func RunBenchmarks(
 
 				benchmarkKeyspace(
 					b,
-					newStore,
+					store,
 					// SETUP
 					nil,
 					// BEFORE EACH
@@ -153,7 +153,7 @@ func RunBenchmarks(
 
 				benchmarkKeyspace(
 					b,
-					newStore,
+					store,
 					// SETUP
 					nil,
 					// BEFORE EACH
@@ -180,7 +180,7 @@ func RunBenchmarks(
 
 				benchmarkKeyspace(
 					b,
-					newStore,
+					store,
 					// SETUP
 					nil,
 					// BEFORE EACH
@@ -202,7 +202,7 @@ func RunBenchmarks(
 
 				benchmarkKeyspace(
 					b,
-					newStore,
+					store,
 					// SETUP
 					nil,
 					// BEFORE EACH
@@ -226,7 +226,7 @@ func RunBenchmarks(
 
 				benchmarkKeyspace(
 					b,
-					newStore,
+					store,
 					// SETUP
 					nil,
 					// BEFORE EACH
@@ -249,7 +249,7 @@ func RunBenchmarks(
 		b.Run("Range (3k pairs)", func(b *testing.B) {
 			benchmarkKeyspace(
 				b,
-				newStore,
+				store,
 				// SETUP
 				func(ctx context.Context, _ BinaryStore, ks BinaryKeyspace) error {
 					for i := 0; i < 3000; i++ {
@@ -281,22 +281,17 @@ func RunBenchmarks(
 
 func benchmarkStore[T any](
 	b *testing.B,
-	newStore func(b *testing.B) BinaryStore,
+	store BinaryStore,
 	setup func(context.Context, BinaryStore) error,
 	before func(context.Context, BinaryStore) error,
 	fn func(context.Context, BinaryStore) (T, error),
 	after func(T) error,
 ) {
-	var (
-		store  BinaryStore
-		result T
-	)
+	var result T
 
 	benchmark.Run(
 		b,
 		func(ctx context.Context) error {
-			store = newStore(b)
-
 			if setup != nil {
 				return setup(ctx, store)
 			}
@@ -325,22 +320,17 @@ func benchmarkStore[T any](
 
 func benchmarkKeyspace(
 	b *testing.B,
-	newStore func(b *testing.B) BinaryStore,
+	store BinaryStore,
 	setup func(context.Context, BinaryStore, BinaryKeyspace) error,
 	before func(context.Context, BinaryKeyspace) error,
 	fn func(context.Context, BinaryKeyspace) error,
 	after func() error,
 ) {
-	var (
-		store    BinaryStore
-		keyspace BinaryKeyspace
-	)
+	var keyspace BinaryKeyspace
 
 	benchmark.Run(
 		b,
 		func(ctx context.Context) error {
-			store = newStore(b)
-
 			var err error
 			keyspace, err = store.Open(ctx, uniqueName())
 			if err != nil {

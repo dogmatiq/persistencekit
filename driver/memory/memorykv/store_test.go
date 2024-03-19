@@ -10,17 +10,13 @@ import (
 func TestStore(t *testing.T) {
 	kv.RunTests(
 		t,
-		func(t *testing.T) kv.BinaryStore {
-			return &BinaryStore{}
-		},
+		&BinaryStore{},
 	)
 }
 
 func BenchmarkStore(b *testing.B) {
 	kv.RunBenchmarks(
 		b,
-		func(b *testing.B) kv.BinaryStore {
-			return &BinaryStore{}
-		},
+		&BinaryStore{},
 	)
 }

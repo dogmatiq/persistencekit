@@ -15,8 +15,26 @@ import (
 // RunTests runs tests that confirm a [BinaryStore] implementation behaves correctly.
 func RunTests(
 	t *testing.T,
-	newStore func(t *testing.T) BinaryStore,
+	store BinaryStore,
 ) {
+	setup := func(t *testing.T) (context.Context, BinaryKeyspace) {
+		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+		t.Cleanup(cancel)
+
+		ks, err := store.Open(ctx, uniqueName())
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		t.Cleanup(func() {
+			if err := ks.Close(); err != nil {
+				t.Error(err)
+			}
+		})
+
+		return ctx, ks
+	}
+
 	t.Run("Store", func(t *testing.T) {
 		t.Parallel()
 
@@ -28,8 +46,6 @@ func RunTests(
 
 				ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 				defer cancel()
-
-				store := newStore(t)
 
 				ks1, err := store.Open(ctx, "<keyspace>")
 				if err != nil {
@@ -73,7 +89,7 @@ func RunTests(
 			t.Run("it returns an empty value if the key doesn't exist", func(t *testing.T) {
 				t.Parallel()
 
-				ctx, ks := setup(t, newStore)
+				ctx, ks := setup(t)
 
 				v, err := ks.Get(ctx, []byte("<key>"))
 				if err != nil {
@@ -87,7 +103,7 @@ func RunTests(
 			t.Run("it returns an empty value if the key has been deleted", func(t *testing.T) {
 				t.Parallel()
 
-				ctx, ks := setup(t, newStore)
+				ctx, ks := setup(t)
 
 				k := []byte("<key>")
 
@@ -111,7 +127,7 @@ func RunTests(
 			t.Run("it returns the value if the key exists", func(t *testing.T) {
 				t.Parallel()
 
-				ctx, ks := setup(t, newStore)
+				ctx, ks := setup(t)
 
 				for i := 0; i < 5; i++ {
 					k := []byte(fmt.Sprintf("<key-%d>", i))
@@ -144,7 +160,7 @@ func RunTests(
 			t.Run("it does not return its internal byte slice", func(t *testing.T) {
 				t.Parallel()
 
-				ctx, ks := setup(t, newStore)
+				ctx, ks := setup(t)
 
 				k := []byte("<key>")
 
@@ -180,7 +196,7 @@ func RunTests(
 			t.Run("it does not keep a reference to the key slice", func(t *testing.T) {
 				t.Parallel()
 
-				ctx, ks := setup(t, newStore)
+				ctx, ks := setup(t)
 
 				k := []byte("<key>")
 				v := []byte("<value>")
@@ -217,7 +233,7 @@ func RunTests(
 			t.Run("it does not keep a reference to the value slice", func(t *testing.T) {
 				t.Parallel()
 
-				ctx, ks := setup(t, newStore)
+				ctx, ks := setup(t)
 
 				k := []byte("<key>")
 				v := []byte("<value>")
@@ -249,7 +265,7 @@ func RunTests(
 			t.Run("it returns false if the key doesn't exist", func(t *testing.T) {
 				t.Parallel()
 
-				ctx, ks := setup(t, newStore)
+				ctx, ks := setup(t)
 
 				ok, err := ks.Has(ctx, []byte("<key>"))
 				if err != nil {
@@ -263,7 +279,7 @@ func RunTests(
 			t.Run("it returns true if the key exists", func(t *testing.T) {
 				t.Parallel()
 
-				ctx, ks := setup(t, newStore)
+				ctx, ks := setup(t)
 
 				k := []byte("<key>")
 
@@ -283,7 +299,7 @@ func RunTests(
 			t.Run("it returns false if the key has been deleted", func(t *testing.T) {
 				t.Parallel()
 
-				ctx, ks := setup(t, newStore)
+				ctx, ks := setup(t)
 
 				k := []byte("<key>")
 
@@ -311,7 +327,7 @@ func RunTests(
 			t.Run("calls the function for each key in the keyspace", func(t *testing.T) {
 				t.Parallel()
 
-				ctx, ks := setup(t, newStore)
+				ctx, ks := setup(t)
 
 				expect := map[string]string{}
 
@@ -345,7 +361,7 @@ func RunTests(
 			t.Run("it stops iterating if the function returns false", func(t *testing.T) {
 				t.Parallel()
 
-				ctx, ks := setup(t, newStore)
+				ctx, ks := setup(t)
 
 				for n := uint64(0); n < 2; n++ {
 					k := fmt.Sprintf("<key-%d>", n)
@@ -374,7 +390,7 @@ func RunTests(
 			t.Run("it does not invoke the function with its internal byte slices", func(t *testing.T) {
 				t.Parallel()
 
-				ctx, ks := setup(t, newStore)
+				ctx, ks := setup(t)
 
 				if err := ks.Set(
 					ctx,
@@ -424,7 +440,7 @@ func RunTests(
 			t.Run("it allows calls to Get() during iteration", func(t *testing.T) {
 				t.Parallel()
 
-				ctx, ks := setup(t, newStore)
+				ctx, ks := setup(t)
 
 				if err := ks.Set(
 					ctx,
@@ -460,7 +476,7 @@ func RunTests(
 			t.Run("it allows calls to Has() during iteration", func(t *testing.T) {
 				t.Parallel()
 
-				ctx, ks := setup(t, newStore)
+				ctx, ks := setup(t)
 
 				if err := ks.Set(
 					ctx,
@@ -490,7 +506,7 @@ func RunTests(
 			t.Run("it allows calls to Set() during iteration", func(t *testing.T) {
 				t.Parallel()
 
-				ctx, ks := setup(t, newStore)
+				ctx, ks := setup(t)
 
 				k := []byte("<key>")
 
@@ -537,27 +553,4 @@ var nameCounter atomic.Uint64
 
 func uniqueName() string {
 	return fmt.Sprintf("<keyspace-%d>", nameCounter.Add(1))
-}
-
-func setup(
-	t *testing.T,
-	newStore func(t *testing.T) BinaryStore,
-) (context.Context, BinaryKeyspace) {
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-	t.Cleanup(cancel)
-
-	store := newStore(t)
-
-	ks, err := store.Open(ctx, uniqueName())
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	t.Cleanup(func() {
-		if err := ks.Close(); err != nil {
-			t.Error(err)
-		}
-	})
-
-	return ctx, ks
 }
