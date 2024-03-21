@@ -131,7 +131,7 @@ func RunTests(
 
 				ctx, ks := setup(t)
 
-				for i := 0; i < 5; i++ {
+				for i := range 5 {
 					k := []byte(fmt.Sprintf("<key-%d>", i))
 					v := []byte(fmt.Sprintf("<value-%d>", i))
 
@@ -140,7 +140,7 @@ func RunTests(
 					}
 				}
 
-				for i := 0; i < 5; i++ {
+				for i := range 5 {
 					k := []byte(fmt.Sprintf("<key-%d>", i))
 					expect := []byte(fmt.Sprintf("<value-%d>", i))
 

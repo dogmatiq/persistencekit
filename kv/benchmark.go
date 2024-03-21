@@ -252,7 +252,7 @@ func RunBenchmarks(
 				store,
 				// SETUP
 				func(ctx context.Context, _ BinaryStore, ks BinaryKeyspace) error {
-					for i := 0; i < 3000; i++ {
+					for i := range 3000 {
 						k := []byte(fmt.Sprintf("<key-%d>", i))
 						v := []byte("<value>")
 						if err := ks.Set(ctx, k, v); err != nil {

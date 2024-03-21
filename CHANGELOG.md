@@ -115,7 +115,7 @@ This eliminates the need for duplicating all of the generic algorithms (such as
 ### Added
 
 - Added `journal.RunBenchmarks()` and `kv.RunBenchmarks()` to run generic
-  benchmarks for a journal or key-value store implementation.
+  benchmarks for a journal or key/value store implementation.
 
 ### Changed
 
@@ -179,7 +179,7 @@ This eliminates the need for duplicating all of the generic algorithms (such as
 ### Added
 
 - Added `journal.WithTelemetry()` and `kv.WithTelemetry()`, which add logging,
-  tracing and metrics to an existing journal or key-value store, respectively.
+  tracing and metrics to an existing journal or key/value store, respectively.
 
 ## [0.2.0] - 2024-03-02
 

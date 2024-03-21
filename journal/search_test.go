@@ -20,7 +20,7 @@ func TestSearch(t *testing.T) {
 	}
 	defer j.Close()
 
-	for i := 0; i < 100; i++ {
+	for i := range 100 {
 		if err := j.Append(ctx, Position(i), i); err != nil {
 			t.Fatal(err)
 		}

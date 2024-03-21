@@ -27,7 +27,7 @@ func Run(
 		}
 	}
 
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		if before != nil {
 			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 			err := before(ctx)

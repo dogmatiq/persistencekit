@@ -8,6 +8,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/credentials v1.17.8
 	github.com/aws/aws-sdk-go-v2/service/dynamodb v1.30.5
 	github.com/aws/aws-sdk-go-v2/service/sso v1.20.3
+	github.com/cespare/xxhash/v2 v2.2.0
 	github.com/dogmatiq/dyad v0.2.2
 	github.com/dogmatiq/spruce v0.1.0
 	github.com/dogmatiq/sqltest v0.3.0
