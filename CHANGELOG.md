@@ -15,6 +15,7 @@ The format is based on [Keep a Changelog], and this project adheres to
 ### Added
 
 - Added `journal.AppendWithConflictResolution()`.
+- Added `journal.IgnoreNotFound()`.
 
 ## [0.9.2] - 2024-03-27
 

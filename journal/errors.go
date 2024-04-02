@@ -12,3 +12,11 @@ var (
 	// the specified position.
 	ErrConflict = errors.New("optimistic concurrency conflict")
 )
+
+// IgnoreNotFound returns nil if err is [ErrNotFound], otherwise it returns err.
+func IgnoreNotFound(err error) error {
+	if errors.Is(err, ErrNotFound) {
+		return nil
+	}
+	return err
+}
