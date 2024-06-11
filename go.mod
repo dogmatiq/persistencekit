@@ -18,7 +18,7 @@ require (
 	go.opentelemetry.io/otel/metric v1.27.0
 	go.opentelemetry.io/otel/trace v1.27.0
 	golang.org/x/exp v0.0.0-20230810033253-352e893a4cad
-	google.golang.org/protobuf v1.34.1
+	google.golang.org/protobuf v1.34.2
 	pgregory.net/rapid v1.1.0
 )
 
