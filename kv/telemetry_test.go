@@ -17,7 +17,7 @@ func TestWithTelemetry(t *testing.T) {
 			&memorykv.BinaryStore{},
 			nooptrace.NewTracerProvider(),
 			noopmetric.NewMeterProvider(),
-			spruce.NewLogger(t),
+			spruce.NewTestLogger(t),
 		),
 	)
 }
