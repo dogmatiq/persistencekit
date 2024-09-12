@@ -15,25 +15,29 @@ type keyspace struct {
 	Client    *dynamodb.Client
 	OnRequest func(any) []func(*dynamodb.Options)
 
-	name  *types.AttributeValueMemberS
-	key   *types.AttributeValueMemberB
-	value *types.AttributeValueMemberB
+	attr struct {
+		Keyspace types.AttributeValueMemberS
+		Key      types.AttributeValueMemberB
+		Value    types.AttributeValueMemberB
+	}
 
-	getReq    dynamodb.GetItemInput
-	hasReq    dynamodb.GetItemInput
-	rangeReq  dynamodb.QueryInput
-	setReq    dynamodb.PutItemInput
-	deleteReq dynamodb.DeleteItemInput
+	request struct {
+		Get    dynamodb.GetItemInput
+		Has    dynamodb.GetItemInput
+		Range  dynamodb.QueryInput
+		Set    dynamodb.PutItemInput
+		Delete dynamodb.DeleteItemInput
+	}
 }
 
 func (ks *keyspace) Get(ctx context.Context, k []byte) ([]byte, error) {
-	ks.key.Value = k
+	ks.attr.Key.Value = k
 
 	out, err := awsx.Do(
 		ctx,
 		ks.Client.GetItem,
 		ks.OnRequest,
-		&ks.getReq,
+		&ks.request.Get,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("unable to get keyspace pair: %w", err)
@@ -42,22 +46,22 @@ func (ks *keyspace) Get(ctx context.Context, k []byte) ([]byte, error) {
 		return nil, err
 	}
 
-	v, err := dynamox.AttrAs[*types.AttributeValueMemberB](out.Item, valueAttr)
+	v, err := dynamox.AsBytes(out.Item, valueAttr)
 	if err != nil {
 		return nil, err
 	}
 
-	return v.Value, nil
+	return v, nil
 }
 
 func (ks *keyspace) Has(ctx context.Context, k []byte) (bool, error) {
-	ks.key.Value = k
+	ks.attr.Key.Value = k
 
 	out, err := awsx.Do(
 		ctx,
 		ks.Client.GetItem,
 		ks.OnRequest,
-		&ks.hasReq,
+		&ks.request.Has,
 	)
 	if err != nil {
 		return false, fmt.Errorf("unable to get keyspace pair: %w", err)
@@ -74,14 +78,14 @@ func (ks *keyspace) Set(ctx context.Context, k, v []byte) error {
 }
 
 func (ks *keyspace) set(ctx context.Context, k, v []byte) error {
-	ks.key.Value = k
-	ks.value.Value = v
+	ks.attr.Key.Value = k
+	ks.attr.Value.Value = v
 
 	if _, err := awsx.Do(
 		ctx,
 		ks.Client.PutItem,
 		ks.OnRequest,
-		&ks.setReq,
+		&ks.request.Set,
 	); err != nil {
 		return fmt.Errorf("unable to put keyspace pair: %w", err)
 	}
@@ -90,13 +94,13 @@ func (ks *keyspace) set(ctx context.Context, k, v []byte) error {
 }
 
 func (ks *keyspace) delete(ctx context.Context, k []byte) error {
-	ks.key.Value = k
+	ks.attr.Key.Value = k
 
 	if _, err := awsx.Do(
 		ctx,
 		ks.Client.DeleteItem,
 		ks.OnRequest,
-		&ks.deleteReq,
+		&ks.request.Delete,
 	); err != nil {
 		return fmt.Errorf("unable to delete keyspace pair: %w", err)
 	}
@@ -109,19 +113,19 @@ func (ks *keyspace) Range(ctx context.Context, fn kv.BinaryRangeFunc) error {
 		ctx,
 		ks.Client,
 		ks.OnRequest,
-		&ks.rangeReq,
+		&ks.request.Range,
 		func(ctx context.Context, item map[string]types.AttributeValue) (bool, error) {
-			key, err := dynamox.AttrAs[*types.AttributeValueMemberB](item, keyAttr)
+			key, err := dynamox.AsBytes(item, keyAttr)
 			if err != nil {
 				return false, err
 			}
 
-			value, err := dynamox.AttrAs[*types.AttributeValueMemberB](item, valueAttr)
+			value, err := dynamox.AsBytes(item, valueAttr)
 			if err != nil {
 				return false, err
 			}
 
-			return fn(ctx, key.Value, value.Value)
+			return fn(ctx, key, value)
 		},
 	); err != nil {
 		return fmt.Errorf("unable to range over keyspace: %w", err)

@@ -567,6 +567,37 @@ func RunTests(
 				}
 			})
 
+			t.Run("it returns ErrConflict there is a truncated record at the given position", func(t *testing.T) {
+				t.Parallel()
+
+				ctx, j := setup(t)
+
+				appendRecords(ctx, t, j, 2)
+				if err := j.Truncate(ctx, 2); err != nil {
+					t.Fatal(err)
+				}
+
+				err := j.Append(ctx, 0, []byte("<conflicting>"))
+				if !errors.Is(err, ErrConflict) {
+					t.Fatalf("unexpected error: got %q, want %q", err, ErrConflict)
+				}
+
+				_, err = j.Get(ctx, 0)
+				if !errors.Is(err, ErrNotFound) {
+					t.Fatalf("unexpected error: got %q, want %q", err, ErrNotFound)
+				}
+
+				err = j.Append(ctx, 1, []byte("<conflicting>"))
+				if !errors.Is(err, ErrConflict) {
+					t.Fatalf("unexpected error: got %q, want %q", err, ErrConflict)
+				}
+
+				_, err = j.Get(ctx, 1)
+				if !errors.Is(err, ErrNotFound) {
+					t.Fatalf("unexpected error: got %q, want %q", err, ErrNotFound)
+				}
+			})
+
 			t.Run("it does not keep a reference to the record slice", func(t *testing.T) {
 				t.Parallel()
 
@@ -838,6 +869,48 @@ func RunTests(
 						bounds.End++
 
 						t.Logf("appended record at position %d, bounds are now %s", bounds.End-1, bounds)
+					},
+					"Append (conflict)": func(t *rapid.T) {
+						if bounds.IsEmpty() {
+							t.Skip("skip: journal is empty")
+						}
+
+						pos := Position(
+							rapid.Uint64Range(
+								uint64(bounds.Begin),
+								uint64(bounds.End-1),
+							).Draw(t, "pos"),
+						)
+
+						rec := rapid.String().Draw(t, "rec")
+
+						err := j.Append(ctx, pos, []byte(rec))
+						if !errors.Is(err, ErrConflict) {
+							t.Fatalf("unexpected error: got %q, want %q", err, ErrConflict)
+						}
+
+						t.Logf("induced conflict appending at position %d, bounds are still %s", pos, bounds)
+					},
+					"Append (conflict with truncated record)": func(t *rapid.T) {
+						if bounds.Begin == 0 {
+							t.Skip("skip: no records have been truncated")
+						}
+
+						pos := Position(
+							rapid.Uint64Range(
+								uint64(0),
+								uint64(bounds.Begin-1),
+							).Draw(t, "pos"),
+						)
+
+						rec := rapid.String().Draw(t, "rec")
+
+						err := j.Append(ctx, pos, []byte(rec))
+						if !errors.Is(err, ErrConflict) {
+							t.Fatalf("unexpected error: got %q, want %q", err, ErrConflict)
+						}
+
+						t.Logf("induced conflict appending at position %d, bounds are still %s", pos, bounds)
 					},
 					"Truncate (some)": func(t *rapid.T) {
 						if bounds.Len() < 2 {

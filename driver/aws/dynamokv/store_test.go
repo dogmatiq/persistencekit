@@ -35,7 +35,7 @@ func setup(t testing.TB) (*dynamodb.Client, string) {
 		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 		defer cancel()
 
-		if err := dynamox.DeleteTableIfNotExists(ctx, client, table); err != nil {
+		if err := dynamox.DeleteTableIfNotExists(ctx, client, table, nil); err != nil {
 			t.Error(err)
 		}
 	})

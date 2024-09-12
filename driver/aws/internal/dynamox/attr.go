@@ -48,3 +48,38 @@ func TryAttrAs[T types.AttributeValue](
 
 	return v, true, nil
 }
+
+// AsBytes fetches a binary attribute from an item.
+func AsBytes(
+	item map[string]types.AttributeValue,
+	name string,
+) ([]byte, error) {
+	v, err := AttrAs[*types.AttributeValueMemberB](item, name)
+	if err != nil {
+		return nil, err
+	}
+	return v.Value, nil
+}
+
+// TryAsBool fetches an optional boolean attribute from an item.
+func TryAsBool(
+	item map[string]types.AttributeValue,
+	name string,
+) (bool, bool, error) {
+	v, ok, err := TryAttrAs[*types.AttributeValueMemberBOOL](item, name)
+	if err != nil {
+		return false, false, err
+	}
+	if !ok {
+		return false, false, nil
+	}
+	return v.Value, true, nil
+}
+
+var (
+	// True is a [types.AttributeValueMemberBOOL] for true.
+	True = &types.AttributeValueMemberBOOL{Value: true}
+
+	// False is a [types.AttributeValueMemberBOOL] for false.
+	False = &types.AttributeValueMemberBOOL{Value: false}
+)

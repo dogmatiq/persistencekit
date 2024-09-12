@@ -5,6 +5,7 @@ CREATE TABLE
         id BIGSERIAL NOT NULL,
         name TEXT NOT NULL,
         encoded_begin BIGINT NOT NULL DEFAULT -1::BIGINT << 63, -- see `bigint` package
+        encoded_end BIGINT NOT NULL DEFAULT -1::BIGINT << 63, -- see `bigint` package
         PRIMARY KEY (id),
         UNIQUE (name)
     );

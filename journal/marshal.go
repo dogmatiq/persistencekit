@@ -30,7 +30,7 @@ func (s *mstore[T]) Open(ctx context.Context, name string) (Journal[T], error) {
 	return &mjourn[T]{j, s.m}, nil
 }
 
-// A journ is an implementation of [Journal] that marshals/unmarshals records of
+// mjourn is an implementation of [Journal] that marshals/unmarshals records of
 // type T to/from an underlying [BinaryJournal].
 type mjourn[T any] struct {
 	BinaryJournal
@@ -62,11 +62,11 @@ func (j *mjourn[T]) Range(ctx context.Context, pos Position, fn RangeFunc[T]) er
 	)
 }
 
-func (j *mjourn[T]) Append(ctx context.Context, end Position, rec T) error {
+func (j *mjourn[T]) Append(ctx context.Context, pos Position, rec T) error {
 	data, err := j.m.Marshal(rec)
 	if err != nil {
 		return err
 	}
 
-	return j.BinaryJournal.Append(ctx, end, data)
+	return j.BinaryJournal.Append(ctx, pos, data)
 }
