@@ -27,7 +27,8 @@ func TestScan(t *testing.T) {
 				j,
 				0,
 				func(ctx context.Context, pos Position, rec int) (int, bool, error) {
-					panic("unexpected call")
+					t.Fatal("unexpected call")
+					return 0, false, nil
 				},
 			); err != ErrNotFound {
 				t.Fatalf("unexpected error: got %q, want %q", err, ErrNotFound)
@@ -114,10 +115,12 @@ func TestScanFromSearchResult(t *testing.T) {
 				0,
 				0,
 				func(ctx context.Context, pos Position, rec int) (cmp int, err error) {
-					panic("unexpected call")
+					t.Fatal("unexpected call")
+					return 0, nil
 				},
 				func(ctx context.Context, pos Position, rec int) (int, bool, error) {
-					panic("unexpected call")
+					t.Fatal("unexpected call")
+					return 0, false, nil
 				},
 			); err != ErrNotFound {
 				t.Fatalf("unexpected error: got %q, want %q", err, ErrNotFound)

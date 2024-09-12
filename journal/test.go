@@ -158,7 +158,7 @@ func RunTests(
 
 				_, err := j.Get(ctx, 1)
 				if !errors.Is(err, ErrNotFound) {
-					t.Fatal(err)
+					t.Fatalf("unexpected error: got %q, want %q", err, ErrNotFound)
 				}
 			})
 
@@ -283,7 +283,7 @@ func RunTests(
 
 				_, err := j.Get(ctx, math.MaxUint64)
 				if !errors.Is(err, ErrNotFound) {
-					t.Fatal(err)
+					t.Fatalf("unexpected error: got %q, want %q", err, ErrNotFound)
 				}
 			})
 		})
@@ -357,7 +357,8 @@ func RunTests(
 					ctx,
 					0,
 					func(ctx context.Context, pos Position, rec []byte) (bool, error) {
-						panic("unexpected call")
+						t.Fatal("unexpected call")
+						return false, nil
 					},
 				)
 
@@ -388,7 +389,8 @@ func RunTests(
 							ctx,
 							pos,
 							func(ctx context.Context, pos Position, rec []byte) (bool, error) {
-								panic("unexpected call")
+								t.Fatal("unexpected call")
+								return false, nil
 							},
 						); !errors.Is(err, ErrNotFound) {
 							t.Fatalf("unexpected error: got %q, want %q", err, ErrNotFound)
@@ -434,7 +436,8 @@ func RunTests(
 						ctx,
 						pos,
 						func(ctx context.Context, pos Position, rec []byte) (bool, error) {
-							panic("unexpected call")
+							t.Fatal("unexpected call")
+							return false, nil
 						},
 					); !errors.Is(err, ErrNotFound) {
 						t.Fatalf("unexpected error: got %q, want %q", err, ErrNotFound)
@@ -506,7 +509,8 @@ func RunTests(
 					ctx,
 					math.MaxUint64,
 					func(ctx context.Context, pos Position, rec []byte) (bool, error) {
-						panic("unexpected call")
+						t.Fatal("unexpected call")
+						return false, nil
 					},
 				)
 
@@ -543,7 +547,7 @@ func RunTests(
 					t.Fatal(err)
 				}
 
-				err := j.Append(ctx, 1, []byte("<modified>"))
+				err := j.Append(ctx, 1, []byte("<conflicting>"))
 
 				if !errors.Is(err, ErrConflict) {
 					t.Fatalf("unexpected error: got %q, want %q", err, ErrConflict)
@@ -640,7 +644,7 @@ func RunTests(
 				}
 			})
 
-			t.Run("it truncates the journal when it has already been truncated", func(t *testing.T) {
+			t.Run("it does not fail when the records have already been truncated", func(t *testing.T) {
 				t.Parallel()
 
 				ctx, j := setup(t)

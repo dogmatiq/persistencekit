@@ -28,7 +28,8 @@ func TestAppendWithConflictResolution(t *testing.T) {
 			0,
 			100,
 			func(context.Context, Position) (Position, error) {
-				panic("unexpected call")
+				t.Fatal("unexpected call")
+				return 0, nil
 			},
 		)
 		if err != nil {
