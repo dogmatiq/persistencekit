@@ -19,7 +19,7 @@ func AttrAs[T types.AttributeValue](
 		return v, err
 	}
 	if !ok {
-		return v, fmt.Errorf("item is corrupt: missing %q attribute", name)
+		return v, fmt.Errorf("integrity error: missing %q attribute", name)
 	}
 	return v, nil
 }
@@ -39,7 +39,7 @@ func TryAttrAs[T types.AttributeValue](
 	v, ok = a.(T)
 	if !ok {
 		return v, false, fmt.Errorf(
-			"item is corrupt: %q attribute should be %s not %s",
+			"integrity error: %q attribute should be %s not %s",
 			name,
 			reflect.TypeOf(v).Name(),
 			reflect.TypeOf(a).Name(),

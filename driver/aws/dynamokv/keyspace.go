@@ -105,7 +105,7 @@ func (ks *keyspace) delete(ctx context.Context, k []byte) error {
 }
 
 func (ks *keyspace) Range(ctx context.Context, fn kv.BinaryRangeFunc) error {
-	if err := dynamox.Range(
+	if err := dynamox.QueryRange(
 		ctx,
 		ks.Client,
 		ks.OnRequest,
