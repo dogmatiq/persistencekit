@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"strconv"
 
+	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 	"github.com/dogmatiq/persistencekit/driver/aws/internal/awsx"
@@ -50,15 +51,15 @@ func (j *journ) upperBound(ctx context.Context) (end journal.Position, empty boo
 
 	empty = true
 
-	if err := dynamox.Range(
+	if _, err := dynamox.QueryOne(
 		ctx,
 		j.Client,
 		j.OnRequest,
 		&j.boundsReq,
-		func(ctx context.Context, item map[string]types.AttributeValue) (bool, error) {
+		func(ctx context.Context, item map[string]types.AttributeValue) error {
 			pos, err := unmarshalPosition(item)
 			if err != nil {
-				return false, err
+				return err
 			}
 
 			// The [begin, end) range is half-open, so the end position is the
@@ -68,7 +69,7 @@ func (j *journ) upperBound(ctx context.Context) (end journal.Position, empty boo
 			// If the most recent record has been truncated, the journal is
 			// effectively empty with bounds of [end, end).
 			empty, err = isTruncated(item)
-			return false, err
+			return err
 		},
 	); err != nil {
 		return 0, false, fmt.Errorf("unable to query last journal record: %w", err)
@@ -81,7 +82,12 @@ func (j *journ) upperBound(ctx context.Context) (end journal.Position, empty boo
 func (j *journ) lowerBound(ctx context.Context, end journal.Position) (begin journal.Position, err error) {
 	*j.boundsReq.ScanIndexForward = true
 
-	if err := dynamox.Range(
+	limit := j.boundsReq.Limit
+	defer func() { j.boundsReq.Limit = limit }()
+
+	j.boundsReq.Limit = aws.Int32(5) // arbitrary, but we don't want to load too many
+
+	if err := dynamox.QueryRange(
 		ctx,
 		j.Client,
 		j.OnRequest,
@@ -164,7 +170,7 @@ func (j *journ) Range(
 	j.position.Value = marshalPosition(begin)
 	expectPos := begin
 
-	err := dynamox.Range(
+	err := dynamox.QueryRange(
 		ctx,
 		j.Client,
 		j.OnRequest,
