@@ -48,13 +48,15 @@ func RunTests(
 				ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 				defer cancel()
 
-				j1, err := store.Open(ctx, "<journal>")
+				name := uniqueName()
+
+				j1, err := store.Open(ctx, name)
 				if err != nil {
 					t.Fatal(err)
 				}
 				defer j1.Close()
 
-				j2, err := store.Open(ctx, "<journal>")
+				j2, err := store.Open(ctx, name)
 				if err != nil {
 					t.Fatal(err)
 				}
@@ -446,7 +448,7 @@ func RunTests(
 			})
 
 			t.Run("it returns an error if a record is truncated during iteration", func(t *testing.T) {
-				t.Skip() // TODO
+				t.Skip("not implemented") // TODO
 				t.Parallel()
 
 				ctx, j := setup(t)
