@@ -21,21 +21,8 @@ func NewTestClient(t testing.TB) *dynamodb.Client {
 	cfg, err := config.LoadDefaultConfig(
 		context.Background(),
 		config.WithRegion("us-east-1"),
-		config.WithEndpointResolverWithOptions(
-			aws.EndpointResolverWithOptionsFunc(
-				func(service, region string, options ...any) (aws.Endpoint, error) {
-					return aws.Endpoint{URL: endpoint}, nil
-				},
-			),
-		),
 		config.WithCredentialsProvider(
-			credentials.StaticCredentialsProvider{
-				Value: aws.Credentials{
-					AccessKeyID:     "id",
-					SecretAccessKey: "secret",
-					SessionToken:    "",
-				},
-			},
+			credentials.NewStaticCredentialsProvider("id", "secret", ""),
 		),
 		config.WithRetryer(
 			func() aws.Retryer {
@@ -47,5 +34,10 @@ func NewTestClient(t testing.TB) *dynamodb.Client {
 		t.Fatal(err)
 	}
 
-	return dynamodb.NewFromConfig(cfg)
+	return dynamodb.NewFromConfig(
+		cfg,
+		func(opts *dynamodb.Options) {
+			opts.BaseEndpoint = aws.String(endpoint)
+		},
+	)
 }
