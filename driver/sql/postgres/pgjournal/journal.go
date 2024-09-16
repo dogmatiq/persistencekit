@@ -16,7 +16,7 @@ type journ struct {
 	id uint64
 }
 
-func (j *journ) Bounds(ctx context.Context) (begin, end journal.Position, err error) {
+func (j *journ) Bounds(ctx context.Context) (bounds journal.Interval, err error) {
 	row := j.db.QueryRowContext(
 		ctx,
 		`SELECT
@@ -31,13 +31,13 @@ func (j *journ) Bounds(ctx context.Context) (begin, end journal.Position, err er
 	)
 
 	if err := row.Scan(
-		bigint.ConvertUnsigned(&begin),
-		bigint.ConvertUnsigned(&end),
+		bigint.ConvertUnsigned(&bounds.Begin),
+		bigint.ConvertUnsigned(&bounds.End),
 	); err != nil {
-		return 0, 0, fmt.Errorf("cannot query journal bounds: %w", err)
+		return journal.Interval{}, fmt.Errorf("cannot query journal bounds: %w", err)
 	}
 
-	return begin, end, nil
+	return bounds, nil
 }
 
 func (j *journ) Get(ctx context.Context, pos journal.Position) ([]byte, error) {
@@ -64,7 +64,7 @@ func (j *journ) Get(ctx context.Context, pos journal.Position) ([]byte, error) {
 
 func (j *journ) Range(
 	ctx context.Context,
-	begin journal.Position,
+	pos journal.Position,
 	fn journal.BinaryRangeFunc,
 ) error {
 	// TODO: "paginate" results across multiple queries to avoid loading
@@ -77,14 +77,14 @@ func (j *journ) Range(
 		AND encoded_position >= $2
 		ORDER BY encoded_position`,
 		j.id,
-		bigint.ConvertUnsigned(&begin),
+		bigint.ConvertUnsigned(&pos),
 	)
 	if err != nil {
 		return fmt.Errorf("cannot query journal records: %w", err)
 	}
 	defer rows.Close()
 
-	expectPos := begin
+	expectPos := pos
 
 	for rows.Next() {
 		var (
@@ -114,21 +114,21 @@ func (j *journ) Range(
 		return fmt.Errorf("cannot range over journal records: %w", err)
 	}
 
-	if expectPos == begin {
+	if expectPos == pos {
 		return journal.ErrNotFound
 	}
 
 	return nil
 }
 
-func (j *journ) Append(ctx context.Context, end journal.Position, rec []byte) error {
+func (j *journ) Append(ctx context.Context, pos journal.Position, rec []byte) error {
 	res, err := j.db.ExecContext(
 		ctx,
 		`INSERT INTO persistencekit.journal_record
 		(journal_id, encoded_position, record) VALUES ($1, $2, $3)
 		ON CONFLICT (journal_id, encoded_position) DO NOTHING`,
 		j.id,
-		bigint.ConvertUnsigned(&end),
+		bigint.ConvertUnsigned(&pos),
 		rec,
 	)
 	if err != nil {
@@ -147,7 +147,7 @@ func (j *journ) Append(ctx context.Context, end journal.Position, rec []byte) er
 	return nil
 }
 
-func (j *journ) Truncate(ctx context.Context, end journal.Position) error {
+func (j *journ) Truncate(ctx context.Context, pos journal.Position) error {
 	tx, err := j.db.BeginTx(ctx, nil)
 	if err != nil {
 		return fmt.Errorf("cannot begin transaction: %w", err)
@@ -161,7 +161,7 @@ func (j *journ) Truncate(ctx context.Context, end journal.Position) error {
 		WHERE id = $1
 		AND encoded_begin < $2`,
 		j.id,
-		bigint.ConvertUnsigned(&end),
+		bigint.ConvertUnsigned(&pos),
 	)
 	if err != nil {
 		return fmt.Errorf("cannot update journal bounds: %w", err)
@@ -181,7 +181,7 @@ func (j *journ) Truncate(ctx context.Context, end journal.Position) error {
 		WHERE journal_id = $1
 		AND encoded_position < $2`,
 		j.id,
-		bigint.ConvertUnsigned(&end),
+		bigint.ConvertUnsigned(&pos),
 	); err != nil {
 		return fmt.Errorf("cannot truncate journal records: %w", err)
 	}

@@ -12,8 +12,8 @@ import (
 // state is the in-memory state of a journal.
 type state[T any] struct {
 	sync.RWMutex
-	Begin, End journal.Position
-	Records    []T
+	Bounds  journal.Interval
+	Records []T
 }
 
 // journ is an implementation of [journal.Journal] that manipulates a journal's
@@ -25,7 +25,7 @@ type journ[T any] struct {
 	afterAppend  func(name string, rec T) error
 }
 
-func (j *journ[T]) Bounds(ctx context.Context) (begin, end journal.Position, err error) {
+func (j *journ[T]) Bounds(ctx context.Context) (bounds journal.Interval, err error) {
 	if j.state == nil {
 		panic("journal is closed")
 	}
@@ -33,7 +33,7 @@ func (j *journ[T]) Bounds(ctx context.Context) (begin, end journal.Position, err
 	j.state.RLock()
 	defer j.state.RUnlock()
 
-	return j.state.Begin, j.state.End, ctx.Err()
+	return j.state.Bounds, ctx.Err()
 }
 
 func (j *journ[T]) Get(ctx context.Context, pos journal.Position) (T, error) {
@@ -44,17 +44,18 @@ func (j *journ[T]) Get(ctx context.Context, pos journal.Position) (T, error) {
 	j.state.RLock()
 	defer j.state.RUnlock()
 
-	if pos < j.state.Begin || pos >= j.state.End {
+	if !j.state.Bounds.Contains(pos) {
 		var zero T
 		return zero, journal.ErrNotFound
 	}
 
-	return clone.Clone(j.state.Records[pos-j.state.Begin]), ctx.Err()
+	index := pos - j.state.Bounds.Begin
+	return clone.Clone(j.state.Records[index]), ctx.Err()
 }
 
 func (j *journ[T]) Range(
 	ctx context.Context,
-	begin journal.Position,
+	pos journal.Position,
 	fn journal.RangeFunc[T],
 ) error {
 	if j.state == nil {
@@ -62,24 +63,20 @@ func (j *journ[T]) Range(
 	}
 
 	j.state.RLock()
-	first := j.state.Begin
+	bounds := j.state.Bounds
 	records := j.state.Records
 	j.state.RUnlock()
 
-	if first > begin {
+	if !bounds.Contains(pos) {
 		return journal.ErrNotFound
 	}
 
-	start := begin - first
+	start := pos - bounds.Begin
+	bounds.Begin = pos
+	records = records[start:]
 
-	if start >= journal.Position(len(records)) {
-		return journal.ErrNotFound
-	}
-
-	for i, rec := range records[start:] {
-		pos := begin + journal.Position(i)
-		rec = clone.Clone(rec)
-
+	for index, pos := range bounds.Positions() {
+		rec := clone.Clone(records[index])
 		ok, err := fn(ctx, pos, rec)
 		if !ok || err != nil {
 			return err
@@ -89,7 +86,7 @@ func (j *journ[T]) Range(
 	return ctx.Err()
 }
 
-func (j *journ[T]) Append(ctx context.Context, end journal.Position, rec T) error {
+func (j *journ[T]) Append(ctx context.Context, pos journal.Position, rec T) error {
 	if j.state == nil {
 		panic("journal is closed")
 	}
@@ -106,11 +103,11 @@ func (j *journ[T]) Append(ctx context.Context, end journal.Position, rec T) erro
 	}
 
 	switch {
-	case end < j.state.End:
+	case pos < j.state.Bounds.End:
 		return journal.ErrConflict
-	case end == j.state.End:
+	case pos == j.state.Bounds.End:
 		j.state.Records = append(j.state.Records, rec)
-		j.state.End++
+		j.state.Bounds.End++
 	default:
 		panic("position out of range, this causes undefined behavior in a 'real' journal implementation")
 	}
@@ -124,7 +121,7 @@ func (j *journ[T]) Append(ctx context.Context, end journal.Position, rec T) erro
 	return ctx.Err()
 }
 
-func (j *journ[T]) Truncate(ctx context.Context, end journal.Position) error {
+func (j *journ[T]) Truncate(ctx context.Context, pos journal.Position) error {
 	if j.state == nil {
 		panic("journal is closed")
 	}
@@ -132,13 +129,13 @@ func (j *journ[T]) Truncate(ctx context.Context, end journal.Position) error {
 	j.state.Lock()
 	defer j.state.Unlock()
 
-	if end > j.state.End {
+	if pos > j.state.Bounds.End {
 		panic("position out of range, this causes undefined behavior in a real journal implementation")
 	}
 
-	if end > j.state.Begin {
-		j.state.Records = j.state.Records[end-j.state.Begin:]
-		j.state.Begin = end
+	if pos > j.state.Bounds.Begin {
+		j.state.Records = j.state.Records[pos-j.state.Bounds.Begin:]
+		j.state.Bounds.Begin = pos
 	}
 
 	return ctx.Err()

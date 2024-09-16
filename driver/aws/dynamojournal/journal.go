@@ -32,14 +32,28 @@ type journ struct {
 	deleteReq   dynamodb.DeleteItemInput
 }
 
-func (j *journ) Bounds(ctx context.Context) (begin, end journal.Position, err error) {
+func (j *journ) Bounds(ctx context.Context) (bounds journal.Interval, err error) {
 	end, empty, err := j.upperBound(ctx)
-	if err != nil || empty {
-		return end, end, err
+	if err != nil {
+		return journal.Interval{}, err
 	}
 
-	begin, err = j.lowerBound(ctx, end)
-	return begin, end, err
+	if empty {
+		return journal.Interval{
+			Begin: end,
+			End:   end,
+		}, nil
+	}
+
+	begin, err := j.lowerBound(ctx, end)
+	if err != nil {
+		return journal.Interval{}, err
+	}
+
+	return journal.Interval{
+		Begin: begin,
+		End:   end,
+	}, nil
 }
 
 // upperBound returns the (exclusive) upper bound of the records in the journal.
@@ -164,11 +178,11 @@ func (j *journ) Get(ctx context.Context, pos journal.Position) ([]byte, error) {
 
 func (j *journ) Range(
 	ctx context.Context,
-	begin journal.Position,
+	pos journal.Position,
 	fn journal.BinaryRangeFunc,
 ) error {
-	j.position.Value = marshalPosition(begin)
-	expectPos := begin
+	j.position.Value = marshalPosition(pos)
+	expectPos := pos
 
 	err := dynamox.QueryRange(
 		ctx,
@@ -200,15 +214,15 @@ func (j *journ) Range(
 		return err
 	} else if err != nil {
 		return fmt.Errorf("unable to range over journal records: %w", err)
-	} else if expectPos == begin {
+	} else if expectPos == pos {
 		return journal.ErrNotFound
 	}
 
 	return nil
 }
 
-func (j *journ) Append(ctx context.Context, end journal.Position, rec []byte) error {
-	j.position.Value = marshalPosition(end)
+func (j *journ) Append(ctx context.Context, pos journal.Position, rec []byte) error {
+	j.position.Value = marshalPosition(pos)
 	j.record.Value = rec
 
 	if _, err := awsx.Do(
@@ -226,24 +240,24 @@ func (j *journ) Append(ctx context.Context, end journal.Position, rec []byte) er
 	return nil
 }
 
-func (j *journ) Truncate(ctx context.Context, end journal.Position) error {
-	begin, actualEnd, err := j.Bounds(ctx)
+func (j *journ) Truncate(ctx context.Context, pos journal.Position) error {
+	bounds, err := j.Bounds(ctx)
 	if err != nil {
 		return err
 	}
 
-	if end > actualEnd {
+	if pos > bounds.End {
 		return errors.New("cannot truncate beyond the end of the journal")
 	}
 
-	for pos := begin; pos < end; pos++ {
-		j.position.Value = marshalPosition(pos)
+	for p := bounds.Begin; p < pos; p++ {
+		j.position.Value = marshalPosition(p)
 
 		var err error
-		if pos+1 == actualEnd {
-			err = j.markRecordAsTruncated(ctx, pos)
+		if p+1 == bounds.End {
+			err = j.markRecordAsTruncated(ctx, p)
 		} else {
-			err = j.deleteRecord(ctx, pos)
+			err = j.deleteRecord(ctx, p)
 		}
 
 		if err != nil {

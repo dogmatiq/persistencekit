@@ -11,18 +11,18 @@ import (
 // equal to the datum.
 type CompareFunc[T any] func(context.Context, Position, T) (cmp int, err error)
 
-// Search performs a binary search of j within the half-open range [begin, end)
-// to find the position of the record for which cmp() returns zero.
+// Search performs a binary search of j within the interval i to find the
+// position of the record for which cmp() returns zero.
 //
 // It returns [ErrNotFound] if there is no such record.
 func Search[T any](
 	ctx context.Context,
 	j Journal[T],
-	begin, end Position,
+	i Interval,
 	cmp CompareFunc[T],
 ) (pos Position, rec T, err error) {
-	for begin < end {
-		pos := (begin >> 1) + (end >> 1)
+	for !i.IsEmpty() {
+		pos := (i.Begin >> 1) + (i.End >> 1)
 
 		rec, err := j.Get(ctx, pos)
 		if err != nil {
@@ -35,9 +35,9 @@ func Search[T any](
 		}
 
 		if result > 0 {
-			end = pos
+			i.End = pos
 		} else if result < 0 {
-			begin = pos + 1
+			i.Begin = pos + 1
 		} else {
 			return pos, rec, nil
 		}
@@ -47,17 +47,18 @@ func Search[T any](
 }
 
 // RangeFromSearchResult invokes fn for each record in the journal, in order,
-// beginning with the record for which cmp() returns zero.
+// beginning with the record within the interval i for which cmp() returns
+// zero.
 //
 // It returns [ErrNotFound] if there is no such record.
 func RangeFromSearchResult[T any](
 	ctx context.Context,
 	j Journal[T],
-	begin, end Position,
+	i Interval,
 	cmp CompareFunc[T],
 	fn RangeFunc[T],
 ) error {
-	pos, rec, err := Search(ctx, j, begin, end, cmp)
+	pos, rec, err := Search(ctx, j, i, cmp)
 	if err != nil {
 		return err
 	}

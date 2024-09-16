@@ -112,8 +112,7 @@ func TestScanFromSearchResult(t *testing.T) {
 			if _, err := ScanFromSearchResult(
 				ctx,
 				j,
-				0,
-				0,
+				Interval{0, 0},
 				func(ctx context.Context, pos Position, rec int) (cmp int, err error) {
 					t.Fatal("unexpected call")
 					return 0, nil
@@ -139,8 +138,7 @@ func TestScanFromSearchResult(t *testing.T) {
 			v, err := ScanFromSearchResult(
 				ctx,
 				j,
-				0,
-				10,
+				Interval{0, 10},
 				func(ctx context.Context, pos Position, rec int) (cmp int, err error) {
 					return rec - 300, nil
 				},
@@ -162,8 +160,7 @@ func TestScanFromSearchResult(t *testing.T) {
 			v, err := ScanFromSearchResult(
 				ctx,
 				j,
-				0,
-				10,
+				Interval{0, 10},
 				func(ctx context.Context, pos Position, rec int) (cmp int, err error) {
 					// Search for the record with value 300.
 					return rec - 300, nil
@@ -187,8 +184,10 @@ func TestScanFromSearchResult(t *testing.T) {
 			if _, err := ScanFromSearchResult(
 				ctx,
 				j,
-				4, // exclude the record with value 300 from the search range
-				10,
+				Interval{
+					4, // exclude the record with value 300 from the search range
+					10,
+				},
 				func(ctx context.Context, pos Position, rec int) (cmp int, err error) {
 					// Search for the record with value 300.
 					return rec - 300, nil
@@ -206,8 +205,7 @@ func TestScanFromSearchResult(t *testing.T) {
 			if _, err := ScanFromSearchResult(
 				ctx,
 				j,
-				0,
-				10,
+				Interval{0, 10},
 				func(ctx context.Context, pos Position, rec int) (cmp int, err error) {
 					return rec - 300, nil
 				},

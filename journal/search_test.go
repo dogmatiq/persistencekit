@@ -36,7 +36,7 @@ func TestSearch(t *testing.T) {
 		return rec - datum, nil
 	}
 
-	pos, rec, err := Search(ctx, j, 0, 100, cmp)
+	pos, rec, err := Search(ctx, j, Interval{0, 100}, cmp)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -51,7 +51,7 @@ func TestSearch(t *testing.T) {
 	}
 
 	datum = 101
-	if _, _, err := Search(ctx, j, 0, 100, cmp); err != ErrNotFound {
+	if _, _, err := Search(ctx, j, Interval{0, 100}, cmp); err != ErrNotFound {
 		t.Fatalf("unexpected error: got %q, want %q", err, ErrNotFound)
 	}
 }
@@ -102,7 +102,7 @@ func TestRangeFromSearchResult(t *testing.T) {
 			return false, nil
 		}
 
-		if err := RangeFromSearchResult(ctx, j, 0, 100, cmp, fn); err != nil {
+		if err := RangeFromSearchResult(ctx, j, Interval{0, 100}, cmp, fn); err != nil {
 			t.Fatal(err)
 		}
 
@@ -138,7 +138,7 @@ func TestRangeFromSearchResult(t *testing.T) {
 			return true, nil
 		}
 
-		if err := RangeFromSearchResult(ctx, j, 0, 100, cmp, fn); err != nil {
+		if err := RangeFromSearchResult(ctx, j, Interval{0, 100}, cmp, fn); err != nil {
 			t.Fatal(err)
 		}
 
@@ -159,7 +159,7 @@ func TestRangeFromSearchResult(t *testing.T) {
 			return false, errors.New("unexpected call")
 		}
 
-		if err := RangeFromSearchResult(ctx, j, 0, 100, cmp, fn); err != ErrNotFound {
+		if err := RangeFromSearchResult(ctx, j, Interval{0, 100}, cmp, fn); err != ErrNotFound {
 			t.Fatalf("unexpected error: got %q, want %q", err, ErrNotFound)
 		}
 	})

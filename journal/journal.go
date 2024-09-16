@@ -16,9 +16,9 @@ type RangeFunc[T any] func(context.Context, Position, T) (ok bool, err error)
 
 // A Journal is an append-only log containing records of type T.
 type Journal[T any] interface {
-	// Bounds returns the half-open range [begin, end) describing the positions
-	// of the first and last journal records that are available for reading.
-	Bounds(ctx context.Context) (begin, end Position, err error)
+	// Bounds returns the half-open interval [begin, end) describing the
+	// positions of the first and last records in the journal.
+	Bounds(ctx context.Context) (Interval, error)
 
 	// Get returns the record at the given position.
 	//
@@ -31,28 +31,23 @@ type Journal[T any] interface {
 	// It returns [ErrNotFound] if there is no record at the given position.
 	Range(ctx context.Context, pos Position, fn RangeFunc[T]) error
 
-	// Append adds a record to the journal.
+	// Append adds a record to the journal as the given position.
 	//
-	// end must be the next "unused" position in the journal; the first position
-	// is always 0.
+	// The record is stored at the given position and the end of the journal
+	// becomes pos + 1.
 	//
-	// If there is already a record at the given position then [ErrConflict] is
-	// returned, indicating an optimistic concurrency conflict.
-	//
-	// The behavior is undefined if end is greater than the next position.
-	Append(ctx context.Context, end Position, rec T) error
+	// pos must be the end of the journal, as returned by [Bounds]. If pos < end
+	// then [ErrConflict] is returned, indicating that there is already a record
+	// at the given position. The behavior is undefined if pos > end.
+	Append(ctx context.Context, pos Position, rec T) error
 
-	// Truncate removes journal records in the half-open range [0, end). That
-	// is, it removes the oldest records up to, but not including, the record at
-	// the given position.
+	// Truncate removes journal records in the half-open interval [begin, pos),
+	// such that pos becomes the new beginning of the journal.
 	//
-	// If it returns a non-nil error the truncation may have been partially
-	// applied. That is, some of the records may have been removed but not all.
-	// The implementation must guarantee that the oldest records are removed
-	// first, such that there is never a "gap" between positions.
+	// If it returns an error the truncation may have been partially applied.
 	//
-	// The behavior is undefined if end is greater than the next position.
-	Truncate(ctx context.Context, end Position) error
+	// The behavior is undefined if pos > end.
+	Truncate(ctx context.Context, pos Position) error
 
 	// Close closes the journal.
 	Close() error

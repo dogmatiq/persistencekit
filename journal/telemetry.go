@@ -99,27 +99,27 @@ type instrumentedJournal struct {
 	RecordSize    metric.Int64Histogram
 }
 
-func (j *instrumentedJournal) Bounds(ctx context.Context) (begin, end Position, err error) {
+func (j *instrumentedJournal) Bounds(ctx context.Context) (bounds Interval, err error) {
 	ctx, span := j.Telemetry.StartSpan(
 		ctx,
 		"journal.bounds",
 	)
 	defer span.End()
 
-	begin, end, err = j.Next.Bounds(ctx)
+	bounds, err = j.Next.Bounds(ctx)
 	if err != nil {
 		span.Error("could not fetch journal bounds", err)
-		return 0, 0, err
+		return Interval{}, err
 	}
 
 	span.SetAttributes(
-		telemetry.Int("begin", begin),
-		telemetry.Int("end", end),
+		telemetry.Int("begin", bounds.Begin),
+		telemetry.Int("end", bounds.End),
 	)
 
 	span.Debug("fetched journal bounds")
 
-	return begin, end, nil
+	return bounds, nil
 }
 
 func (j *instrumentedJournal) Get(ctx context.Context, pos Position) ([]byte, error) {

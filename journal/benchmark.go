@@ -84,7 +84,7 @@ func RunBenchmarks(
 					nil,
 					// BENCHMARKED CODE
 					func(ctx context.Context, j BinaryJournal) error {
-						_, _, err := j.Bounds(ctx)
+						_, err := j.Bounds(ctx)
 						return err
 					},
 					// AFTER EACH
@@ -110,7 +110,7 @@ func RunBenchmarks(
 					nil,
 					// BENCHMARKED CODE
 					func(ctx context.Context, j BinaryJournal) error {
-						_, _, err := j.Bounds(ctx)
+						_, err := j.Bounds(ctx)
 						return err
 					},
 					// AFTER EACH
@@ -137,7 +137,7 @@ func RunBenchmarks(
 					nil,
 					// BENCHMARKED CODE
 					func(ctx context.Context, j BinaryJournal) error {
-						_, _, err := j.Bounds(ctx)
+						_, err := j.Bounds(ctx)
 						return err
 					},
 					// AFTER EACH

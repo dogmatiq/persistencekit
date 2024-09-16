@@ -85,25 +85,25 @@ func RunTests(
 
 			t.Run("it returns the expected bounds", func(t *testing.T) {
 				cases := []struct {
-					Name                   string
-					ExpectBegin, ExpectEnd Position
-					Setup                  func(context.Context, *testing.T, BinaryJournal)
+					Name   string
+					Expect Interval
+					Setup  func(context.Context, *testing.T, BinaryJournal)
 				}{
 					{
 						"empty",
-						0, 0,
+						Interval{0, 0},
 						func(ctx context.Context, t *testing.T, j BinaryJournal) {},
 					},
 					{
 						"with records",
-						0, 10,
+						Interval{0, 10},
 						func(ctx context.Context, t *testing.T, j BinaryJournal) {
 							appendRecords(ctx, t, j, 10)
 						},
 					},
 					{
 						"with some records truncated",
-						5, 10,
+						Interval{5, 10},
 						func(ctx context.Context, t *testing.T, j BinaryJournal) {
 							appendRecords(ctx, t, j, 10)
 							if err := j.Truncate(ctx, 5); err != nil {
@@ -113,7 +113,7 @@ func RunTests(
 					},
 					{
 						"with all records truncated",
-						10, 10,
+						Interval{10, 10},
 						func(ctx context.Context, t *testing.T, j BinaryJournal) {
 							appendRecords(ctx, t, j, 10)
 							if err := j.Truncate(ctx, 10); err != nil {
@@ -131,16 +131,16 @@ func RunTests(
 
 						c.Setup(ctx, t, j)
 
-						begin, end, err := j.Bounds(ctx)
+						bounds, err := j.Bounds(ctx)
 						if err != nil {
 							t.Fatal(err)
 						}
 
-						if begin != c.ExpectBegin || end != c.ExpectEnd {
+						if bounds != c.Expect {
 							t.Fatalf(
-								"unexpected bounds: got [%d, %d), want [%d, %d)",
-								begin, end,
-								c.ExpectBegin, c.ExpectEnd,
+								"unexpected bounds: got %s, want %s",
+								bounds,
+								c.Expect,
 							)
 						}
 					})
@@ -606,14 +606,14 @@ func RunTests(
 					t.Fatal(err)
 				}
 
-				got, _, err := j.Bounds(ctx)
+				got, err := j.Bounds(ctx)
 				if err != nil {
 					t.Fatal(err)
 				}
 
 				want := Position(1)
-				if got != want {
-					t.Fatalf("unexpected begin position: got %d, want %d", got, want)
+				if got.Begin != want {
+					t.Fatalf("unexpected begin position: got %s, want %d", got, want)
 				}
 			})
 
@@ -628,19 +628,15 @@ func RunTests(
 					t.Fatal(err)
 				}
 
-				begin, end, err := j.Bounds(ctx)
+				got, err := j.Bounds(ctx)
 				if err != nil {
 					t.Fatal(err)
 				}
 
-				want := Position(3)
+				want := Interval{3, 3}
 
-				if begin != want || end != want {
-					t.Fatalf(
-						"unexpected bounds: got [%d, %d), want [%d, %d)",
-						begin, end,
-						want, want,
-					)
+				if got != want {
+					t.Fatalf("unexpected bounds: got %s, want %s", got, want)
 				}
 			})
 
@@ -659,14 +655,14 @@ func RunTests(
 					t.Fatal(err)
 				}
 
-				got, _, err := j.Bounds(ctx)
+				got, err := j.Bounds(ctx)
 				if err != nil {
 					t.Fatal(err)
 				}
 
 				want := Position(2)
-				if got != want {
-					t.Fatalf("unexpected begin position: got %d, want %d", got, want)
+				if got.Begin != want {
+					t.Fatalf("unexpected begin position: got %s, want %d", got, want)
 				}
 			})
 		})
@@ -685,33 +681,29 @@ func RunTests(
 			}
 			defer j.Close()
 
-			var begin, end Position
+			var bounds Interval
 			var records []string
 
 			t.Repeat(
 				map[string]func(*rapid.T){
 					"": func(t *rapid.T) {
-						b, e, err := j.Bounds(ctx)
+						got, err := j.Bounds(ctx)
 						if err != nil {
 							t.Fatal(err)
 						}
-						if b != begin || e != end {
-							t.Fatalf(
-								"unexpected bounds: got [%d, %d), want [%d, %d)",
-								b, e,
-								begin, end,
-							)
+						if got != bounds {
+							t.Fatalf("unexpected bounds: got %s, want %s", got, bounds)
 						}
 					},
 					"Get (success)": func(t *rapid.T) {
-						if begin == end {
+						if bounds.IsEmpty() {
 							t.Skip("skip: journal is empty")
 						}
 
 						pos := Position(
 							rapid.Uint64Range(
-								uint64(begin),
-								uint64(end-1),
+								uint64(bounds.Begin),
+								uint64(bounds.End-1),
 							).Draw(t, "pos"),
 						)
 
@@ -731,14 +723,14 @@ func RunTests(
 						}
 					},
 					"Get (truncated)": func(t *rapid.T) {
-						if begin == 0 {
+						if bounds.Begin == 0 {
 							t.Skip("skip: no records have been truncated")
 						}
 
 						pos := Position(
 							rapid.Uint64Range(
 								uint64(0),
-								uint64(begin-1),
+								uint64(bounds.Begin-1),
 							).Draw(t, "pos"),
 						)
 
@@ -750,7 +742,7 @@ func RunTests(
 					"Get (future)": func(t *rapid.T) {
 						pos := Position(
 							rapid.Uint64Min(
-								uint64(end),
+								uint64(bounds.End),
 							).Draw(t, "pos"),
 						)
 
@@ -760,11 +752,11 @@ func RunTests(
 						}
 					},
 					"Range (all)": func(t *rapid.T) {
-						if begin == end {
+						if bounds.IsEmpty() {
 							t.Skip("skip: journal is empty")
 						}
 
-						wantPos := begin
+						wantPos := bounds.Begin
 
 						if err := j.Range(
 							ctx,
@@ -796,14 +788,14 @@ func RunTests(
 						}
 					},
 					"Range (truncated)": func(t *rapid.T) {
-						if begin == 0 {
+						if bounds.Begin == 0 {
 							t.Skip("skip: no records have been truncated")
 						}
 
 						pos := Position(
 							rapid.Uint64Range(
 								uint64(0),
-								uint64(begin-1),
+								uint64(bounds.Begin-1),
 							).Draw(t, "pos"),
 						)
 
@@ -820,7 +812,7 @@ func RunTests(
 					"Range (future)": func(t *rapid.T) {
 						pos := Position(
 							rapid.Uint64Min(
-								uint64(end),
+								uint64(bounds.End),
 							).Draw(t, "pos"),
 						)
 
@@ -837,25 +829,25 @@ func RunTests(
 					"Append (success)": func(t *rapid.T) {
 						rec := rapid.String().Draw(t, "rec")
 
-						err := j.Append(ctx, end, []byte(rec))
+						err := j.Append(ctx, bounds.End, []byte(rec))
 						if err != nil {
-							t.Fatalf("unable to append record at position %d: %s", end, err)
+							t.Fatalf("unable to append record at position %d: %s", bounds.End, err)
 						}
 
 						records = append(records, rec)
-						end++
+						bounds.End++
 
-						t.Logf("appended record at position %d, bounds are now [%d, %d)", end-1, begin, end)
+						t.Logf("appended record at position %d, bounds are now %s", bounds.End-1, bounds)
 					},
 					"Truncate (some)": func(t *rapid.T) {
-						if end-begin < 2 {
+						if bounds.Len() < 2 {
 							t.Skip("skip: need at least 2 records")
 						}
 
 						pos := Position(
 							rapid.Uint64Range(
-								uint64(begin),
-								uint64(end-1),
+								uint64(bounds.Begin),
+								uint64(bounds.End-1),
 							).Draw(t, "pos"),
 						)
 
@@ -864,32 +856,32 @@ func RunTests(
 							t.Fatalf("unable to truncate records before position %d: %s", pos, err)
 						}
 
-						begin = pos
+						bounds.Begin = pos
 
-						t.Logf("truncated records before position %d, bounds are now [%d, %d)", pos, begin, end)
+						t.Logf("truncated records before position %d, bounds are now %s", pos, bounds)
 					},
 					"Truncate (all)": func(t *rapid.T) {
-						if begin == end {
+						if bounds.IsEmpty() {
 							t.Skip("skip: journal is empty")
 						}
 
-						err := j.Truncate(ctx, end)
+						err := j.Truncate(ctx, bounds.End)
 						if err != nil {
-							t.Fatalf("unable to truncate records before position %d: %s", end, err)
+							t.Fatalf("unable to truncate records before position %d: %s", bounds.End, err)
 						}
 
-						begin = end
+						bounds.Begin = bounds.End
 
-						t.Logf("truncated records before position %d, bounds are now [%d, %d)", end, begin, end)
+						t.Logf("truncated records before position %d, bounds are now %s", bounds.End, bounds)
 					},
 					"Truncate (already truncated)": func(t *rapid.T) {
-						if begin == 0 {
+						if bounds.Begin == 0 {
 							t.Skip("skip: no records have been truncated")
 						}
 
 						pos := Position(
 							rapid.Uint64Max(
-								uint64(begin),
+								uint64(bounds.Begin),
 							).Draw(t, "pos"),
 						)
 
@@ -898,7 +890,7 @@ func RunTests(
 							t.Fatalf("unable to truncate records before position %d: %s", pos, err)
 						}
 
-						t.Logf("truncated records before position %d, bounds are still [%d, %d)", pos, begin, end)
+						t.Logf("truncated records before position %d, bounds are still %s", pos, bounds)
 					},
 				},
 			)

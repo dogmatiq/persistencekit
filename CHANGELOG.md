@@ -10,6 +10,20 @@ The format is based on [Keep a Changelog], and this project adheres to
 [Keep a Changelog]: https://keepachangelog.com/en/1.0.0/
 [Semantic Versioning]: https://semver.org/spec/v2.0.0.html
 
+## [Unreleased]
+
+### Added
+
+- Added `journal.Interval` type, to represent a half-open range of positions.
+
+### Changed
+
+- **[BC]** `journal.Journal.Bounds()` now returns an `Interval` instead of a two
+  `Position` values.
+- **[BC]** `journal.Search()`, `RangeFromSearchResult()`, `Scan()` and
+  `ScanFromSearchResult()` now accept an `Interval` parameter instead of two
+  `Position` values.
+
 ## [0.9.3] - 2024-04-03
 
 ### Added

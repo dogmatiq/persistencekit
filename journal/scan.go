@@ -10,19 +10,19 @@ import (
 // If the record cannot be used to produce a value of type V, ok is false.
 type ScanFunc[T, V any] func(ctx context.Context, pos Position, rec T) (v V, ok bool, err error)
 
-// Scan finds a value of type V within the journal by scanning all records
-// beginning with the record at the given position.
+// Scan finds a value of type V within j by scanning all records beginning with
+// the record at the given position.
 //
 // It returns [ErrNotFound] if the value is not found.
 //
 // This function is useful when the value being searched is not ordered, or when
-// there are a small number of records to scan. If the records are structured
-// in such a way that it's possible to know if the value appears before or after
-// a specific record, use [Search] instead.
+// there are a small number of records to scan. If the records are structured in
+// such a way that it's possible to know if the value appears before or after a
+// specific record, use [Search] instead.
 func Scan[T, V any](
 	ctx context.Context,
 	j Journal[T],
-	begin Position,
+	pos Position,
 	scan ScanFunc[T, V],
 ) (V, error) {
 	var (
@@ -32,7 +32,7 @@ func Scan[T, V any](
 
 	if err := j.Range(
 		ctx,
-		begin,
+		pos,
 		func(ctx context.Context, pos Position, rec T) (bool, error) {
 			var err error
 			v, ok, err = scan(ctx, pos, rec)
@@ -48,20 +48,19 @@ func Scan[T, V any](
 	return v, nil
 }
 
-// ScanFromSearchResult finds a value within the journal by scanning all records
-// beginning with the record for which a binary search of the half-open range
-// [begin, end) using cmp as the comparator returns true. See [Scan] and
-// [Search].
+// ScanFromSearchResult finds a value within j by scanning all records beginning
+// with the record for which a binary search of the interval i using cmp as
+// the comparator returns true. See [Scan] and [Search].
 //
 // It returns [ErrNotFound] if the value is not found.
 func ScanFromSearchResult[T, V any](
 	ctx context.Context,
 	j Journal[T],
-	begin, end Position,
+	i Interval,
 	cmp CompareFunc[T],
 	scan ScanFunc[T, V],
 ) (V, error) {
-	pos, rec, err := Search(ctx, j, begin, end, cmp)
+	pos, rec, err := Search(ctx, j, i, cmp)
 	if err != nil {
 		var zero V
 		return zero, err
