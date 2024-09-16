@@ -15,7 +15,7 @@ type store struct {
 	Table     string
 	OnRequest func(any) []func(*dynamodb.Options)
 
-	createOnce syncx.SucceedOnce
+	createTableOnce syncx.SucceedOnce
 }
 
 // NewBinaryStore returns a new [journal.BinaryStore] that uses the given
@@ -57,11 +57,7 @@ func WithRequestHook(fn func(any) []func(*dynamodb.Options)) Option {
 
 // Open returns the journal with the given name.
 func (s *store) Open(ctx context.Context, name string) (journal.BinaryJournal, error) {
-	if s.Table == "" {
-		panic("table name must not be empty")
-	}
-
-	if err := s.createOnce.Do(ctx, s.createTable); err != nil {
+	if err := s.createTableOnce.Do(ctx, s.createTable); err != nil {
 		return nil, err
 	}
 

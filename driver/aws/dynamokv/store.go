@@ -61,7 +61,7 @@ func WithRequestHook(fn func(any) []func(*dynamodb.Options)) Option {
 
 // Open returns the keyspace with the given name.
 func (s *store) Open(ctx context.Context, name string) (kv.BinaryKeyspace, error) {
-	if err := s.createTable(ctx); err != nil {
+	if err := s.createTableOnce.Do(ctx, s.createTable); err != nil {
 		return nil, err
 	}
 
