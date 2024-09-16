@@ -161,7 +161,7 @@ func (j *journ) loadEnd(ctx context.Context) (end journal.Position, empty bool, 
 		func(ctx context.Context, item map[string]types.AttributeValue) error {
 			var err error
 
-			empty, err := isMetaDataRecord(item)
+			empty, err := isMetaData(item)
 			if empty || err != nil {
 				return err
 			}
@@ -358,30 +358,15 @@ func (j *journ) Close() error {
 	return nil
 }
 
-func isMetaDataRecord(item map[string]types.AttributeValue) (bool, error) {
-	attr, err := dynamox.AttrAs[*types.AttributeValueMemberN](item, positionAttr)
-	if err != nil {
-		return false, err
-	}
-
-	return attr.Value == "-1", nil
+// isMetaData returns true if the item is the meta-data item.
+func isMetaData(item map[string]types.AttributeValue) (bool, error) {
+	pos, err := dynamox.AsNumericString(item, positionAttr)
+	return pos == "-1", err
 }
 
+// isCompacted returns true if the item is a compacted record.
 func isCompacted(item map[string]types.AttributeValue) (bool, error) {
-	attr, ok, err := dynamox.TryAsBool(item, recordIsCompactedAttr)
-	if err != nil {
-		return false, err
-	}
-
-	if !ok {
-		return false, nil
-	}
-
-	if attr {
-		return true, nil
-	}
-
-	return false, errors.New("integrity error: truncated attribute is set to false, should be removed")
+	return dynamox.AsBool(item, recordIsCompactedAttr)
 }
 
 // marshalPosition returns the string representation of pos.
@@ -400,17 +385,7 @@ func marshalPositionBefore(pos journal.Position) string {
 // unmarshalPosition returns the journal position represented by a number
 // attribute with the given key.
 func unmarshalPosition(item map[string]types.AttributeValue, key string) (journal.Position, error) {
-	attr, err := dynamox.AttrAs[*types.AttributeValueMemberN](item, key)
-	if err != nil {
-		return 0, err
-	}
-
-	pos, err := strconv.ParseUint(attr.Value, 10, 64)
-	if err != nil {
-		return 0, fmt.Errorf("integrity error: %q attribute is not a valid journal position: %w", key, err)
-	}
-
-	return journal.Position(pos), nil
+	return dynamox.AsUint[journal.Position](item, key)
 }
 
 // unmarshalUncompactedInterval returns the interval of records that have been

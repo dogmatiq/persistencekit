@@ -2,19 +2,19 @@ package dynamox
 
 import (
 	"fmt"
-	"reflect"
+	"strconv"
 
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 )
 
-// AttrAs fetches an attribute of type T from an item.
+// attrAs fetches an attribute of type T from an item.
 //
 // It returns an error if the item is absent or a different type.
-func AttrAs[T types.AttributeValue](
+func attrAs[T types.AttributeValue](
 	item map[string]types.AttributeValue,
 	name string,
 ) (v T, err error) {
-	v, ok, err := TryAttrAs[T](item, name)
+	v, ok, err := tryAttrAs[T](item, name)
 	if err != nil {
 		return v, err
 	}
@@ -24,10 +24,10 @@ func AttrAs[T types.AttributeValue](
 	return v, nil
 }
 
-// TryAttrAs fetches an attribute of type T from an item.
+// tryAttrAs fetches an attribute of type T from an item.
 //
 // It returns an error if the item is a different type.
-func TryAttrAs[T types.AttributeValue](
+func tryAttrAs[T types.AttributeValue](
 	item map[string]types.AttributeValue,
 	name string,
 ) (v T, ok bool, err error) {
@@ -39,14 +39,27 @@ func TryAttrAs[T types.AttributeValue](
 	v, ok = a.(T)
 	if !ok {
 		return v, false, fmt.Errorf(
-			"integrity error: %q attribute should be %s not %s",
+			"integrity error: %q attribute should be %T not %T",
 			name,
-			reflect.TypeOf(v).Name(),
-			reflect.TypeOf(a).Name(),
+			v,
+			a,
 		)
 	}
 
 	return v, true, nil
+}
+
+// AsNumericString fetches the string representation of a numeric attribute from
+// an item.
+func AsNumericString(
+	item map[string]types.AttributeValue,
+	name string,
+) (string, error) {
+	attr, err := attrAs[*types.AttributeValueMemberN](item, name)
+	if err != nil {
+		return "", err
+	}
+	return attr.Value, nil
 }
 
 // AsBytes fetches a binary attribute from an item.
@@ -54,26 +67,42 @@ func AsBytes(
 	item map[string]types.AttributeValue,
 	name string,
 ) ([]byte, error) {
-	v, err := AttrAs[*types.AttributeValueMemberB](item, name)
+	v, err := attrAs[*types.AttributeValueMemberB](item, name)
 	if err != nil {
 		return nil, err
 	}
 	return v.Value, nil
 }
 
-// TryAsBool fetches an optional boolean attribute from an item.
-func TryAsBool(
+// AsUint fetches an unsigned integer attribute from an item.
+func AsUint[T ~uint | ~uint8 | ~uint16 | ~uint32 | ~uint64](
 	item map[string]types.AttributeValue,
 	name string,
-) (bool, bool, error) {
-	v, ok, err := TryAttrAs[*types.AttributeValueMemberBOOL](item, name)
+) (T, error) {
+	attr, err := attrAs[*types.AttributeValueMemberN](item, name)
 	if err != nil {
-		return false, false, err
+		return 0, err
 	}
-	if !ok {
-		return false, false, nil
+
+	v, err := strconv.ParseUint(attr.Value, 10, 64)
+	if err != nil {
+		return 0, err
 	}
-	return v.Value, true, nil
+
+	return T(v), nil
+}
+
+// AsBool fetches a boolean attribute from an item. It returns false if the item
+// is absent.
+func AsBool(
+	item map[string]types.AttributeValue,
+	name string,
+) (bool, error) {
+	v, ok, err := tryAttrAs[*types.AttributeValueMemberBOOL](item, name)
+	if !ok || err != nil {
+		return false, err
+	}
+	return v.Value, nil
 }
 
 var (
