@@ -1,6 +1,7 @@
 package syncx
 
 import (
+	"context"
 	"sync"
 	"sync/atomic"
 )
@@ -12,7 +13,10 @@ type SucceedOnce struct {
 }
 
 // Do executes the fn if and only if it has not been called successfully before.
-func (o *SucceedOnce) Do(fn func() error) error {
+func (o *SucceedOnce) Do(
+	ctx context.Context,
+	fn func(ctx context.Context) error,
+) error {
 	if o.done.Load() {
 		return nil
 	}
@@ -24,7 +28,7 @@ func (o *SucceedOnce) Do(fn func() error) error {
 		return nil
 	}
 
-	if err := fn(); err != nil {
+	if err := fn(ctx); err != nil {
 		return err
 	}
 

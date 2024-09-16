@@ -14,26 +14,100 @@ import (
 	"github.com/dogmatiq/persistencekit/journal"
 )
 
+var (
+	errNoMetaData = errors.New("integrity error: meta-data item does not exist")
+)
+
+func provideErrContext(err *error, format string, args ...any) {
+	switch *err {
+	case journal.ErrNotFound, journal.ErrConflict:
+		// Never wrap these errors.
+	default:
+		*err = fmt.Errorf(format+": %w", append(args, *err)...)
+	case nil:
+	}
+}
+
 // journ is an implementation of [journal.BinaryJournal] that persists to a
 // DynamoDB table.
 type journ struct {
 	Client    *dynamodb.Client
 	OnRequest func(any) []func(*dynamodb.Options)
 
-	name     *types.AttributeValueMemberS
-	position *types.AttributeValueMemberN
-	record   *types.AttributeValueMemberB
+	attr struct {
+		Journal        types.AttributeValueMemberS // [journalAttr]
+		Pos            types.AttributeValueMemberN // [positionAttr]
+		Record         types.AttributeValueMemberB // [recordAttr]
+		BeginPos       types.AttributeValueMemberN // [metaDataBeginPositionAttr]
+		UncompactedPos types.AttributeValueMemberN // [metaDataUncompactedPositionAttr]
+	}
 
-	boundsReq   dynamodb.QueryInput
-	getReq      dynamodb.GetItemInput
-	rangeReq    dynamodb.QueryInput
-	appendReq   dynamodb.PutItemInput
-	truncateReq dynamodb.UpdateItemInput
-	deleteReq   dynamodb.DeleteItemInput
+	request struct {
+		SetBeginPos       dynamodb.UpdateItemInput
+		SetUncompactedPos dynamodb.UpdateItemInput
+		LoadBegin         dynamodb.GetItemInput
+		LoadEnd           dynamodb.QueryInput
+		Get               dynamodb.GetItemInput
+		Range             dynamodb.QueryInput
+		Append            dynamodb.PutItemInput
+		Compact           dynamodb.UpdateItemInput
+	}
 }
 
-func (j *journ) Bounds(ctx context.Context) (bounds journal.Interval, err error) {
-	end, empty, err := j.upperBound(ctx)
+// init initializes the journal meta-data and compacts any records that have
+// been truncated but not yet compacted.
+func (j *journ) init(ctx context.Context, table, name string) (err error) {
+	defer provideErrContext(&err, "unable to initialize journal")
+
+	j.attr.Journal.Value = name
+	j.prepareRequests(table)
+
+	uncompacted, err := j.initMetaData(ctx, table)
+	if err != nil {
+		return err
+	}
+
+	return j.compact(ctx, uncompacted)
+}
+
+// initMetaData initializes the meta-data item for the journal.
+//
+// It returns the interval of records that have been truncated but not yet
+// compacted.
+func (j *journ) initMetaData(ctx context.Context, table string) (journal.Interval, error) {
+	j.attr.BeginPos.Value = marshalPosition(0)
+	j.attr.UncompactedPos.Value = marshalPosition(0)
+
+	_, err := awsx.Do(
+		ctx,
+		j.Client.PutItem,
+		j.OnRequest,
+		&dynamodb.PutItemInput{
+			TableName: &table,
+			Item: map[string]types.AttributeValue{
+				journalAttr:                     &j.attr.Journal,
+				positionAttr:                    &metaDataPosition,
+				metaDataBeginPositionAttr:       &j.attr.BeginPos,
+				metaDataUncompactedPositionAttr: &j.attr.UncompactedPos,
+			},
+			ExpressionAttributeNames: map[string]string{
+				"#J": journalAttr,
+			},
+			ConditionExpression:                 aws.String(`attribute_not_exists(#J)`),
+			ReturnValuesOnConditionCheckFailure: types.ReturnValuesOnConditionCheckFailureAllOld,
+		},
+	)
+
+	var conflict *types.ConditionalCheckFailedException
+	if errors.As(err, &conflict) {
+		return unmarshalUncompactedInterval(conflict.Item)
+	}
+
+	return journal.Interval{}, err
+}
+
+func (j *journ) Bounds(ctx context.Context) (journal.Interval, error) {
+	end, empty, err := j.loadEnd(ctx)
 	if err != nil {
 		return journal.Interval{}, err
 	}
@@ -45,7 +119,7 @@ func (j *journ) Bounds(ctx context.Context) (bounds journal.Interval, err error)
 		}, nil
 	}
 
-	begin, err := j.lowerBound(ctx, end)
+	begin, err := j.loadBegin(ctx)
 	if err != nil {
 		return journal.Interval{}, err
 	}
@@ -56,22 +130,43 @@ func (j *journ) Bounds(ctx context.Context) (bounds journal.Interval, err error)
 	}, nil
 }
 
-// upperBound returns the (exclusive) upper bound of the records in the journal.
-//
-// If empty is true, the journal is either truly empty or all records have been
-// truncated, and therefore the bounds are [end, end).
-func (j *journ) upperBound(ctx context.Context) (end journal.Position, empty bool, err error) {
-	*j.boundsReq.ScanIndexForward = false
+func (j *journ) loadBegin(ctx context.Context) (_ journal.Position, err error) {
+	defer provideErrContext(&err, "unable to load lower bound")
 
-	empty = true
+	out, err := awsx.Do(
+		ctx,
+		j.Client.GetItem,
+		j.OnRequest,
+		&j.request.LoadBegin,
+	)
+	if err != nil {
+		return 0, err
+	}
 
-	if _, err := dynamox.QueryOne(
+	if out.Item == nil {
+		return 0, errNoMetaData
+	}
+
+	return unmarshalPosition(out.Item, metaDataBeginPositionAttr)
+}
+
+func (j *journ) loadEnd(ctx context.Context) (end journal.Position, empty bool, err error) {
+	defer provideErrContext(&err, "unable to load upper bound")
+
+	ok, err := dynamox.QueryOne(
 		ctx,
 		j.Client,
 		j.OnRequest,
-		&j.boundsReq,
+		&j.request.LoadEnd,
 		func(ctx context.Context, item map[string]types.AttributeValue) error {
-			pos, err := unmarshalPosition(item)
+			var err error
+
+			empty, err := isMetaData(item)
+			if empty || err != nil {
+				return err
+			}
+
+			pos, err := unmarshalPosition(item, positionAttr)
 			if err != nil {
 				return err
 			}
@@ -80,117 +175,76 @@ func (j *journ) upperBound(ctx context.Context) (end journal.Position, empty boo
 			// one AFTER the most recent record.
 			end = pos + 1
 
-			// If the most recent record has been truncated, the journal is
-			// effectively empty with bounds of [end, end).
-			empty, err = isTruncated(item)
+			// If the most recent record has been compacted (and therefore)
+			// truncated, the journal is empty with bounds of [end, end).
+			empty, err = isCompacted(item)
+
 			return err
 		},
-	); err != nil {
-		return 0, false, fmt.Errorf("unable to query last journal record: %w", err)
+	)
+	if err != nil {
+		return 0, false, err
+	}
+	if !ok {
+		return 0, false, errNoMetaData
 	}
 
 	return end, empty, nil
 }
 
-// lowerBound returns the (inclusive) lower bound of the records in the journal.
-func (j *journ) lowerBound(ctx context.Context, end journal.Position) (begin journal.Position, err error) {
-	*j.boundsReq.ScanIndexForward = true
+func (j *journ) Get(ctx context.Context, pos journal.Position) (_ []byte, err error) {
+	defer provideErrContext(&err, "unable to get journal record at position %d", pos)
 
-	limit := j.boundsReq.Limit
-	defer func() { j.boundsReq.Limit = limit }()
-
-	j.boundsReq.Limit = aws.Int32(5) // arbitrary, but we don't want to load too many
-
-	if err := dynamox.QueryRange(
-		ctx,
-		j.Client,
-		j.OnRequest,
-		&j.boundsReq,
-		func(ctx context.Context, item map[string]types.AttributeValue) (bool, error) {
-			pos, err := unmarshalPosition(item)
-			if err != nil {
-				return false, err
-			}
-
-			truncated, err := isTruncated(item)
-			if err != nil {
-				return false, err
-			}
-
-			// If we found a non-truncated record, it must be the lower bound.
-			if !truncated {
-				begin = pos
-				return false, nil
-			}
-
-			// Otherwise, we found a truncated record.
-			//
-			// If it's the same record we used to identify the upper bound then
-			// all records are truncated.
-			if pos+1 == end {
-				begin = end
-				return false, nil
-			}
-
-			// Otherwise we've found a record that has been marked as truncated,
-			// but we know there are records after it, so we clean it up as we
-			// go.
-			return true, j.deleteRecord(ctx, pos)
-		},
-	); err != nil {
-		return 0, fmt.Errorf("unable to query first journal record: %w", err)
-	}
-
-	return begin, nil
-}
-
-func (j *journ) Get(ctx context.Context, pos journal.Position) ([]byte, error) {
-	j.position.Value = marshalPosition(pos)
+	j.attr.Pos.Value = marshalPosition(pos)
 
 	out, err := awsx.Do(
 		ctx,
 		j.Client.GetItem,
 		j.OnRequest,
-		&j.getReq,
+		&j.request.Get,
 	)
 	if err != nil {
-		return nil, fmt.Errorf("unable to get journal record: %w", err)
+		return nil, err
 	}
+
 	if out.Item == nil {
 		return nil, journal.ErrNotFound
 	}
 
-	truncated, err := isTruncated(out.Item)
+	isTrunc, err := isCompacted(out.Item)
 	if err != nil {
 		return nil, err
 	}
-	if truncated {
+
+	if isTrunc {
 		return nil, journal.ErrNotFound
 	}
 
-	rec, err := dynamox.AttrAs[*types.AttributeValueMemberB](out.Item, recordAttr)
+	rec, err := dynamox.AsBytes(out.Item, recordAttr)
 	if err != nil {
 		return nil, err
 	}
 
-	return rec.Value, nil
+	return rec, nil
 }
 
 func (j *journ) Range(
 	ctx context.Context,
 	pos journal.Position,
 	fn journal.BinaryRangeFunc,
-) error {
-	j.position.Value = marshalPosition(pos)
+) (err error) {
+	defer provideErrContext(&err, "unable to range over journal records starting at position %d", pos)
+
+	j.attr.Pos.Value = marshalPositionBefore(pos)
 	expectPos := pos
 
-	err := dynamox.QueryRange(
+	if err := dynamox.QueryRange(
 		ctx,
 		j.Client,
 		j.OnRequest,
-		&j.rangeReq,
+		&j.request.Range,
 		func(ctx context.Context, item map[string]types.AttributeValue) (bool, error) {
-			pos, err := unmarshalPosition(item)
+			pos, err := unmarshalPosition(item, positionAttr)
 			if err != nil {
 				return false, err
 			}
@@ -201,98 +255,100 @@ func (j *journ) Range(
 
 			expectPos++
 
-			rec, err := dynamox.AttrAs[*types.AttributeValueMemberB](item, recordAttr)
+			rec, err := dynamox.AsBytes(item, recordAttr)
 			if err != nil {
 				return false, err
 			}
 
-			return fn(ctx, pos, rec.Value)
+			return fn(ctx, pos, rec)
 		},
-	)
-
-	if err == journal.ErrNotFound {
+	); err != nil {
 		return err
-	} else if err != nil {
-		return fmt.Errorf("unable to range over journal records: %w", err)
-	} else if expectPos == pos {
+	}
+
+	if expectPos == pos {
 		return journal.ErrNotFound
 	}
 
 	return nil
 }
 
-func (j *journ) Append(ctx context.Context, pos journal.Position, rec []byte) error {
-	j.position.Value = marshalPosition(pos)
-	j.record.Value = rec
+func (j *journ) Append(ctx context.Context, pos journal.Position, rec []byte) (err error) {
+	defer provideErrContext(&err, "unable to append journal record at position %d", pos)
 
-	if _, err := awsx.Do(
+	j.attr.Pos.Value = marshalPosition(pos)
+	j.attr.Record.Value = rec
+
+	_, err = awsx.Do(
 		ctx,
 		j.Client.PutItem,
 		j.OnRequest,
-		&j.appendReq,
-	); err != nil {
-		if errors.As(err, new(*types.ConditionalCheckFailedException)) {
-			return journal.ErrConflict
-		}
-		return fmt.Errorf("unable to put journal record: %w", err)
+		&j.request.Append,
+	)
+
+	var conflict *types.ConditionalCheckFailedException
+	if errors.As(err, &conflict) {
+		return journal.ErrConflict
 	}
 
-	return nil
+	return err
 }
 
-func (j *journ) Truncate(ctx context.Context, pos journal.Position) error {
-	bounds, err := j.Bounds(ctx)
+func (j *journ) Truncate(ctx context.Context, pos journal.Position) (err error) {
+	defer provideErrContext(&err, "unable to truncate journal records before position %d", pos)
+
+	j.attr.BeginPos.Value = marshalPosition(pos)
+
+	res, err := awsx.Do(
+		ctx,
+		j.Client.UpdateItem,
+		j.OnRequest,
+		&j.request.SetBeginPos,
+	)
+	if err != nil {
+		if errors.As(err, new(*types.ConditionalCheckFailedException)) {
+			return nil
+		}
+		return err
+	}
+
+	uncompacted, err := unmarshalUncompactedInterval(res.Attributes)
 	if err != nil {
 		return err
 	}
 
-	if pos > bounds.End {
-		return errors.New("cannot truncate beyond the end of the journal")
-	}
-
-	for p := bounds.Begin; p < pos; p++ {
-		j.position.Value = marshalPosition(p)
-
-		var err error
-		if p+1 == bounds.End {
-			err = j.markRecordAsTruncated(ctx, p)
-		} else {
-			err = j.deleteRecord(ctx, p)
-		}
-
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
+	return j.compact(ctx, uncompacted)
 }
 
-func (j *journ) markRecordAsTruncated(ctx context.Context, pos journal.Position) error {
-	j.position.Value = marshalPosition(pos)
+func (j *journ) compact(ctx context.Context, uncompacted journal.Interval) (err error) {
+	defer provideErrContext(&err, "unable to compact records in %s", uncompacted)
 
-	if _, err := awsx.Do(
+	if uncompacted.IsEmpty() {
+		return nil
+	}
+
+	for _, pos := range uncompacted.Positions() {
+		j.attr.Pos.Value = marshalPosition(pos)
+
+		if _, err := awsx.Do(
+			ctx,
+			j.Client.UpdateItem,
+			j.OnRequest,
+			&j.request.Compact,
+		); err != nil {
+			return fmt.Errorf("unable to compact record at position %d: %w", pos, err)
+		}
+	}
+
+	j.attr.UncompactedPos.Value = marshalPosition(uncompacted.End)
+
+	if _, err = awsx.Do(
 		ctx,
 		j.Client.UpdateItem,
 		j.OnRequest,
-		&j.truncateReq,
+		&j.request.SetUncompactedPos,
 	); err != nil {
-		return fmt.Errorf("unable to mark journal record as truncated: %w", err)
-	}
-
-	return nil
-}
-
-func (j *journ) deleteRecord(ctx context.Context, pos journal.Position) error {
-	j.position.Value = marshalPosition(pos)
-
-	if _, err := awsx.Do(
-		ctx,
-		j.Client.DeleteItem,
-		j.OnRequest,
-		&j.deleteReq,
-	); err != nil {
-		return fmt.Errorf("unable to delete journal record: %w", err)
+		return fmt.Errorf("unable to update uncompacted position: %w", err)
 	}
 
 	return nil
@@ -302,37 +358,51 @@ func (j *journ) Close() error {
 	return nil
 }
 
+// isMetaData returns true if the item is the meta-data item.
+func isMetaData(item map[string]types.AttributeValue) (bool, error) {
+	pos, err := dynamox.AsNumericString(item, positionAttr)
+	return pos == "-1", err
+}
+
+// isCompacted returns true if the item is a compacted record.
+func isCompacted(item map[string]types.AttributeValue) (bool, error) {
+	return dynamox.AsBool(item, recordIsCompactedAttr)
+}
+
+// marshalPosition returns the string representation of pos.
 func marshalPosition(pos journal.Position) string {
 	return strconv.FormatUint(uint64(pos), 10)
 }
 
-func unmarshalPosition(item map[string]types.AttributeValue) (journal.Position, error) {
-	attr, err := dynamox.AttrAs[*types.AttributeValueMemberN](item, positionAttr)
-	if err != nil {
-		return 0, err
+// marshalPositionBefore returns the string representation of pos - 1.
+func marshalPositionBefore(pos journal.Position) string {
+	if pos == 0 {
+		return "-1"
 	}
-
-	pos, err := strconv.ParseUint(attr.Value, 10, 64)
-	if err != nil {
-		return 0, fmt.Errorf("item is corrupt: invalid position: %w", err)
-	}
-
-	return journal.Position(pos), nil
+	return strconv.FormatUint(uint64(pos)-1, 10)
 }
 
-func isTruncated(item map[string]types.AttributeValue) (bool, error) {
-	t, ok, err := dynamox.TryAttrAs[*types.AttributeValueMemberBOOL](item, truncatedAttr)
+// unmarshalPosition returns the journal position represented by a number
+// attribute with the given key.
+func unmarshalPosition(item map[string]types.AttributeValue, key string) (journal.Position, error) {
+	return dynamox.AsUint[journal.Position](item, key)
+}
+
+// unmarshalUncompactedInterval returns the interval of records that have been
+// truncated but not yet compacted from the meta-data item.
+func unmarshalUncompactedInterval(item map[string]types.AttributeValue) (journal.Interval, error) {
+	begin, err := unmarshalPosition(item, metaDataBeginPositionAttr)
 	if err != nil {
-		return false, err
+		return journal.Interval{}, err
 	}
 
-	if !ok {
-		return false, nil
+	uncompacted, err := unmarshalPosition(item, metaDataUncompactedPositionAttr)
+	if err != nil {
+		return journal.Interval{}, err
 	}
 
-	if t.Value {
-		return true, nil
-	}
-
-	return false, errors.New("item is corrupt: truncated attribute is set to false, should be removed")
+	return journal.Interval{
+		Begin: uncompacted,
+		End:   begin,
+	}, nil
 }

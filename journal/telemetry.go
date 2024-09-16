@@ -220,13 +220,13 @@ func (j *instrumentedJournal) Range(
 	return nil
 }
 
-func (j *instrumentedJournal) Append(ctx context.Context, end Position, rec []byte) error {
+func (j *instrumentedJournal) Append(ctx context.Context, pos Position, rec []byte) error {
 	size := int64(len(rec))
 
 	ctx, span := j.Telemetry.StartSpan(
 		ctx,
 		"journal.append",
-		telemetry.Int("position", end),
+		telemetry.Int("position", pos),
 		telemetry.Int("record_size", size),
 	)
 	defer span.End()
@@ -235,7 +235,7 @@ func (j *instrumentedJournal) Append(ctx context.Context, end Position, rec []by
 	j.RecordIO.Add(ctx, 1, telemetry.WriteDirection)
 	j.RecordSize.Record(ctx, size, telemetry.WriteDirection)
 
-	err := j.Next.Append(ctx, end, rec)
+	err := j.Next.Append(ctx, pos, rec)
 	if err != nil {
 		span.Error("unable to append journal record", err)
 
@@ -255,15 +255,15 @@ func (j *instrumentedJournal) Append(ctx context.Context, end Position, rec []by
 	return nil
 }
 
-func (j *instrumentedJournal) Truncate(ctx context.Context, end Position) error {
+func (j *instrumentedJournal) Truncate(ctx context.Context, pos Position) error {
 	ctx, span := j.Telemetry.StartSpan(
 		ctx,
 		"journal.truncate",
-		telemetry.Int("retained_position", end),
+		telemetry.Int("position", pos),
 	)
 	defer span.End()
 
-	if err := j.Next.Truncate(ctx, end); err != nil {
+	if err := j.Next.Truncate(ctx, pos); err != nil {
 		span.Error("unable to truncate journal", err)
 		return err
 	}

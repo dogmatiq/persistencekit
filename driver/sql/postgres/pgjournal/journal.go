@@ -21,12 +21,9 @@ func (j *journ) Bounds(ctx context.Context) (bounds journal.Interval, err error)
 		ctx,
 		`SELECT
 			j.encoded_begin,
-			COALESCE(MAX(r.encoded_position) + 1, j.encoded_begin)
+			j.encoded_end
 		FROM persistencekit.journal AS j
-		LEFT JOIN persistencekit.journal_record AS r
-		ON r.journal_id = j.id
-		WHERE j.id = $1
-		GROUP BY j.id`,
+		WHERE j.id = $1`,
 		j.id,
 	)
 
@@ -122,11 +119,38 @@ func (j *journ) Range(
 }
 
 func (j *journ) Append(ctx context.Context, pos journal.Position, rec []byte) error {
-	res, err := j.db.ExecContext(
+	tx, err := j.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("cannot begin append transaction: %w", err)
+	}
+	defer tx.Rollback()
+
+	res, err := tx.ExecContext(
+		ctx,
+		`UPDATE persistencekit.journal
+		SET encoded_end = encoded_end + 1
+		WHERE id = $1
+		AND encoded_end = $2`,
+		j.id,
+		bigint.ConvertUnsigned(&pos),
+	)
+	if err != nil {
+		return fmt.Errorf("cannot update journal bounds: %w", err)
+	}
+
+	n, err := res.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("cannot determine affected rows: %w", err)
+	}
+
+	if n == 0 {
+		return journal.ErrConflict
+	}
+
+	res, err = tx.ExecContext(
 		ctx,
 		`INSERT INTO persistencekit.journal_record
-		(journal_id, encoded_position, record) VALUES ($1, $2, $3)
-		ON CONFLICT (journal_id, encoded_position) DO NOTHING`,
+		(journal_id, encoded_position, record) VALUES ($1, $2, $3)`,
 		j.id,
 		bigint.ConvertUnsigned(&pos),
 		rec,
@@ -135,13 +159,8 @@ func (j *journ) Append(ctx context.Context, pos journal.Position, rec []byte) er
 		return fmt.Errorf("cannot insert journal record: %w", err)
 	}
 
-	n, err := res.RowsAffected()
-	if err != nil {
-		return fmt.Errorf("cannot determine affected rows: %w", err)
-	}
-
-	if n != 1 {
-		return journal.ErrConflict
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("cannot commit append transaction: %w", err)
 	}
 
 	return nil
@@ -150,7 +169,7 @@ func (j *journ) Append(ctx context.Context, pos journal.Position, rec []byte) er
 func (j *journ) Truncate(ctx context.Context, pos journal.Position) error {
 	tx, err := j.db.BeginTx(ctx, nil)
 	if err != nil {
-		return fmt.Errorf("cannot begin transaction: %w", err)
+		return fmt.Errorf("cannot begin truncate transaction: %w", err)
 	}
 	defer tx.Rollback()
 
@@ -187,7 +206,7 @@ func (j *journ) Truncate(ctx context.Context, pos journal.Position) error {
 	}
 
 	if err := tx.Commit(); err != nil {
-		return fmt.Errorf("cannot commit transaction: %w", err)
+		return fmt.Errorf("cannot commit truncate transaction: %w", err)
 	}
 
 	return nil
