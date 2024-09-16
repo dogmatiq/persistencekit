@@ -63,8 +63,8 @@ func CreateTableIfNotExists(
 	return nil
 }
 
-// DeleteTableIfNotExists deletes a DynamoDB table if it does not exist.
-func DeleteTableIfNotExists(
+// DeleteTableIfExists deletes a DynamoDB table if it exists.
+func DeleteTableIfExists(
 	ctx context.Context,
 	client *dynamodb.Client,
 	table string,
