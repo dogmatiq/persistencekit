@@ -19,17 +19,19 @@ var (
 )
 
 func provideErrContext(err *error, format string, args ...any) {
+	if *err == nil {
+		return
+	}
+
 	if journal.IsNotFound(*err) {
 		return
 	}
 
-	switch *err {
-	case journal.ErrConflict:
-		// Never wrap these errors.
-	default:
-		*err = fmt.Errorf(format+": %w", append(args, *err)...)
-	case nil:
+	if journal.IsConflict(*err) {
+		return
 	}
+
+	*err = fmt.Errorf(format+": %w", append(args, *err)...)
 }
 
 // journ is an implementation of [journal.BinaryJournal] that persists to a
@@ -292,7 +294,7 @@ func (j *journ) Append(ctx context.Context, pos journal.Position, rec []byte) (e
 
 	var conflict *types.ConditionalCheckFailedException
 	if errors.As(err, &conflict) {
-		return journal.ErrConflict
+		return journal.ConflictError{Position: pos}
 	}
 
 	return err

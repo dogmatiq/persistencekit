@@ -526,7 +526,7 @@ func RunTests(
 				}
 			})
 
-			t.Run("it returns ErrConflict there is already a record at the given position", func(t *testing.T) {
+			t.Run("it returns a ConflictError if there is already a record at the given position", func(t *testing.T) {
 				t.Parallel()
 
 				ctx, j := setup(t)
@@ -542,8 +542,9 @@ func RunTests(
 
 				err := j.Append(ctx, 1, []byte("<conflicting>"))
 
-				if !errors.Is(err, ErrConflict) {
-					t.Fatalf("unexpected error: got %q, want %q", err, ErrConflict)
+				expect := ConflictError{Position: 1}
+				if err != expect {
+					t.Fatalf("unexpected error: got %q, want %q", err, expect)
 				}
 
 				got, err := j.Get(ctx, 1)
@@ -560,7 +561,7 @@ func RunTests(
 				}
 			})
 
-			t.Run("it returns ErrConflict there is a truncated record at the given position", func(t *testing.T) {
+			t.Run("it returns a ConflictError if there is a truncated record at the given position", func(t *testing.T) {
 				t.Parallel()
 
 				ctx, j := setup(t)
@@ -571,8 +572,10 @@ func RunTests(
 				}
 
 				err := j.Append(ctx, 0, []byte("<conflicting>"))
-				if !errors.Is(err, ErrConflict) {
-					t.Fatalf("unexpected error: got %q, want %q", err, ErrConflict)
+
+				expect := ConflictError{Position: 0}
+				if err != expect {
+					t.Fatalf("unexpected error: got %q, want %q", err, expect)
 				}
 
 				_, err = j.Get(ctx, 0)
@@ -580,9 +583,10 @@ func RunTests(
 					t.Fatalf("unexpected error: got %q, want IsNotFound(err) == true", err)
 				}
 
+				expect = ConflictError{Position: 1}
 				err = j.Append(ctx, 1, []byte("<conflicting>"))
-				if !errors.Is(err, ErrConflict) {
-					t.Fatalf("unexpected error: got %q, want %q", err, ErrConflict)
+				if err != expect {
+					t.Fatalf("unexpected error: got %q, want %q", err, expect)
 				}
 
 				_, err = j.Get(ctx, 1)
@@ -878,8 +882,8 @@ func RunTests(
 						rec := rapid.String().Draw(t, "rec")
 
 						err := j.Append(ctx, pos, []byte(rec))
-						if !errors.Is(err, ErrConflict) {
-							t.Fatalf("unexpected error: got %q, want %q", err, ErrConflict)
+						if !IsConflict(err) {
+							t.Fatalf("unexpected error: got %q, want IsConflict(err) == true", err)
 						}
 
 						t.Logf("induced conflict appending at position %d, bounds are still %s", pos, bounds)
@@ -899,8 +903,8 @@ func RunTests(
 						rec := rapid.String().Draw(t, "rec")
 
 						err := j.Append(ctx, pos, []byte(rec))
-						if !errors.Is(err, ErrConflict) {
-							t.Fatalf("unexpected error: got %q, want %q", err, ErrConflict)
+						if !IsConflict(err) {
+							t.Fatalf("unexpected error: got %q, want IsConflict(err) == true", err)
 						}
 
 						t.Logf("induced conflict appending at position %d, bounds are still %s", pos, bounds)

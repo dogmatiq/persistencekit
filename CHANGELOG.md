@@ -15,6 +15,7 @@ The format is based on [Keep a Changelog], and this project adheres to
 ### Added
 
 - Added `journal.Interval` type, to represent a half-open range of positions.
+- Added `journal.RecordNotFoundError`, `ValueNotFoundError` and `ConflictError`.
 
 ### Changed
 
@@ -23,6 +24,11 @@ The format is based on [Keep a Changelog], and this project adheres to
 - **[BC]** `journal.Search()`, `RangeFromSearchResult()`, `Scan()` and
   `ScanFromSearchResult()` now accept an `Interval` parameter instead of two
   `Position` values.
+
+### Removed
+
+- **[BC]** Removed `journal.ErrConflict` and `ErrNotFound`. Use `IsConflict()`
+  and `IsNotFound()` to test for specific errors instead.
 
 ## [0.9.3] - 2024-04-03
 

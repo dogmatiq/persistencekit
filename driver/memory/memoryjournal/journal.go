@@ -104,7 +104,7 @@ func (j *journ[T]) Append(ctx context.Context, pos journal.Position, rec T) erro
 
 	switch {
 	case pos < j.state.Bounds.End:
-		return journal.ErrConflict
+		return journal.ConflictError{Position: pos}
 	case pos == j.state.Bounds.End:
 		j.state.Records = append(j.state.Records, rec)
 		j.state.Bounds.End++

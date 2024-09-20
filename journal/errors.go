@@ -5,11 +5,20 @@ import (
 	"fmt"
 )
 
-var (
-	// ErrConflict is returned by [Journal.Append] if there is already a record at
-	// the specified position.
-	ErrConflict = errors.New("optimistic concurrency conflict")
-)
+// IsConflict returns true if err is caused by [ConflictError].
+func IsConflict(err error) bool {
+	return errors.As(err, &ConflictError{})
+}
+
+// ConflictError is returned by [Journal.Append] if there is already a record at
+// the specified position.
+type ConflictError struct {
+	Position Position
+}
+
+func (e ConflictError) Error() string {
+	return fmt.Sprintf("optimistic concurrency conflict at position %d", e.Position)
+}
 
 // IgnoreNotFound returns nil if err is a caused by [RecordNotFoundError] or
 // [ValueNotFoundError] error. Otherwise it returns err unchanged.

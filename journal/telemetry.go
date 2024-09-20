@@ -2,7 +2,6 @@ package journal
 
 import (
 	"context"
-	"errors"
 	"log/slog"
 
 	"github.com/dogmatiq/persistencekit/internal/telemetry"
@@ -239,7 +238,7 @@ func (j *instrumentedJournal) Append(ctx context.Context, pos Position, rec []by
 	if err != nil {
 		span.Error("unable to append journal record", err)
 
-		if errors.Is(err, ErrConflict) {
+		if IsConflict(err) {
 			span.SetAttributes(
 				telemetry.Bool("conflict", true),
 			)

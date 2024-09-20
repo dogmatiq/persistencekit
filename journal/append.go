@@ -2,7 +2,6 @@ package journal
 
 import (
 	"context"
-	"errors"
 )
 
 // AppendWithConflictResolution appends a record to j using fn to resolve
@@ -20,7 +19,7 @@ func AppendWithConflictResolution[T any](
 ) (Position, error) {
 	for {
 		err := j.Append(ctx, end, rec)
-		if !errors.Is(err, ErrConflict) {
+		if !IsConflict(err) {
 			return end + 1, err
 		}
 

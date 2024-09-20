@@ -144,7 +144,7 @@ func (j *journ) Append(ctx context.Context, pos journal.Position, rec []byte) er
 	}
 
 	if n == 0 {
-		return journal.ErrConflict
+		return journal.ConflictError{Position: pos}
 	}
 
 	res, err = tx.ExecContext(
