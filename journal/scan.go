@@ -13,7 +13,7 @@ type ScanFunc[T, V any] func(ctx context.Context, pos Position, rec T) (v V, ok 
 // Scan finds a value of type V within j by scanning all records beginning with
 // the record at the given position.
 //
-// It returns [ErrNotFound] if the value is not found.
+// It returns a [ValueNotFoundError] if the value is not found.
 //
 // This function is useful when the value being searched is not ordered, or when
 // there are a small number of records to scan. If the records are structured in
@@ -42,7 +42,7 @@ func Scan[T, V any](
 		return v, err
 	}
 	if !ok {
-		return v, ErrNotFound
+		return v, ValueNotFoundError{}
 	}
 
 	return v, nil
@@ -52,7 +52,7 @@ func Scan[T, V any](
 // with the record for which a binary search of the interval i using cmp as
 // the comparator returns true. See [Scan] and [Search].
 //
-// It returns [ErrNotFound] if the value is not found.
+// It returns a [ValueNotFoundError] if the value is not found.
 func ScanFromSearchResult[T, V any](
 	ctx context.Context,
 	j Journal[T],

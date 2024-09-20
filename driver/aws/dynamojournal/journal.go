@@ -19,8 +19,12 @@ var (
 )
 
 func provideErrContext(err *error, format string, args ...any) {
+	if journal.IsNotFound(*err) {
+		return
+	}
+
 	switch *err {
-	case journal.ErrNotFound, journal.ErrConflict:
+	case journal.ErrConflict:
 		// Never wrap these errors.
 	default:
 		*err = fmt.Errorf(format+": %w", append(args, *err)...)
@@ -208,7 +212,7 @@ func (j *journ) Get(ctx context.Context, pos journal.Position) (_ []byte, err er
 	}
 
 	if out.Item == nil {
-		return nil, journal.ErrNotFound
+		return nil, journal.RecordNotFoundError{Position: pos}
 	}
 
 	isTrunc, err := isCompacted(out.Item)
@@ -217,7 +221,7 @@ func (j *journ) Get(ctx context.Context, pos journal.Position) (_ []byte, err er
 	}
 
 	if isTrunc {
-		return nil, journal.ErrNotFound
+		return nil, journal.RecordNotFoundError{Position: pos}
 	}
 
 	rec, err := dynamox.AsBytes(out.Item, recordAttr)
@@ -250,7 +254,7 @@ func (j *journ) Range(
 			}
 
 			if pos != expectPos {
-				return false, journal.ErrNotFound
+				return false, journal.RecordNotFoundError{Position: expectPos}
 			}
 
 			expectPos++
@@ -267,7 +271,7 @@ func (j *journ) Range(
 	}
 
 	if expectPos == pos {
-		return journal.ErrNotFound
+		return journal.RecordNotFoundError{Position: pos}
 	}
 
 	return nil

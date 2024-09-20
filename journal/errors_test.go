@@ -16,8 +16,13 @@ func TestIgnoreNotFound(t *testing.T) {
 		Expected error
 	}{
 		{
-			Name:     "ErrNotFound",
-			Err:      ErrNotFound,
+			Name:     "RecordNotFoundError",
+			Err:      RecordNotFoundError{},
+			Expected: nil,
+		},
+		{
+			Name:     "ValueNotFoundError",
+			Err:      ValueNotFoundError{},
 			Expected: nil,
 		},
 		{

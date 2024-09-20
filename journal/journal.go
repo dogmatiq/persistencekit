@@ -22,13 +22,15 @@ type Journal[T any] interface {
 
 	// Get returns the record at the given position.
 	//
-	// It returns [ErrNotFound] if there is no record at the given position.
+	// It returns a [RecordNotFoundError] if there is no record at the given
+	// position.
 	Get(ctx context.Context, pos Position) (rec T, err error)
 
 	// Range invokes fn for each record in the journal, in order, starting with
 	// the record at the given position.
 	//
-	// It returns [ErrNotFound] if there is no record at the given position.
+	// It returns a [RecordNotFoundError] if there is no record at the given
+	// position. if there is no record at the given position.
 	Range(ctx context.Context, pos Position, fn RangeFunc[T]) error
 
 	// Append adds a record to the journal as the given position.

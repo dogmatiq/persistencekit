@@ -21,7 +21,7 @@ func TestScan(t *testing.T) {
 	defer j.Close()
 
 	t.Run("when the journal is empty", func(t *testing.T) {
-		t.Run("it returns ErrNotFound", func(t *testing.T) {
+		t.Run("it returns a not found error", func(t *testing.T) {
 			if _, err := Scan(
 				ctx,
 				j,
@@ -30,8 +30,8 @@ func TestScan(t *testing.T) {
 					t.Fatal("unexpected call")
 					return 0, false, nil
 				},
-			); err != ErrNotFound {
-				t.Fatalf("unexpected error: got %q, want %q", err, ErrNotFound)
+			); !IsNotFound(err) {
+				t.Fatalf("unexpected error: got %q, want IsNotFound(err) == true", err)
 			}
 		})
 	})
@@ -62,7 +62,7 @@ func TestScan(t *testing.T) {
 			}
 		})
 
-		t.Run("it returns ErrNotFound if no predicate call returns true", func(t *testing.T) {
+		t.Run("it returns a ValueNotFoundError if no predicate call returns true", func(t *testing.T) {
 			if _, err := Scan(
 				ctx,
 				j,
@@ -70,8 +70,8 @@ func TestScan(t *testing.T) {
 				func(ctx context.Context, pos Position, rec int) (int, bool, error) {
 					return 0, false, nil
 				},
-			); err != ErrNotFound {
-				t.Fatalf("unexpected error: got %q, want %q", err, ErrNotFound)
+			); !IsNotFound(err) {
+				t.Fatalf("unexpected error: got %q, want IsNotFound(err) == true", err)
 			}
 		})
 
@@ -108,7 +108,7 @@ func TestScanFromSearchResult(t *testing.T) {
 	defer j.Close()
 
 	t.Run("when the journal is empty", func(t *testing.T) {
-		t.Run("it returns ErrNotFound", func(t *testing.T) {
+		t.Run("it returns a ValueNotFoundError", func(t *testing.T) {
 			if _, err := ScanFromSearchResult(
 				ctx,
 				j,
@@ -121,8 +121,8 @@ func TestScanFromSearchResult(t *testing.T) {
 					t.Fatal("unexpected call")
 					return 0, false, nil
 				},
-			); err != ErrNotFound {
-				t.Fatalf("unexpected error: got %q, want %q", err, ErrNotFound)
+			); !IsNotFound(err) {
+				t.Fatalf("unexpected error: got %q, want IsNotFound(err) == true", err)
 			}
 		})
 	})
@@ -180,7 +180,7 @@ func TestScanFromSearchResult(t *testing.T) {
 			}
 		})
 
-		t.Run("it returns ErrNotFound if the binary search produces no result", func(t *testing.T) {
+		t.Run("it returns a ValueNotFoundError if the binary search produces no result", func(t *testing.T) {
 			if _, err := ScanFromSearchResult(
 				ctx,
 				j,
@@ -196,12 +196,12 @@ func TestScanFromSearchResult(t *testing.T) {
 					// Then find the first record with a value that is a multiple of 200.
 					return rec, rec%200 == 0, nil
 				},
-			); err != ErrNotFound {
-				t.Fatalf("unexpected error: got %q, want %q", err, ErrNotFound)
+			); !IsNotFound(err) {
+				t.Fatalf("unexpected error: got %q, want IsNotFound(err) == true", err)
 			}
 		})
 
-		t.Run("it returns ErrNotFound if the scan produces no result", func(t *testing.T) {
+		t.Run("it returns a ValueNotFoundError if the scan produces no result", func(t *testing.T) {
 			if _, err := ScanFromSearchResult(
 				ctx,
 				j,
@@ -212,8 +212,8 @@ func TestScanFromSearchResult(t *testing.T) {
 				func(ctx context.Context, pos Position, rec int) (int, bool, error) {
 					return 0, false, nil
 				},
-			); err != ErrNotFound {
-				t.Fatalf("unexpected error: got %q, want %q", err, ErrNotFound)
+			); !IsNotFound(err) {
+				t.Fatalf("unexpected error: got %q, want IsNotFound(err) == true", err)
 			}
 		})
 	})

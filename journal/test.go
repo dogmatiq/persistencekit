@@ -153,14 +153,16 @@ func RunTests(
 		t.Run("Get", func(t *testing.T) {
 			t.Parallel()
 
-			t.Run("it returns ErrNotFound if there is no record at the given position", func(t *testing.T) {
+			t.Run("it returns a RecordNotFoundError if there is no record at the given position", func(t *testing.T) {
 				t.Parallel()
 
 				ctx, j := setup(t)
 
 				_, err := j.Get(ctx, 1)
-				if !errors.Is(err, ErrNotFound) {
-					t.Fatalf("unexpected error: got %q, want %q", err, ErrNotFound)
+
+				expect := RecordNotFoundError{Position: 1}
+				if !errors.Is(err, expect) {
+					t.Fatalf("unexpected error: got %q, want %q", err, expect)
 				}
 			})
 
@@ -190,7 +192,7 @@ func RunTests(
 				}
 			})
 
-			t.Run("it does not return truncated records", func(t *testing.T) {
+			t.Run("it returns a RecordNotFoundError if the record has been truncated", func(t *testing.T) {
 				t.Parallel()
 
 				ctx, j := setup(t)
@@ -208,8 +210,9 @@ func RunTests(
 					pos := Position(pos)
 
 					if pos < truncateBefore {
-						if _, err := j.Get(ctx, pos); err != ErrNotFound {
-							t.Fatalf("unexpected error at position %d: got %q, want %q", pos, err, ErrNotFound)
+						expect := RecordNotFoundError{Position: pos}
+						if _, err := j.Get(ctx, pos); err != expect {
+							t.Fatalf("unexpected error at position %d: got %q, want %q", pos, err, expect)
 						}
 					} else {
 						got, err := j.Get(ctx, pos)
@@ -243,8 +246,9 @@ func RunTests(
 
 				for i := range records {
 					pos := Position(i)
-					if _, err := j.Get(ctx, pos); err != ErrNotFound {
-						t.Fatalf("unexpected error at position %d: got %q, want %q", i, err, ErrNotFound)
+					expect := RecordNotFoundError{Position: pos}
+					if _, err := j.Get(ctx, pos); err != expect {
+						t.Fatalf("unexpected error at position %d: got %q, want %q", pos, err, expect)
 					}
 				}
 			})
@@ -284,8 +288,8 @@ func RunTests(
 				ctx, j := setup(t)
 
 				_, err := j.Get(ctx, math.MaxUint64)
-				if !errors.Is(err, ErrNotFound) {
-					t.Fatalf("unexpected error: got %q, want %q", err, ErrNotFound)
+				if !IsNotFound(err) {
+					t.Fatalf("unexpected error: got %q, want IsNotFound(err) == true", err)
 				}
 			})
 		})
@@ -350,7 +354,7 @@ func RunTests(
 				}
 			})
 
-			t.Run("it returns ErrNotFound if journal is empty", func(t *testing.T) {
+			t.Run("it returns a RecordNotFoundError if the journal is empty", func(t *testing.T) {
 				t.Parallel()
 
 				ctx, j := setup(t)
@@ -364,8 +368,9 @@ func RunTests(
 					},
 				)
 
-				if !errors.Is(err, ErrNotFound) {
-					t.Fatalf("unexpected error: got %q, want %q", err, ErrNotFound)
+				expect := RecordNotFoundError{Position: 0}
+				if err != expect {
+					t.Fatalf("unexpected error: got %q, want %q", err, expect)
 				}
 			})
 
@@ -387,6 +392,8 @@ func RunTests(
 					pos := Position(pos)
 
 					if pos < truncateBefore {
+						expect := RecordNotFoundError{Position: pos}
+
 						if err := j.Range(
 							ctx,
 							pos,
@@ -394,8 +401,8 @@ func RunTests(
 								t.Fatal("unexpected call")
 								return false, nil
 							},
-						); !errors.Is(err, ErrNotFound) {
-							t.Fatalf("unexpected error: got %q, want %q", err, ErrNotFound)
+						); err != expect {
+							t.Fatalf("unexpected error: got %q, want %q", err, expect)
 						}
 					} else {
 						if err := j.Range(
@@ -433,6 +440,7 @@ func RunTests(
 
 				for pos := range records {
 					pos := Position(pos)
+					expect := RecordNotFoundError{Position: pos}
 
 					if err := j.Range(
 						ctx,
@@ -441,31 +449,14 @@ func RunTests(
 							t.Fatal("unexpected call")
 							return false, nil
 						},
-					); !errors.Is(err, ErrNotFound) {
-						t.Fatalf("unexpected error: got %q, want %q", err, ErrNotFound)
+					); err != expect {
+						t.Fatalf("unexpected error: got %q, want %q", err, expect)
 					}
 				}
 			})
 
 			t.Run("it returns an error if a record is truncated during iteration", func(t *testing.T) {
 				t.Skip("not implemented") // TODO
-				t.Parallel()
-
-				ctx, j := setup(t)
-
-				appendRecords(ctx, t, j, 5)
-
-				err := j.Range(
-					ctx,
-					0,
-					func(ctx context.Context, pos Position, rec []byte) (bool, error) {
-						return true, j.Truncate(ctx, 5)
-					},
-				)
-
-				if !errors.Is(err, ErrNotFound) {
-					t.Fatalf("unexpected error: got %q, want %q", err, ErrNotFound)
-				}
 			})
 
 			t.Run("it does not invoke the function with its internal byte slice", func(t *testing.T) {
@@ -516,8 +507,8 @@ func RunTests(
 					},
 				)
 
-				if !errors.Is(err, ErrNotFound) {
-					t.Fatalf("unexpected error: got %q, want %q", err, ErrNotFound)
+				if !IsNotFound(err) {
+					t.Fatalf("unexpected error: got %q, want IsNotFound(err) == true", err)
 				}
 			})
 		})
@@ -585,8 +576,8 @@ func RunTests(
 				}
 
 				_, err = j.Get(ctx, 0)
-				if !errors.Is(err, ErrNotFound) {
-					t.Fatalf("unexpected error: got %q, want %q", err, ErrNotFound)
+				if !IsNotFound(err) {
+					t.Fatalf("unexpected error: got %q, want IsNotFound(err) == true", err)
 				}
 
 				err = j.Append(ctx, 1, []byte("<conflicting>"))
@@ -595,8 +586,8 @@ func RunTests(
 				}
 
 				_, err = j.Get(ctx, 1)
-				if !errors.Is(err, ErrNotFound) {
-					t.Fatalf("unexpected error: got %q, want %q", err, ErrNotFound)
+				if !IsNotFound(err) {
+					t.Fatalf("unexpected error: got %q, want IsNotFound(err) == true", err)
 				}
 			})
 
@@ -768,8 +759,8 @@ func RunTests(
 						)
 
 						_, err := j.Get(ctx, pos)
-						if !errors.Is(err, ErrNotFound) {
-							t.Fatalf("unexpected error: got %q, want %q", err, ErrNotFound)
+						if !IsNotFound(err) {
+							t.Fatalf("unexpected error: got %q, want IsNotFound(err) == true", err)
 						}
 					},
 					"Get (future)": func(t *rapid.T) {
@@ -780,8 +771,8 @@ func RunTests(
 						)
 
 						_, err := j.Get(ctx, pos)
-						if !errors.Is(err, ErrNotFound) {
-							t.Fatalf("unexpected error: got %q, want %q", err, ErrNotFound)
+						if !IsNotFound(err) {
+							t.Fatalf("unexpected error: got %q, want IsNotFound(err) == true", err)
 						}
 					},
 					"Range (all)": func(t *rapid.T) {
@@ -838,8 +829,8 @@ func RunTests(
 							func(context.Context, Position, []byte) (bool, error) {
 								return false, errors.New("unexpected call")
 							},
-						); !errors.Is(err, ErrNotFound) {
-							t.Fatalf("unexpected error: got %q, want %q", err, ErrNotFound)
+						); !IsNotFound(err) {
+							t.Fatalf("unexpected error: got %q, want IsNotFound(err) == true", err)
 						}
 					},
 					"Range (future)": func(t *rapid.T) {
@@ -855,8 +846,8 @@ func RunTests(
 							func(context.Context, Position, []byte) (bool, error) {
 								return false, errors.New("unexpected call")
 							},
-						); !errors.Is(err, ErrNotFound) {
-							t.Fatalf("unexpected error: got %q, want %q", err, ErrNotFound)
+						); !IsNotFound(err) {
+							t.Fatalf("unexpected error: got %q, want IsNotFound(err) == true", err)
 						}
 					},
 					"Append (success)": func(t *rapid.T) {

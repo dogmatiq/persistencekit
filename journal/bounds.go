@@ -2,7 +2,6 @@ package journal
 
 import (
 	"context"
-	"errors"
 )
 
 // IsFresh returns true if j has never contained any records.
@@ -28,7 +27,7 @@ func FirstRecord[T any](ctx context.Context, j Journal[T]) (Position, T, bool, e
 
 		rec, err := j.Get(ctx, bounds.Begin)
 
-		if !errors.Is(err, ErrNotFound) {
+		if !IsNotFound(err) {
 			return bounds.Begin, rec, true, err
 		}
 
@@ -50,7 +49,7 @@ func LastRecord[T any](ctx context.Context, j Journal[T]) (Position, T, bool, er
 		pos := bounds.End - 1
 		rec, err := j.Get(ctx, pos)
 
-		if !errors.Is(err, ErrNotFound) {
+		if !IsNotFound(err) {
 			return pos, rec, true, err
 		}
 

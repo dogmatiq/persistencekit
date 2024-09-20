@@ -51,7 +51,7 @@ func (j *journ) Get(ctx context.Context, pos journal.Position) ([]byte, error) {
 	var rec []byte
 	if err := row.Scan(&rec); err != nil {
 		if err == sql.ErrNoRows {
-			return nil, journal.ErrNotFound
+			return nil, journal.RecordNotFoundError{Position: pos}
 		}
 		return nil, fmt.Errorf("cannot scan journal record: %w", err)
 	}
@@ -96,7 +96,7 @@ func (j *journ) Range(
 		}
 
 		if pos != expectPos {
-			return journal.ErrNotFound
+			return journal.RecordNotFoundError{Position: expectPos}
 		}
 
 		expectPos++
@@ -112,7 +112,7 @@ func (j *journ) Range(
 	}
 
 	if expectPos == pos {
-		return journal.ErrNotFound
+		return journal.RecordNotFoundError{Position: pos}
 	}
 
 	return nil

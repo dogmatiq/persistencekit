@@ -51,8 +51,8 @@ func TestSearch(t *testing.T) {
 	}
 
 	datum = 101
-	if _, _, err := Search(ctx, j, Interval{0, 100}, cmp); err != ErrNotFound {
-		t.Fatalf("unexpected error: got %q, want %q", err, ErrNotFound)
+	if _, _, err := Search(ctx, j, Interval{0, 100}, cmp); !IsNotFound(err) {
+		t.Fatalf("unexpected error: got %q, want IsNotFound(err) == true", err)
 	}
 }
 
@@ -148,7 +148,7 @@ func TestRangeFromSearchResult(t *testing.T) {
 		}
 	})
 
-	t.Run("it returns ErrNotFound if the search result is not found", func(t *testing.T) {
+	t.Run("it returns a not found error if the search result is not found", func(t *testing.T) {
 		datum = 101
 
 		fn := func(
@@ -159,8 +159,8 @@ func TestRangeFromSearchResult(t *testing.T) {
 			return false, errors.New("unexpected call")
 		}
 
-		if err := RangeFromSearchResult(ctx, j, Interval{0, 100}, cmp, fn); err != ErrNotFound {
-			t.Fatalf("unexpected error: got %q, want %q", err, ErrNotFound)
+		if err := RangeFromSearchResult(ctx, j, Interval{0, 100}, cmp, fn); !IsNotFound(err) {
+			t.Fatalf("unexpected error: got %q, want IsNotFound(err) == true", err)
 		}
 	})
 

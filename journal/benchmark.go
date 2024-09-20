@@ -163,10 +163,7 @@ func RunBenchmarks(
 					// BENCHMARKED CODE
 					func(ctx context.Context, j BinaryJournal) error {
 						_, err := j.Get(ctx, pos)
-						if err == ErrNotFound {
-							return nil
-						}
-						return err
+						return IgnoreNotFound(err)
 					},
 					// AFTER EACH
 					nil,
@@ -197,10 +194,7 @@ func RunBenchmarks(
 					// BENCHMARKED CODE
 					func(ctx context.Context, j BinaryJournal) error {
 						_, err := j.Get(ctx, pos)
-						if err == ErrNotFound {
-							return nil
-						}
-						return err
+						return IgnoreNotFound(err)
 					},
 					// AFTER EACH
 					nil,

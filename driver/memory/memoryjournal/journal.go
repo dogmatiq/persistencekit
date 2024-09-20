@@ -46,7 +46,7 @@ func (j *journ[T]) Get(ctx context.Context, pos journal.Position) (T, error) {
 
 	if !j.state.Bounds.Contains(pos) {
 		var zero T
-		return zero, journal.ErrNotFound
+		return zero, journal.RecordNotFoundError{Position: pos}
 	}
 
 	index := pos - j.state.Bounds.Begin
@@ -68,7 +68,7 @@ func (j *journ[T]) Range(
 	j.state.RUnlock()
 
 	if !bounds.Contains(pos) {
-		return journal.ErrNotFound
+		return journal.RecordNotFoundError{Position: pos}
 	}
 
 	start := pos - bounds.Begin
