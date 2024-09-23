@@ -651,6 +651,42 @@ func RunTests(
 					t.Fatalf("unexpected record: got %q, want %q", string(got), string(want))
 				}
 			})
+
+			t.Run("it does not conflate records from separate journals", func(t *testing.T) {
+				t.Parallel()
+
+				ctx, j1 := setup(t)
+				_, j2 := setup(t)
+
+				want1 := []byte("<record-j1>")
+				want2 := []byte("<record-j2>")
+
+				if err := j1.Append(ctx, 0, want1); err != nil {
+					t.Fatal(err)
+				}
+
+				if err := j2.Append(ctx, 0, want2); err != nil {
+					t.Fatal(err)
+				}
+
+				got1, err := j1.Get(ctx, 0)
+				if err != nil {
+					t.Fatal(err)
+				}
+
+				if !bytes.Equal(got1, want1) {
+					t.Fatalf("unexpected record in j1: got %q, want %q", string(got1), string(want1))
+				}
+
+				got2, err := j2.Get(ctx, 0)
+				if err != nil {
+					t.Fatal(err)
+				}
+
+				if !bytes.Equal(got2, want2) {
+					t.Fatalf("unexpected record in j2: got %q, want %q", string(got2), string(want2))
+				}
+			})
 		})
 
 		t.Run("Truncate", func(t *testing.T) {
