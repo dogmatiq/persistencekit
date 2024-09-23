@@ -24,7 +24,7 @@ func RunBenchmarks(
 					store,
 					// SETUP
 					func(ctx context.Context, s BinaryStore) error {
-						name = testx.UniqueName("journal")
+						name = testx.SequentialName("journal")
 
 						// pre-create the journal
 						ks, err := s.Open(ctx, name)
@@ -56,7 +56,7 @@ func RunBenchmarks(
 					nil,
 					// BEFORE EACH
 					func(context.Context, BinaryStore) error {
-						name = testx.UniqueName("journal")
+						name = testx.SequentialName("journal")
 						return nil
 					},
 					// BENCHMARKED CODE
@@ -338,7 +338,7 @@ func benchmarkJournal(
 		b,
 		func(ctx context.Context) error {
 			var err error
-			journ, err = store.Open(ctx, testx.UniqueName("journal"))
+			journ, err = store.Open(ctx, testx.SequentialName("journal"))
 			if err != nil {
 				return err
 			}

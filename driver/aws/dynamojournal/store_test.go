@@ -8,6 +8,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	. "github.com/dogmatiq/persistencekit/driver/aws/dynamojournal"
 	"github.com/dogmatiq/persistencekit/driver/aws/internal/dynamox"
+	"github.com/dogmatiq/persistencekit/internal/testx"
 	"github.com/dogmatiq/persistencekit/journal"
 )
 
@@ -29,7 +30,7 @@ func BenchmarkStore(b *testing.B) {
 
 func setup(t testing.TB) (*dynamodb.Client, string) {
 	client := dynamox.NewTestClient(t)
-	table := "journal"
+	table := testx.UniqueName("table")
 
 	t.Cleanup(func() {
 		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)

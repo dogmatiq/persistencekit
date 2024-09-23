@@ -23,7 +23,7 @@ func RunTests(
 		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 		t.Cleanup(cancel)
 
-		name := testx.UniqueName("keyspace")
+		name := testx.SequentialName("keyspace")
 
 		ks, err := store.Open(ctx, name)
 		if err != nil {
@@ -563,7 +563,7 @@ func RunTests(
 			ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 			defer cancel()
 
-			ks, err := store.Open(ctx, testx.UniqueName("keyspace"))
+			ks, err := store.Open(ctx, testx.SequentialName("keyspace"))
 			if err != nil {
 				t.Fatal(err)
 			}

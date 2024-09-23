@@ -23,7 +23,7 @@ func RunTests(
 		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 		t.Cleanup(cancel)
 
-		name := testx.UniqueName("journal")
+		name := testx.SequentialName("journal")
 
 		j, err := store.Open(ctx, name)
 		if err != nil {
@@ -54,7 +54,7 @@ func RunTests(
 				ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 				defer cancel()
 
-				name := testx.UniqueName("journal")
+				name := testx.SequentialName("journal")
 
 				j1, err := store.Open(ctx, name)
 				if err != nil {
@@ -772,7 +772,7 @@ func RunTests(
 			ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 			defer cancel()
 
-			j, err := store.Open(ctx, testx.UniqueName("journal"))
+			j, err := store.Open(ctx, testx.SequentialName("journal"))
 			if err != nil {
 				t.Fatal(err)
 			}

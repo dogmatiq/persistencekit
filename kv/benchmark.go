@@ -25,7 +25,7 @@ func RunBenchmarks(
 					store,
 					// SETUP
 					func(ctx context.Context, s BinaryStore) error {
-						name = testx.UniqueName("keyspace")
+						name = testx.SequentialName("keyspace")
 
 						// pre-create the keyspace
 						ks, err := s.Open(ctx, name)
@@ -57,7 +57,7 @@ func RunBenchmarks(
 					nil,
 					// BEFORE EACH
 					func(context.Context, BinaryStore) error {
-						name = testx.UniqueName("keyspace")
+						name = testx.SequentialName("keyspace")
 						return nil
 					},
 					// BENCHMARKED CODE
@@ -332,7 +332,7 @@ func benchmarkKeyspace(
 		b,
 		func(ctx context.Context) error {
 			var err error
-			keyspace, err = store.Open(ctx, testx.UniqueName("keyspace"))
+			keyspace, err = store.Open(ctx, testx.SequentialName("keyspace"))
 			if err != nil {
 				return err
 			}
