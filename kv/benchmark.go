@@ -7,7 +7,7 @@ import (
 	"io"
 	"testing"
 
-	"github.com/dogmatiq/persistencekit/internal/benchmark"
+	"github.com/dogmatiq/persistencekit/internal/testx"
 )
 
 // RunBenchmarks runs benchmarks against a [BinaryStore] implementation.
@@ -25,7 +25,7 @@ func RunBenchmarks(
 					store,
 					// SETUP
 					func(ctx context.Context, s BinaryStore) error {
-						name = uniqueName()
+						name = testx.UniqueName("keyspace")
 
 						// pre-create the keyspace
 						ks, err := s.Open(ctx, name)
@@ -57,7 +57,7 @@ func RunBenchmarks(
 					nil,
 					// BEFORE EACH
 					func(context.Context, BinaryStore) error {
-						name = uniqueName()
+						name = testx.UniqueName("keyspace")
 						return nil
 					},
 					// BENCHMARKED CODE
@@ -289,7 +289,7 @@ func benchmarkStore[T any](
 ) {
 	var result T
 
-	benchmark.Run(
+	testx.Benchmark(
 		b,
 		func(ctx context.Context) error {
 			if setup != nil {
@@ -328,11 +328,11 @@ func benchmarkKeyspace(
 ) {
 	var keyspace BinaryKeyspace
 
-	benchmark.Run(
+	testx.Benchmark(
 		b,
 		func(ctx context.Context) error {
 			var err error
-			keyspace, err = store.Open(ctx, uniqueName())
+			keyspace, err = store.Open(ctx, testx.UniqueName("keyspace"))
 			if err != nil {
 				return err
 			}

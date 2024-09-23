@@ -6,10 +6,10 @@ import (
 	"errors"
 	"fmt"
 	"slices"
-	"sync/atomic"
 	"testing"
 	"time"
 
+	"github.com/dogmatiq/persistencekit/internal/testx"
 	"github.com/google/go-cmp/cmp"
 	"pgregory.net/rapid"
 )
@@ -23,7 +23,7 @@ func RunTests(
 		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 		t.Cleanup(cancel)
 
-		name := uniqueName()
+		name := testx.UniqueName("keyspace")
 
 		ks, err := store.Open(ctx, name)
 		if err != nil {
@@ -563,7 +563,7 @@ func RunTests(
 			ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 			defer cancel()
 
-			ks, err := store.Open(ctx, uniqueName())
+			ks, err := store.Open(ctx, testx.UniqueName("keyspace"))
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -743,10 +743,4 @@ func RunTests(
 			)
 		})
 	})
-}
-
-var nameCounter atomic.Uint64
-
-func uniqueName() string {
-	return fmt.Sprintf("<keyspace-%d>", nameCounter.Add(1))
 }

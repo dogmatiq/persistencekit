@@ -6,10 +6,10 @@ import (
 	"errors"
 	"fmt"
 	"math"
-	"sync/atomic"
 	"testing"
 	"time"
 
+	"github.com/dogmatiq/persistencekit/internal/testx"
 	"github.com/google/go-cmp/cmp"
 	"pgregory.net/rapid"
 )
@@ -23,7 +23,7 @@ func RunTests(
 		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 		t.Cleanup(cancel)
 
-		name := uniqueName()
+		name := testx.UniqueName("journal")
 
 		j, err := store.Open(ctx, name)
 		if err != nil {
@@ -54,7 +54,7 @@ func RunTests(
 				ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 				defer cancel()
 
-				name := uniqueName()
+				name := testx.UniqueName("journal")
 
 				j1, err := store.Open(ctx, name)
 				if err != nil {
@@ -772,7 +772,7 @@ func RunTests(
 			ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 			defer cancel()
 
-			j, err := store.Open(ctx, uniqueName())
+			j, err := store.Open(ctx, testx.UniqueName("journal"))
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -1035,12 +1035,6 @@ func RunTests(
 			)
 		})
 	})
-}
-
-var nameCounter atomic.Uint64
-
-func uniqueName() string {
-	return fmt.Sprintf("<journal-%d>", nameCounter.Add(1))
 }
 
 // appendRecords appends records to j.

@@ -1,4 +1,4 @@
-package benchmark
+package testx
 
 import (
 	"context"
@@ -6,8 +6,8 @@ import (
 	"time"
 )
 
-// Run benchmarks fn.
-func Run(
+// Benchmark benchmarks fn.
+func Benchmark(
 	b *testing.B,
 	setup func(context.Context) error,
 	before func(context.Context) error,

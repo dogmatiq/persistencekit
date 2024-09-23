@@ -6,7 +6,7 @@ import (
 	"math/rand"
 	"testing"
 
-	"github.com/dogmatiq/persistencekit/internal/benchmark"
+	"github.com/dogmatiq/persistencekit/internal/testx"
 )
 
 // RunBenchmarks runs benchmarks against a [BinaryStore] implementation.
@@ -24,7 +24,7 @@ func RunBenchmarks(
 					store,
 					// SETUP
 					func(ctx context.Context, s BinaryStore) error {
-						name = uniqueName()
+						name = testx.UniqueName("journal")
 
 						// pre-create the journal
 						ks, err := s.Open(ctx, name)
@@ -56,7 +56,7 @@ func RunBenchmarks(
 					nil,
 					// BEFORE EACH
 					func(context.Context, BinaryStore) error {
-						name = uniqueName()
+						name = testx.UniqueName("journal")
 						return nil
 					},
 					// BENCHMARKED CODE
@@ -295,7 +295,7 @@ func benchmarkStore[T any](
 ) {
 	var result T
 
-	benchmark.Run(
+	testx.Benchmark(
 		b,
 		func(ctx context.Context) error {
 			if setup != nil {
@@ -334,11 +334,11 @@ func benchmarkJournal(
 ) {
 	var journ BinaryJournal
 
-	benchmark.Run(
+	testx.Benchmark(
 		b,
 		func(ctx context.Context) error {
 			var err error
-			journ, err = store.Open(ctx, uniqueName())
+			journ, err = store.Open(ctx, testx.UniqueName("journal"))
 			if err != nil {
 				return err
 			}
