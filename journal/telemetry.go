@@ -98,6 +98,10 @@ type instrumentedJournal struct {
 	RecordSize    metric.Int64Histogram
 }
 
+func (j *instrumentedJournal) Name() string {
+	return j.Next.Name()
+}
+
 func (j *instrumentedJournal) Bounds(ctx context.Context) (bounds Interval, err error) {
 	ctx, span := j.Telemetry.StartSpan(
 		ctx,

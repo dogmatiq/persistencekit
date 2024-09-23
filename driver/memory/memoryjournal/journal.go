@@ -25,6 +25,10 @@ type journ[T any] struct {
 	afterAppend  func(name string, rec T) error
 }
 
+func (j *journ[T]) Name() string {
+	return j.name
+}
+
 func (j *journ[T]) Bounds(ctx context.Context) (bounds journal.Interval, err error) {
 	if j.state == nil {
 		panic("journal is closed")
@@ -46,7 +50,10 @@ func (j *journ[T]) Get(ctx context.Context, pos journal.Position) (T, error) {
 
 	if !j.state.Bounds.Contains(pos) {
 		var zero T
-		return zero, journal.RecordNotFoundError{Position: pos}
+		return zero, journal.RecordNotFoundError{
+			Journal:  j.name,
+			Position: pos,
+		}
 	}
 
 	index := pos - j.state.Bounds.Begin
@@ -68,7 +75,10 @@ func (j *journ[T]) Range(
 	j.state.RUnlock()
 
 	if !bounds.Contains(pos) {
-		return journal.RecordNotFoundError{Position: pos}
+		return journal.RecordNotFoundError{
+			Journal:  j.name,
+			Position: pos,
+		}
 	}
 
 	start := pos - bounds.Begin
@@ -104,7 +114,10 @@ func (j *journ[T]) Append(ctx context.Context, pos journal.Position, rec T) erro
 
 	switch {
 	case pos < j.state.Bounds.End:
-		return journal.ConflictError{Position: pos}
+		return journal.ConflictError{
+			Journal:  j.name,
+			Position: pos,
+		}
 	case pos == j.state.Bounds.End:
 		j.state.Records = append(j.state.Records, rec)
 		j.state.Bounds.End++

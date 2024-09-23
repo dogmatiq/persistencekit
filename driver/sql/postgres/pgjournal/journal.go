@@ -12,8 +12,13 @@ import (
 // journ is an implementation of [journal.BinaryJournal] that persists to a PostgreSQL
 // database.
 type journ struct {
-	db *sql.DB
-	id uint64
+	db   *sql.DB
+	id   uint64
+	name string
+}
+
+func (j *journ) Name() string {
+	return j.name
 }
 
 func (j *journ) Bounds(ctx context.Context) (bounds journal.Interval, err error) {
@@ -51,7 +56,10 @@ func (j *journ) Get(ctx context.Context, pos journal.Position) ([]byte, error) {
 	var rec []byte
 	if err := row.Scan(&rec); err != nil {
 		if err == sql.ErrNoRows {
-			return nil, journal.RecordNotFoundError{Position: pos}
+			return nil, journal.RecordNotFoundError{
+				Journal:  j.Name(),
+				Position: pos,
+			}
 		}
 		return nil, fmt.Errorf("cannot scan journal record: %w", err)
 	}
@@ -96,7 +104,10 @@ func (j *journ) Range(
 		}
 
 		if pos != expectPos {
-			return journal.RecordNotFoundError{Position: expectPos}
+			return journal.RecordNotFoundError{
+				Journal:  j.Name(),
+				Position: expectPos,
+			}
 		}
 
 		expectPos++
@@ -112,7 +123,10 @@ func (j *journ) Range(
 	}
 
 	if expectPos == pos {
-		return journal.RecordNotFoundError{Position: pos}
+		return journal.RecordNotFoundError{
+			Journal:  j.Name(),
+			Position: pos,
+		}
 	}
 
 	return nil
@@ -144,7 +158,10 @@ func (j *journ) Append(ctx context.Context, pos journal.Position, rec []byte) er
 	}
 
 	if n == 0 {
-		return journal.ConflictError{Position: pos}
+		return journal.ConflictError{
+			Journal:  j.Name(),
+			Position: pos,
+		}
 	}
 
 	res, err = tx.ExecContext(

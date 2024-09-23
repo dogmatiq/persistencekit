@@ -9,8 +9,13 @@ import (
 )
 
 type keyspace struct {
-	db *sql.DB
-	id uint64
+	db   *sql.DB
+	id   uint64
+	name string
+}
+
+func (ks *keyspace) Name() string {
+	return ks.name
 }
 
 func (ks *keyspace) Get(ctx context.Context, k []byte) ([]byte, error) {

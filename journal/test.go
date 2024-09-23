@@ -23,7 +23,9 @@ func RunTests(
 		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 		t.Cleanup(cancel)
 
-		j, err := store.Open(ctx, uniqueName())
+		name := uniqueName()
+
+		j, err := store.Open(ctx, name)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -32,6 +34,10 @@ func RunTests(
 				t.Error(err)
 			}
 		})
+
+		if j.Name() != name {
+			t.Fatalf("unexpected journal name: got %q, want %q", j.Name(), name)
+		}
 
 		return ctx, j
 	}
@@ -160,7 +166,10 @@ func RunTests(
 
 				_, err := j.Get(ctx, 1)
 
-				expect := RecordNotFoundError{Position: 1}
+				expect := RecordNotFoundError{
+					Journal:  j.Name(),
+					Position: 1,
+				}
 				if !errors.Is(err, expect) {
 					t.Fatalf("unexpected error: got %q, want %q", err, expect)
 				}
@@ -210,7 +219,10 @@ func RunTests(
 					pos := Position(pos)
 
 					if pos < truncateBefore {
-						expect := RecordNotFoundError{Position: pos}
+						expect := RecordNotFoundError{
+							Journal:  j.Name(),
+							Position: pos,
+						}
 						if _, err := j.Get(ctx, pos); err != expect {
 							t.Fatalf("unexpected error at position %d: got %q, want %q", pos, err, expect)
 						}
@@ -246,7 +258,10 @@ func RunTests(
 
 				for i := range records {
 					pos := Position(i)
-					expect := RecordNotFoundError{Position: pos}
+					expect := RecordNotFoundError{
+						Journal:  j.Name(),
+						Position: pos,
+					}
 					if _, err := j.Get(ctx, pos); err != expect {
 						t.Fatalf("unexpected error at position %d: got %q, want %q", pos, err, expect)
 					}
@@ -368,7 +383,10 @@ func RunTests(
 					},
 				)
 
-				expect := RecordNotFoundError{Position: 0}
+				expect := RecordNotFoundError{
+					Journal:  j.Name(),
+					Position: 0,
+				}
 				if err != expect {
 					t.Fatalf("unexpected error: got %q, want %q", err, expect)
 				}
@@ -392,7 +410,10 @@ func RunTests(
 					pos := Position(pos)
 
 					if pos < truncateBefore {
-						expect := RecordNotFoundError{Position: pos}
+						expect := RecordNotFoundError{
+							Journal:  j.Name(),
+							Position: pos,
+						}
 
 						if err := j.Range(
 							ctx,
@@ -440,7 +461,10 @@ func RunTests(
 
 				for pos := range records {
 					pos := Position(pos)
-					expect := RecordNotFoundError{Position: pos}
+					expect := RecordNotFoundError{
+						Journal:  j.Name(),
+						Position: pos,
+					}
 
 					if err := j.Range(
 						ctx,
@@ -542,7 +566,10 @@ func RunTests(
 
 				err := j.Append(ctx, 1, []byte("<conflicting>"))
 
-				expect := ConflictError{Position: 1}
+				expect := ConflictError{
+					Journal:  j.Name(),
+					Position: 1,
+				}
 				if err != expect {
 					t.Fatalf("unexpected error: got %q, want %q", err, expect)
 				}
@@ -573,7 +600,10 @@ func RunTests(
 
 				err := j.Append(ctx, 0, []byte("<conflicting>"))
 
-				expect := ConflictError{Position: 0}
+				expect := ConflictError{
+					Journal:  j.Name(),
+					Position: 0,
+				}
 				if err != expect {
 					t.Fatalf("unexpected error: got %q, want %q", err, expect)
 				}
@@ -583,7 +613,10 @@ func RunTests(
 					t.Fatalf("unexpected error: got %q, want IsNotFound(err) == true", err)
 				}
 
-				expect = ConflictError{Position: 1}
+				expect = ConflictError{
+					Journal:  j.Name(),
+					Position: 1,
+				}
 				err = j.Append(ctx, 1, []byte("<conflicting>"))
 				if err != expect {
 					t.Fatalf("unexpected error: got %q, want %q", err, expect)

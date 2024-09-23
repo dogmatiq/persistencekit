@@ -30,6 +30,10 @@ type keyspace struct {
 	}
 }
 
+func (ks *keyspace) Name() string {
+	return ks.attr.Keyspace.Value
+}
+
 func (ks *keyspace) Get(ctx context.Context, k []byte) ([]byte, error) {
 	ks.attr.Key.Value = k
 

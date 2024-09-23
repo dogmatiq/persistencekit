@@ -16,6 +16,9 @@ type RangeFunc[T any] func(context.Context, Position, T) (ok bool, err error)
 
 // A Journal is an append-only log containing records of type T.
 type Journal[T any] interface {
+	// Name returns the name of the journal.
+	Name() string
+
 	// Bounds returns the half-open interval [begin, end) describing the
 	// positions of the first and last records in the journal.
 	Bounds(ctx context.Context) (Interval, error)

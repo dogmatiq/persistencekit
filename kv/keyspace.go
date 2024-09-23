@@ -11,6 +11,9 @@ type RangeFunc[K, V any] func(ctx context.Context, k K, v V) (ok bool, err error
 
 // A Keyspace is an isolated collection of key/value pairs.
 type Keyspace[K, V any] interface {
+	// Name returns the name of the keyspace.
+	Name() string
+
 	// Get returns the value associated with k.
 	//
 	// If the key does not exist v is the zero-value of V.

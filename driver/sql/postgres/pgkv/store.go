@@ -21,7 +21,7 @@ func (s *BinaryStore) Open(ctx context.Context, name string) (kv.BinaryKeyspace,
 	if err != nil {
 		return nil, err
 	}
-	return &keyspace{s.DB, id}, nil
+	return &keyspace{s.DB, id, name}, nil
 }
 
 func (s *BinaryStore) getID(ctx context.Context, name string) (uint64, error) {

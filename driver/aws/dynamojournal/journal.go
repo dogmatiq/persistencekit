@@ -112,6 +112,10 @@ func (j *journ) initMetaData(ctx context.Context, table string) (journal.Interva
 	return journal.Interval{}, err
 }
 
+func (j *journ) Name() string {
+	return j.attr.Journal.Value
+}
+
 func (j *journ) Bounds(ctx context.Context) (journal.Interval, error) {
 	end, empty, err := j.loadEnd(ctx)
 	if err != nil {
@@ -214,7 +218,10 @@ func (j *journ) Get(ctx context.Context, pos journal.Position) (_ []byte, err er
 	}
 
 	if out.Item == nil {
-		return nil, journal.RecordNotFoundError{Position: pos}
+		return nil, journal.RecordNotFoundError{
+			Journal:  j.Name(),
+			Position: pos,
+		}
 	}
 
 	isTrunc, err := isCompacted(out.Item)
@@ -223,7 +230,10 @@ func (j *journ) Get(ctx context.Context, pos journal.Position) (_ []byte, err er
 	}
 
 	if isTrunc {
-		return nil, journal.RecordNotFoundError{Position: pos}
+		return nil, journal.RecordNotFoundError{
+			Journal:  j.Name(),
+			Position: pos,
+		}
 	}
 
 	rec, err := dynamox.AsBytes(out.Item, recordAttr)
@@ -256,7 +266,10 @@ func (j *journ) Range(
 			}
 
 			if pos != expectPos {
-				return false, journal.RecordNotFoundError{Position: expectPos}
+				return false, journal.RecordNotFoundError{
+					Journal:  j.Name(),
+					Position: expectPos,
+				}
 			}
 
 			expectPos++
@@ -273,7 +286,10 @@ func (j *journ) Range(
 	}
 
 	if expectPos == pos {
-		return journal.RecordNotFoundError{Position: pos}
+		return journal.RecordNotFoundError{
+			Journal:  j.Name(),
+			Position: pos,
+		}
 	}
 
 	return nil
@@ -294,7 +310,10 @@ func (j *journ) Append(ctx context.Context, pos journal.Position, rec []byte) (e
 
 	var conflict *types.ConditionalCheckFailedException
 	if errors.As(err, &conflict) {
-		return journal.ConflictError{Position: pos}
+		return journal.ConflictError{
+			Journal:  j.Name(),
+			Position: pos,
+		}
 	}
 
 	return err

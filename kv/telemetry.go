@@ -98,6 +98,10 @@ type instrumentedKeyspace struct {
 	ValueSize metric.Int64Histogram
 }
 
+func (ks *instrumentedKeyspace) Name() string {
+	return ks.Next.Name()
+}
+
 func (ks *instrumentedKeyspace) Get(ctx context.Context, k []byte) ([]byte, error) {
 	keySize := int64(len(k))
 

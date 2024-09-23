@@ -30,6 +30,7 @@ func (s *Store[K, V]) Open(ctx context.Context, name string) (kv.Keyspace[K, V],
 	}
 
 	return &keyspace[K, V, K]{
+		name:         name,
 		state:        st.(*state[K, V]),
 		beforeSet:    s.BeforeSet,
 		afterSet:     s.AfterSet,
@@ -42,8 +43,8 @@ func identity[K any](k K) K {
 	return k
 }
 
-// BinaryStore is an implementation of [journal.BinaryStore] that stores records
-// in memory.
+// BinaryStore is an implementation of [keyspace.BinaryStore] that stores
+// records in memory.
 type BinaryStore struct {
 	// BeforeSet, if non-nil, is called before a value is set.
 	BeforeSet func(ks string, k, v []byte) error
@@ -66,6 +67,7 @@ func (s *BinaryStore) Open(ctx context.Context, name string) (kv.BinaryKeyspace,
 	}
 
 	return &keyspace[[]byte, []byte, string]{
+		name:         name,
 		state:        st.(*state[string, []byte]),
 		beforeSet:    s.BeforeSet,
 		afterSet:     s.AfterSet,

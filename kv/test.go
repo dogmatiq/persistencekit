@@ -23,7 +23,9 @@ func RunTests(
 		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 		t.Cleanup(cancel)
 
-		ks, err := store.Open(ctx, uniqueName())
+		name := uniqueName()
+
+		ks, err := store.Open(ctx, name)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -33,6 +35,10 @@ func RunTests(
 				t.Error(err)
 			}
 		})
+
+		if ks.Name() != name {
+			t.Fatalf("unexpected keyspace name: got %q, want %q", ks.Name(), name)
+		}
 
 		return ctx, ks
 	}

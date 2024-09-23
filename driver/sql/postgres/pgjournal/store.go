@@ -22,7 +22,7 @@ func (s *BinaryStore) Open(ctx context.Context, name string) (journal.BinaryJour
 	if err != nil {
 		return nil, err
 	}
-	return &journ{s.DB, id}, nil
+	return &journ{s.DB, id, name}, nil
 }
 
 func (s *BinaryStore) getID(ctx context.Context, name string) (uint64, error) {

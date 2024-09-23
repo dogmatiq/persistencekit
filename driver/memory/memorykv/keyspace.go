@@ -17,8 +17,8 @@ type state[C comparable, V any] struct {
 	Values map[C]V
 }
 
-// journ is an implementation of [kv.BinaryKeyspace] that manipulates a keyspace's
-// in-memory [state].
+// keyspace is an implementation of [kv.BinaryKeyspace] that manipulates a
+// keyspace's in-memory [state].
 type keyspace[K, V any, C comparable] struct {
 	name         string
 	state        *state[C, V]
@@ -26,6 +26,10 @@ type keyspace[K, V any, C comparable] struct {
 	afterSet     func(ks string, k K, v V) error
 	marshalKey   func(K) C
 	unmarshalKey func(C) K
+}
+
+func (h *keyspace[K, V, C]) Name() string {
+	return h.name
 }
 
 func (h *keyspace[K, V, C]) Get(ctx context.Context, k K) (v V, err error) {

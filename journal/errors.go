@@ -13,11 +13,12 @@ func IsConflict(err error) bool {
 // ConflictError is returned by [Journal.Append] if there is already a record at
 // the specified position.
 type ConflictError struct {
+	Journal  string
 	Position Position
 }
 
 func (e ConflictError) Error() string {
-	return fmt.Sprintf("optimistic concurrency conflict at position %d", e.Position)
+	return fmt.Sprintf("there is already a record at position %d of the %q journal", e.Position, e.Journal)
 }
 
 // IgnoreNotFound returns nil if err is a caused by [RecordNotFoundError] or
@@ -47,11 +48,12 @@ func IsNotFound(err error) bool {
 // requested record does not exist, either because it has been truncated or
 // because the given position has not been written yet.
 type RecordNotFoundError struct {
+	Journal  string
 	Position Position
 }
 
 func (e RecordNotFoundError) Error() string {
-	return fmt.Sprintf("record at position %d has not been appended yet, or has been truncated", e.Position)
+	return fmt.Sprintf("the record at position %d of the %q journal has not been appended yet, or has been truncated", e.Position, e.Journal)
 }
 
 // ValueNotFoundError is returned search and can operations if the target
