@@ -14,7 +14,7 @@ type CompareFunc[T any] func(context.Context, Position, T) (cmp int, err error)
 // Search performs a binary search of j within the interval i to find the
 // position of the record for which cmp() returns zero.
 //
-// It returns a [ValueNotFoundErrorX] if there is no such record.
+// It returns a [ValueNotFoundError] if there is no such record.
 func Search[T any](
 	ctx context.Context,
 	j Journal[T],
@@ -50,7 +50,7 @@ func Search[T any](
 // beginning with the record within the interval i for which cmp() returns
 // zero.
 //
-// It returns a [ValueNotFoundErrorX] if there is no such record.
+// It returns a [ValueNotFoundError] if there is no such record.
 func RangeFromSearchResult[T any](
 	ctx context.Context,
 	j Journal[T],

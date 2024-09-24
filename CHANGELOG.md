@@ -10,7 +10,7 @@ The format is based on [Keep a Changelog], and this project adheres to
 [Keep a Changelog]: https://keepachangelog.com/en/1.0.0/
 [Semantic Versioning]: https://semver.org/spec/v2.0.0.html
 
-## [Unreleased]
+## [0.10.0] - 2024-09-24
 
 ### Added
 
@@ -251,6 +251,7 @@ This eliminates the need for duplicating all of the generic algorithms (such as
 [0.9.1]: https://github.com/dogmatiq/persistencekit/releases/tag/v0.9.1
 [0.9.2]: https://github.com/dogmatiq/persistencekit/releases/tag/v0.9.2
 [0.9.3]: https://github.com/dogmatiq/persistencekit/releases/tag/v0.9.3
+[0.10.0]: https://github.com/dogmatiq/persistencekit/releases/tag/v0.10.0
 
 <!-- version template
 ## [0.0.1] - YYYY-MM-DD
