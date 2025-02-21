@@ -12,7 +12,7 @@ require (
 	github.com/dogmatiq/dyad v1.0.0
 	github.com/dogmatiq/spruce v0.2.2
 	github.com/dogmatiq/sqltest v0.3.0
-	github.com/google/go-cmp v0.6.0
+	github.com/google/go-cmp v0.7.0
 	github.com/google/uuid v1.6.0
 	github.com/jackc/pgconn v1.14.3
 	go.opentelemetry.io/otel v1.34.0
