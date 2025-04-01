@@ -18,6 +18,7 @@ jobs:
     secrets: inherit
     with:
       "dynamodb": true
+      "minio": true
       "postgres": true
 
     
