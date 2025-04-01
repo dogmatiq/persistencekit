@@ -17,7 +17,7 @@ jobs:
     uses: dogmatiq/repos/.github/workflows/shared-go.yml@main
     secrets: inherit
     with:
-    - "dynamodb": true
-    - "postgres": true
+      "dynamodb": true
+      "postgres": true
 
     
