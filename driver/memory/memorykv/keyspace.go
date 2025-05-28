@@ -28,65 +28,65 @@ type keyspace[K, V any, C comparable] struct {
 	unmarshalKey func(C) K
 }
 
-func (h *keyspace[K, V, C]) Name() string {
-	return h.name
+func (ks *keyspace[K, V, C]) Name() string {
+	return ks.name
 }
 
-func (h *keyspace[K, V, C]) Get(ctx context.Context, k K) (v V, err error) {
-	if h.state == nil {
+func (ks *keyspace[K, V, C]) Get(ctx context.Context, k K) (v V, err error) {
+	if ks.state == nil {
 		panic("keyspace is closed")
 	}
 
-	h.state.RLock()
-	defer h.state.RUnlock()
+	ks.state.RLock()
+	defer ks.state.RUnlock()
 
-	c := h.marshalKey(k)
-	return clone.Clone(h.state.Values[c]), ctx.Err()
+	c := ks.marshalKey(k)
+	return clone.Clone(ks.state.Values[c]), ctx.Err()
 }
 
-func (h *keyspace[K, V, C]) Has(ctx context.Context, k K) (ok bool, err error) {
-	if h.state == nil {
+func (ks *keyspace[K, V, C]) Has(ctx context.Context, k K) (ok bool, err error) {
+	if ks.state == nil {
 		panic("keyspace is closed")
 	}
 
-	h.state.RLock()
-	defer h.state.RUnlock()
+	ks.state.RLock()
+	defer ks.state.RUnlock()
 
-	c := h.marshalKey(k)
-	_, ok = h.state.Values[c]
+	c := ks.marshalKey(k)
+	_, ok = ks.state.Values[c]
 	return ok, ctx.Err()
 }
 
-func (h *keyspace[K, V, C]) Set(ctx context.Context, k K, v V) error {
-	if h.state == nil {
+func (ks *keyspace[K, V, C]) Set(ctx context.Context, k K, v V) error {
+	if ks.state == nil {
 		panic("keyspace is closed")
 	}
 
 	v = clone.Clone(v)
 
-	h.state.Lock()
-	defer h.state.Unlock()
+	ks.state.Lock()
+	defer ks.state.Unlock()
 
-	if h.beforeSet != nil {
-		if err := h.beforeSet(h.name, k, v); err != nil {
+	if ks.beforeSet != nil {
+		if err := ks.beforeSet(ks.name, k, v); err != nil {
 			return err
 		}
 	}
 
-	c := h.marshalKey(k)
+	c := ks.marshalKey(k)
 
 	if reflect.ValueOf(v).IsZero() {
-		delete(h.state.Values, c)
+		delete(ks.state.Values, c)
 	} else {
-		if h.state.Values == nil {
-			h.state.Values = map[C]V{}
+		if ks.state.Values == nil {
+			ks.state.Values = map[C]V{}
 		}
 
-		h.state.Values[c] = v
+		ks.state.Values[c] = v
 	}
 
-	if h.afterSet != nil {
-		if err := h.afterSet(h.name, k, v); err != nil {
+	if ks.afterSet != nil {
+		if err := ks.afterSet(ks.name, k, v); err != nil {
 			return err
 		}
 	}
@@ -94,17 +94,17 @@ func (h *keyspace[K, V, C]) Set(ctx context.Context, k K, v V) error {
 	return ctx.Err()
 }
 
-func (h *keyspace[K, V, C]) Range(ctx context.Context, fn kv.RangeFunc[K, V]) error {
-	if h.state == nil {
+func (ks *keyspace[K, V, C]) Range(ctx context.Context, fn kv.RangeFunc[K, V]) error {
+	if ks.state == nil {
 		panic("keyspace is closed")
 	}
 
-	h.state.RLock()
-	values := maps.Clone(h.state.Values)
-	h.state.RUnlock()
+	ks.state.RLock()
+	values := maps.Clone(ks.state.Values)
+	ks.state.RUnlock()
 
 	for c, v := range values {
-		k := h.unmarshalKey(c)
+		k := ks.unmarshalKey(c)
 		ok, err := fn(ctx, k, clone.Clone(v))
 		if !ok || err != nil {
 			return err
@@ -114,12 +114,12 @@ func (h *keyspace[K, V, C]) Range(ctx context.Context, fn kv.RangeFunc[K, V]) er
 	return nil
 }
 
-func (h *keyspace[K, V, C]) Close() error {
-	if h.state == nil {
+func (ks *keyspace[K, V, C]) Close() error {
+	if ks.state == nil {
 		return errors.New("keyspace is already closed")
 	}
 
-	h.state = nil
+	ks.state = nil
 
 	return nil
 }
