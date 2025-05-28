@@ -100,7 +100,7 @@ func RunTests(
 					{
 						"empty",
 						Interval{0, 0},
-						func(ctx context.Context, t *testing.T, j BinaryJournal) {},
+						func(context.Context, *testing.T, BinaryJournal) {},
 					},
 					{
 						"with records",
@@ -326,7 +326,7 @@ func RunTests(
 				if err := j.Range(
 					ctx,
 					wantPos,
-					func(ctx context.Context, gotPos Position, rec []byte) (bool, error) {
+					func(_ context.Context, gotPos Position, rec []byte) (bool, error) {
 						if gotPos != wantPos {
 							t.Fatalf("unexpected position: got %d, want %d", gotPos, wantPos)
 						}
@@ -356,7 +356,7 @@ func RunTests(
 				if err := j.Range(
 					ctx,
 					0,
-					func(ctx context.Context, pos Position, rec []byte) (bool, error) {
+					func(context.Context, Position, []byte) (bool, error) {
 						if called {
 							return false, errors.New("unexpected call")
 						}
@@ -377,7 +377,7 @@ func RunTests(
 				err := j.Range(
 					ctx,
 					0,
-					func(ctx context.Context, pos Position, rec []byte) (bool, error) {
+					func(context.Context, Position, []byte) (bool, error) {
 						t.Fatal("unexpected call")
 						return false, nil
 					},
@@ -418,7 +418,7 @@ func RunTests(
 						if err := j.Range(
 							ctx,
 							pos,
-							func(ctx context.Context, pos Position, rec []byte) (bool, error) {
+							func(context.Context, Position, []byte) (bool, error) {
 								t.Fatal("unexpected call")
 								return false, nil
 							},
@@ -429,7 +429,7 @@ func RunTests(
 						if err := j.Range(
 							ctx,
 							pos,
-							func(ctx context.Context, pos Position, got []byte) (bool, error) {
+							func(_ context.Context, pos Position, got []byte) (bool, error) {
 								if !bytes.Equal(want, got) {
 									return false, fmt.Errorf(
 										"unexpected record at position %d, want %q, got %q",
@@ -469,7 +469,7 @@ func RunTests(
 					if err := j.Range(
 						ctx,
 						pos,
-						func(ctx context.Context, pos Position, rec []byte) (bool, error) {
+						func(context.Context, Position, []byte) (bool, error) {
 							t.Fatal("unexpected call")
 							return false, nil
 						},
@@ -493,9 +493,8 @@ func RunTests(
 				if err := j.Range(
 					ctx,
 					0,
-					func(ctx context.Context, pos Position, rec []byte) (bool, error) {
+					func(_ context.Context, _ Position, rec []byte) (bool, error) {
 						rec[0] = 'X'
-
 						return true, nil
 					},
 				); err != nil {
@@ -525,7 +524,7 @@ func RunTests(
 				err := j.Range(
 					ctx,
 					math.MaxUint64,
-					func(ctx context.Context, pos Position, rec []byte) (bool, error) {
+					func(context.Context, Position, []byte) (bool, error) {
 						t.Fatal("unexpected call")
 						return false, nil
 					},
@@ -858,7 +857,7 @@ func RunTests(
 						if err := j.Range(
 							ctx,
 							wantPos,
-							func(ctx context.Context, gotPos Position, gotRec []byte) (bool, error) {
+							func(_ context.Context, gotPos Position, gotRec []byte) (bool, error) {
 								if gotPos != wantPos {
 									return false, fmt.Errorf(
 										"unexpected position: got %d, want %d",
