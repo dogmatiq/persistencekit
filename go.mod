@@ -53,5 +53,6 @@ require (
 	github.com/pkg/errors v0.9.1 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
 	golang.org/x/crypto v0.35.0 // indirect
+	golang.org/x/net v0.28.0 // indirect
 	golang.org/x/text v0.22.0 // indirect
 )

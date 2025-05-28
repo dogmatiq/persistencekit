@@ -30,7 +30,7 @@ func IgnoreNotFound(err error) error {
 	return err
 }
 
-// IsNotFound returns true if err is is caused by [RecordNotFoundError] or
+// IsNotFound returns true if err is caused by [RecordNotFoundError] or
 // [ValueNotFoundError].
 func IsNotFound(err error) bool {
 	if errors.As(err, &RecordNotFoundError{}) {
