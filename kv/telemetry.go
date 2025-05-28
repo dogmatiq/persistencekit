@@ -191,7 +191,7 @@ func (ks *instrumentedKeyspace) Set(ctx context.Context, k, v []byte) error {
 		),
 		telemetry.Int("key_size", keySize),
 		telemetry.If(
-			isShortASCII(k),
+			isShortASCII(v),
 			telemetry.String("value", string(v)),
 		),
 		telemetry.Int("value_size", valueSize),

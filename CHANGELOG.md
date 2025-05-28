@@ -10,6 +10,14 @@ The format is based on [Keep a Changelog], and this project adheres to
 [Keep a Changelog]: https://keepachangelog.com/en/1.0.0/
 [Semantic Versioning]: https://semver.org/spec/v2.0.0.html
 
+## [Unreleased]
+
+### Fixed
+
+- Fixed issue telemetry/tracing issue with `kv.Keyspace.Set()` that would cause
+  a (potentially unreadable) _value_ to be added to the span attributes when the
+  _key_ was human-readable.
+
 ## [0.10.0] - 2024-09-24
 
 ### Added
