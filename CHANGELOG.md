@@ -276,6 +276,7 @@ This eliminates the need for duplicating all of the generic algorithms (such as
 [0.9.3]: https://github.com/dogmatiq/persistencekit/releases/tag/v0.9.3
 [0.10.0]: https://github.com/dogmatiq/persistencekit/releases/tag/v0.10.0
 [0.10.1]: https://github.com/dogmatiq/persistencekit/releases/tag/v0.10.1
+[0.10.2]: https://github.com/dogmatiq/persistencekit/releases/tag/v0.10.2
 
 <!-- version template
 ## [0.0.1] - YYYY-MM-DD
