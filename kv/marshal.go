@@ -7,8 +7,8 @@ import (
 	"github.com/dogmatiq/persistencekit/marshaler"
 )
 
-// NewMarshalingStore returns a new [Store] that marshals/unmarshals records of
-// type T to/from an underlying [BinaryStore].
+// NewMarshalingStore returns a new [Store] that marshals/unmarshals key/value
+// pairs to/from an underlying [BinaryStore].
 func NewMarshalingStore[K, V any](
 	s BinaryStore,
 	km marshaler.Marshaler[K],
