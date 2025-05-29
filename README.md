@@ -22,13 +22,15 @@ requirements on each implementation.
 
 - [`Journal`] - an append-only log of binary records with [optimistic concurrency control]
 - [`Keyspace`] - a non-transactional binary key/value store
+- [`Set`] - a set of unique binary values
 
 ## Drivers
 
-Implementations of the above primitives are called "driver". Several built-in
+Implementations of the above abstractions are called "drivers". Several built-in
 drivers are included, each in their own package within the [`driver`] directory.
 
 - [Amazon DynamoDB](https://aws.amazon.com/dynamodb/)
+- [Amazon S3](https://aws.amazon.com/s3/)
 - [PostgreSQL](https://www.postgresql.org/) and compatible databases
 - In-memory reference/testing implementation
 
@@ -37,4 +39,5 @@ drivers are included, each in their own package within the [`driver`] directory.
 [optimistic concurrency control]: https://en.wikipedia.org/wiki/Optimistic_concurrency_control
 [`journal`]: journal/journal.go
 [`keyspace`]: kv/keyspace.go
+[`set`]: set/set.go
 [`driver`]: driver
