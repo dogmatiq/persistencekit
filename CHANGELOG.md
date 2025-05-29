@@ -12,6 +12,14 @@ The format is based on [Keep a Changelog], and this project adheres to
 
 ## [Unreleased]
 
+### Added
+
+- Added `set` package, which provides an abstraction of named sets of values of
+  arbitrary type.
+- Added `memoryset` package, a memory-based implementation of `set.Store`.
+- Added `dynamoset` package, a DynamoDB-based implementation of `set.BinaryStore`.
+- Added `pgset` package, a PostgreSQL-based implementation of `set.BinaryStore`.
+
 ### Fixed
 
 - Fixed issue telemetry/tracing issue with `kv.Keyspace.Set()` that would cause
