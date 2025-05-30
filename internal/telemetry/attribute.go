@@ -98,22 +98,6 @@ func Binary(k string, v []byte) Attr {
 	}
 }
 
-// isShortASCII returns true if k is a non-empty ASCII string short enough that
-// it may be included as a telemetry attribute.
-func isShortASCII(k []byte) bool {
-	if len(k) == 0 || len(k) > 128 {
-		return false
-	}
-
-	for _, octet := range k {
-		if octet < ' ' || octet > '~' {
-			return false
-		}
-	}
-
-	return true
-}
-
 func (a Attr) asAttrKeyValue() (attribute.KeyValue, bool) {
 	switch a.typ {
 	case attrTypeNone:
