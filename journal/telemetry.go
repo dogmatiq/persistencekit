@@ -2,9 +2,9 @@ package journal
 
 import (
 	"context"
-	"log/slog"
 
 	"github.com/dogmatiq/persistencekit/internal/telemetry"
+	"go.opentelemetry.io/otel/log"
 	"go.opentelemetry.io/otel/metric"
 	"go.opentelemetry.io/otel/trace"
 )
@@ -12,16 +12,16 @@ import (
 // WithTelemetry returns a [BinaryStore] that adds telemetry to s.
 func WithTelemetry(
 	s BinaryStore,
-	p trace.TracerProvider,
+	t trace.TracerProvider,
 	m metric.MeterProvider,
-	l *slog.Logger,
+	l log.LoggerProvider,
 ) BinaryStore {
 	return &instrumentedStore{
 		Next: s,
 		Telemetry: telemetry.Provider{
-			TracerProvider: p,
+			TracerProvider: t,
 			MeterProvider:  m,
-			Logger:         l,
+			LoggerProvider: l,
 		},
 	}
 }
@@ -34,55 +34,35 @@ type instrumentedStore struct {
 
 // Open returns the journal with the given name.
 func (s *instrumentedStore) Open(ctx context.Context, name string) (BinaryJournal, error) {
-	r := s.Telemetry.Recorder(
-		"github.com/dogmatiq/persistencekit",
-		"journal",
+	telem := s.Telemetry.Recorder(
+		"github.com/dogmatiq/persistencekit/journal",
 		telemetry.Type("store", s.Next),
 		telemetry.String("handle", telemetry.HandleID()),
 		telemetry.String("name", name),
 	)
 
-	ctx, span := r.StartSpan(ctx, "journal.open")
+	j := &instrumentedJournal{
+		Telemetry:     telem,
+		OpenCount:     telem.UpDownCounter("open_journals", "{journal}", "The number of journals that are currently open."),
+		ConflictCount: telem.Counter("conflicts", "{conflict}", "The number of times appending a record to the journal has failed due to a optimistic-concurrency conflict."),
+		RecordCount:   telem.Counter("records", "{record}", "The number of journal records that have been operated upon."),
+		RecordBytes:   telem.Counter("record_bytes", "By", "The cumulative size of the journal records that have been operated upon."),
+		RecordSizes:   telem.Histogram("record_sizes", "By", "The sizes of the journal records that have been operated upon."),
+	}
+
+	ctx, span := j.Telemetry.StartSpan(ctx, "journal.open")
 	defer span.End()
 
 	next, err := s.Next.Open(ctx, name)
 	if err != nil {
-		span.Error("could not open journal", err)
+		j.Telemetry.Error(ctx, "journal.open.error", err)
 		return nil, err
 	}
 
-	j := &instrumentedJournal{
-		Next:      next,
-		Telemetry: r,
-		OpenCount: r.Int64UpDownCounter(
-			"open_journals",
-			metric.WithDescription("The number of journals that are currently open."),
-			metric.WithUnit("{journal}"),
-		),
-		ConflictCount: r.Int64Counter(
-			"conflicts",
-			metric.WithDescription("The number of times appending a record to the journal has failed due to a optimistic-concurrency conflict."),
-			metric.WithUnit("{conflict}"),
-		),
-		DataIO: r.Int64Counter(
-			"io",
-			metric.WithDescription("The cumulative size of the journal records that have been read and written."),
-			metric.WithUnit("By"),
-		),
-		RecordIO: r.Int64Counter(
-			"record.io",
-			metric.WithDescription("The number of journal records that have been read and written."),
-			metric.WithUnit("{record}"),
-		),
-		RecordSize: r.Int64Histogram(
-			"record.size",
-			metric.WithDescription("The sizes of the journal records that have been read and written."),
-			metric.WithUnit("By"),
-		),
-	}
+	j.Next = next
 
-	j.OpenCount.Add(ctx, 1)
-	span.Debug("opened journal")
+	j.OpenCount(ctx, 1)
+	j.Telemetry.Info(ctx, "journal.open.ok", "journal opened")
 
 	return j, nil
 }
@@ -91,11 +71,11 @@ type instrumentedJournal struct {
 	Next      BinaryJournal
 	Telemetry *telemetry.Recorder
 
-	OpenCount     metric.Int64UpDownCounter
-	ConflictCount metric.Int64Counter
-	DataIO        metric.Int64Counter
-	RecordIO      metric.Int64Counter
-	RecordSize    metric.Int64Histogram
+	OpenCount     telemetry.Instrument[int64]
+	ConflictCount telemetry.Instrument[int64]
+	RecordCount   telemetry.Instrument[int64]
+	RecordBytes   telemetry.Instrument[int64]
+	RecordSizes   telemetry.Instrument[int64]
 }
 
 func (j *instrumentedJournal) Name() string {
@@ -103,15 +83,12 @@ func (j *instrumentedJournal) Name() string {
 }
 
 func (j *instrumentedJournal) Bounds(ctx context.Context) (bounds Interval, err error) {
-	ctx, span := j.Telemetry.StartSpan(
-		ctx,
-		"journal.bounds",
-	)
+	ctx, span := j.Telemetry.StartSpan(ctx, "journal.bounds")
 	defer span.End()
 
 	bounds, err = j.Next.Bounds(ctx)
 	if err != nil {
-		span.Error("could not fetch journal bounds", err)
+		j.Telemetry.Error(ctx, "journal.bounds.error", err)
 		return Interval{}, err
 	}
 
@@ -120,7 +97,7 @@ func (j *instrumentedJournal) Bounds(ctx context.Context) (bounds Interval, err 
 		telemetry.Int("end", bounds.End),
 	)
 
-	span.Debug("fetched journal bounds")
+	j.Telemetry.Info(ctx, "journal.bounds.ok", "fetched journal bounds")
 
 	return bounds, nil
 }
@@ -135,21 +112,22 @@ func (j *instrumentedJournal) Get(ctx context.Context, pos Position) ([]byte, er
 
 	rec, err := j.Next.Get(ctx, pos)
 	if err != nil {
-		span.Error("could not fetch journal record", err)
+		j.Telemetry.Error(ctx, "journal.get.error", err)
 		return nil, err
 	}
 
 	size := int64(len(rec))
 
 	span.SetAttributes(
+		telemetry.Binary("record", rec),
 		telemetry.Int("record_size", size),
 	)
 
-	j.DataIO.Add(ctx, size, telemetry.ReadDirection)
-	j.RecordIO.Add(ctx, 1, telemetry.ReadDirection)
-	j.RecordSize.Record(ctx, size, telemetry.ReadDirection)
+	j.RecordCount(ctx, 1, telemetry.ReadDirection)
+	j.RecordBytes(ctx, size, telemetry.ReadDirection)
+	j.RecordSizes(ctx, size, telemetry.ReadDirection)
 
-	span.Debug("fetched single journal record")
+	j.Telemetry.Info(ctx, "journal.get.ok", "fetched journal record")
 
 	return rec, nil
 }
@@ -172,7 +150,7 @@ func (j *instrumentedJournal) Range(
 		brokeLoop    bool
 	)
 
-	span.Debug("reading journal records")
+	j.Telemetry.Info(ctx, "journal.range.start", "reading journal records")
 
 	err := j.Next.Range(
 		ctx,
@@ -186,9 +164,9 @@ func (j *instrumentedJournal) Range(
 			size := int64(len(rec))
 			totalSize += size
 
-			j.DataIO.Add(ctx, size, telemetry.ReadDirection)
-			j.RecordIO.Add(ctx, 1, telemetry.ReadDirection)
-			j.RecordSize.Record(ctx, size, telemetry.ReadDirection)
+			j.RecordCount(ctx, 1, telemetry.ReadDirection)
+			j.RecordBytes(ctx, size, telemetry.ReadDirection)
+			j.RecordSizes(ctx, size, telemetry.ReadDirection)
 
 			ok, err := fn(ctx, pos, rec)
 			if ok || err != nil {
@@ -214,11 +192,15 @@ func (j *instrumentedJournal) Range(
 	)
 
 	if err != nil {
-		span.Error("could not read journal records", err)
+		j.Telemetry.Error(ctx, "journal.range.error", err)
 		return err
 	}
 
-	span.Debug("completed reading journal records")
+	if brokeLoop {
+		j.Telemetry.Info(ctx, "journal.range.break", "range aborted cleanly before reaching the end of the journal")
+	} else {
+		j.Telemetry.Info(ctx, "journal.range.end", "range reached the end of the journal")
+	}
 
 	return nil
 }
@@ -234,26 +216,24 @@ func (j *instrumentedJournal) Append(ctx context.Context, pos Position, rec []by
 	)
 	defer span.End()
 
-	j.DataIO.Add(ctx, size, telemetry.WriteDirection)
-	j.RecordIO.Add(ctx, 1, telemetry.WriteDirection)
-	j.RecordSize.Record(ctx, size, telemetry.WriteDirection)
+	j.RecordCount(ctx, 1, telemetry.WriteDirection)
+	j.RecordBytes(ctx, size, telemetry.WriteDirection)
+	j.RecordSizes(ctx, size, telemetry.WriteDirection)
 
 	err := j.Next.Append(ctx, pos, rec)
 	if err != nil {
-		span.Error("unable to append journal record", err)
-
 		if IsConflict(err) {
-			span.SetAttributes(
-				telemetry.Bool("conflict", true),
-			)
-
-			j.ConflictCount.Add(ctx, 1)
+			j.Telemetry.Error(ctx, "journal.append.conflict", err)
+			j.ConflictCount(ctx, 1)
+			span.SetAttributes(telemetry.Bool("conflict", true))
+		} else {
+			j.Telemetry.Error(ctx, "journal.append.error", err)
 		}
 
 		return err
 	}
 
-	span.Debug("journal record appended")
+	j.Telemetry.Info(ctx, "journal.append.ok", "journal record appended")
 
 	return nil
 }
@@ -267,35 +247,36 @@ func (j *instrumentedJournal) Truncate(ctx context.Context, pos Position) error 
 	defer span.End()
 
 	if err := j.Next.Truncate(ctx, pos); err != nil {
-		span.Error("unable to truncate journal", err)
+		j.Telemetry.Error(ctx, "journal.truncate.error", err)
 		return err
 	}
 
-	span.Debug("truncated oldest journal records")
+	j.Telemetry.Info(ctx, "journal.truncate.ok", "truncated oldest journal records")
 
 	return nil
 }
 
 func (j *instrumentedJournal) Close() error {
-	ctx, span := j.Telemetry.StartSpan(context.Background(), "journal.close")
-	defer span.End()
-
 	if j.Next == nil {
-		span.Warn("journal is already closed")
+		// Closing an already-closed resource is not an error, allowing Close()
+		// to be called unconditionally by a defer statement.
 		return nil
 	}
 
+	ctx, span := j.Telemetry.StartSpan(context.Background(), "journal.close")
+	defer span.End()
+
 	defer func() {
 		j.Next = nil
-		j.OpenCount.Add(ctx, -1)
+		j.OpenCount(ctx, -1)
 	}()
 
 	if err := j.Next.Close(); err != nil {
-		span.Error("could not close journal", err)
+		j.Telemetry.Error(ctx, "journal.close.error", err)
 		return err
 	}
 
-	span.Debug("closed journal")
+	j.Telemetry.Info(ctx, "journal.close.ok", "journal closed")
 
 	return nil
 }

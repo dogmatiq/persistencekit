@@ -5,7 +5,7 @@ import (
 
 	"github.com/dogmatiq/persistencekit/driver/memory/memoryjournal"
 	. "github.com/dogmatiq/persistencekit/journal"
-	"github.com/dogmatiq/spruce"
+	nooplog "go.opentelemetry.io/otel/log/noop"
 	noopmetric "go.opentelemetry.io/otel/metric/noop"
 	nooptrace "go.opentelemetry.io/otel/trace/noop"
 )
@@ -17,7 +17,7 @@ func TestWithTelemetry(t *testing.T) {
 			&memoryjournal.BinaryStore{},
 			nooptrace.NewTracerProvider(),
 			noopmetric.NewMeterProvider(),
-			spruce.NewTestLogger(t),
+			nooplog.NewLoggerProvider(),
 		),
 	)
 }

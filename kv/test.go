@@ -353,7 +353,7 @@ func RunTests(
 
 				if err := ks.Range(
 					ctx,
-					func(ctx context.Context, k, v []byte) (bool, error) {
+					func(_ context.Context, k, v []byte) (bool, error) {
 						actual[string(k)] = string(v)
 						return true, nil
 					},
@@ -382,7 +382,7 @@ func RunTests(
 				called := false
 				if err := ks.Range(
 					ctx,
-					func(ctx context.Context, k, v []byte) (bool, error) {
+					func(_ context.Context, _, _ []byte) (bool, error) {
 						if called {
 							return false, errors.New("unexpected call")
 						}
@@ -410,7 +410,7 @@ func RunTests(
 
 				if err := ks.Range(
 					ctx,
-					func(ctx context.Context, k, v []byte) (bool, error) {
+					func(_ context.Context, k, v []byte) (bool, error) {
 						k[0] = 'X'
 						v[0] = 'Y'
 
@@ -708,21 +708,21 @@ func RunTests(
 
 						if err := ks.Range(
 							ctx,
-							func(ctx context.Context, key, value []byte) (bool, error) {
-								if _, ok := seen[string(key)]; ok {
+							func(_ context.Context, k, v []byte) (bool, error) {
+								if _, ok := seen[string(k)]; ok {
 									t.Fatalf(
 										"key seen twice while ranging over pairs: %q",
-										string(key),
+										string(k),
 									)
 								}
-								seen[string(key)] = struct{}{}
+								seen[string(k)] = struct{}{}
 
-								expect := pairs[string(key)]
-								if !bytes.Equal(expect, value) {
+								expect := pairs[string(k)]
+								if !bytes.Equal(expect, v) {
 									t.Fatalf(
 										"unexpected value for key %q: got %q, want %q",
-										string(key),
-										string(value),
+										string(k),
+										string(v),
 										string(expect),
 									)
 								}

@@ -2,11 +2,12 @@ package telemetry
 
 import (
 	"fmt"
-	"log/slog"
 	"math"
 	"reflect"
+	"strconv"
 
 	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/log"
 	"golang.org/x/exp/constraints"
 )
 
@@ -16,7 +17,6 @@ type Attr struct {
 	key string
 	str string
 	num uint64
-	sli any
 }
 
 // String returns a string attribute.
@@ -83,7 +83,38 @@ func Float[T constraints.Float](k string, v T) Attr {
 	}
 }
 
-func (a Attr) otel() (attribute.KeyValue, bool) {
+// Binary returns a string attribute containing v, represented as a Go string
+// (with backslash escaped sequences). If the value is longer than 64 bytes, it
+// is truncated to 64 bytes and the key is suffixed with "_truncated".
+func Binary(k string, v []byte) Attr {
+	if len(v) > 64 {
+		v = v[:64]
+		k += "_truncated"
+	}
+
+	return Attr{
+		key: k,
+		str: strconv.QuoteToASCII(string(v)),
+	}
+}
+
+// isShortASCII returns true if k is a non-empty ASCII string short enough that
+// it may be included as a telemetry attribute.
+func isShortASCII(k []byte) bool {
+	if len(k) == 0 || len(k) > 128 {
+		return false
+	}
+
+	for _, octet := range k {
+		if octet < ' ' || octet > '~' {
+			return false
+		}
+	}
+
+	return true
+}
+
+func (a Attr) asAttrKeyValue() (attribute.KeyValue, bool) {
 	switch a.typ {
 	case attrTypeNone:
 		return attribute.KeyValue{}, false
@@ -100,18 +131,18 @@ func (a Attr) otel() (attribute.KeyValue, bool) {
 	}
 }
 
-func (a Attr) slog() (slog.Attr, bool) {
+func (a Attr) asLogKeyValue() (log.KeyValue, bool) {
 	switch a.typ {
 	case attrTypeNone:
-		return slog.Attr{}, false
+		return log.KeyValue{}, false
 	case attrTypeString:
-		return slog.String(a.key, a.str), true
+		return log.String(a.key, a.str), true
 	case attrTypeBool:
-		return slog.Bool(a.key, a.num != 0), true
+		return log.Bool(a.key, a.num != 0), true
 	case attrTypeInt64:
-		return slog.Int64(a.key, int64(a.num)), true
+		return log.Int64(a.key, int64(a.num)), true
 	case attrTypeFloat64:
-		return slog.Float64(a.key, math.Float64frombits(a.num)), true
+		return log.Float64(a.key, math.Float64frombits(a.num)), true
 	default:
 		panic("unknown attribute type")
 	}
@@ -126,3 +157,63 @@ const (
 	attrTypeInt64
 	attrTypeFloat64
 )
+
+func asAttrKeyValues(attrs []Attr) []attribute.KeyValue {
+	kvs := make([]attribute.KeyValue, 0, len(attrs))
+
+	for _, attr := range attrs {
+		if attr, ok := attr.asAttrKeyValue(); ok {
+			kvs = append(kvs, attr)
+		}
+	}
+
+	return kvs
+}
+
+func asLogKeyValues(attrs []Attr) []log.KeyValue {
+	kvs := make([]log.KeyValue, 0, len(attrs))
+
+	for _, attr := range attrs {
+		if attr, ok := attr.asLogKeyValue(); ok {
+			kvs = append(kvs, attr)
+		}
+	}
+
+	return kvs
+}
+
+// func (s *Span) resolveAttrs(attrs []Attr) ([]attribute.KeyValue, []any) {
+// 	tel := make([]attribute.KeyValue, 0, len(attrs))
+// 	log := make([]any, 0, len(attrs))
+
+// 	prefix := attribute.Key(s.recorder.name + ".")
+
+// 	for _, attr := range attrs {
+// 		if attr, ok := attr.otel(); ok {
+// 			attr.Key = prefix + attr.Key
+// 			tel = append(tel, attr)
+// 		}
+// 		if attr, ok := attr.slog(); ok {
+// 			log = append(log, attr)
+// 		}
+// 	}
+
+// 	return tel, log
+// }
+
+// var errorsStringType = reflect.TypeOf(errors.New(""))
+
+// // isStringError returns true if err is an error that was created using
+// // errors.New() or fmt.Errorf(), and therefore has no meaningful type.
+// func isStringError(err error) bool {
+// 	return reflect.TypeOf(err) == errorsStringType
+// }
+
+// // unwrapError unwraps err until an error with a meaningful type is found. If
+// // all errors in the chain are "string errors", it returns nil.
+// func unwrapError(err error) error {
+// 	for err != nil && isStringError(err) {
+// 		err = errors.Unwrap(err)
+// 	}
+// 	return err
+// }
