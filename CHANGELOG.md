@@ -10,6 +10,20 @@ The format is based on [Keep a Changelog], and this project adheres to
 [Keep a Changelog]: https://keepachangelog.com/en/1.0.0/
 [Semantic Versioning]: https://semver.org/spec/v2.0.0.html
 
+## [Unreleased]
+
+### Changed
+
+- **[BC]** The `journal.WithTelemetry()`, `kv.WithTelemetry()` and
+  `set.WithTelemetry()` functions now require an OpenTelemetry `LoggerProvider`
+  instead of an `slog.Logger`. This change means that all persistencekit
+  telemetry is now "OpenTelemetry native", ensuring that all log messages are
+  correlated with spans when tracing is enabled.
+- Changed metric instruments to use more specific names, such as `value_size`
+  instead of more generic/network-level names such as `io`.
+- Added `misses` metric, for `kv.Keyspace.Get()` operations that do not find a
+  value in the keyspace.
+
 ## [0.10.2] - 2025-05-29
 
 ### Added
