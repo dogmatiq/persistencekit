@@ -165,39 +165,3 @@ func asLogKeyValues(attrs []Attr) []log.KeyValue {
 
 	return kvs
 }
-
-// func (s *Span) resolveAttrs(attrs []Attr) ([]attribute.KeyValue, []any) {
-// 	tel := make([]attribute.KeyValue, 0, len(attrs))
-// 	log := make([]any, 0, len(attrs))
-
-// 	prefix := attribute.Key(s.recorder.name + ".")
-
-// 	for _, attr := range attrs {
-// 		if attr, ok := attr.otel(); ok {
-// 			attr.Key = prefix + attr.Key
-// 			tel = append(tel, attr)
-// 		}
-// 		if attr, ok := attr.slog(); ok {
-// 			log = append(log, attr)
-// 		}
-// 	}
-
-// 	return tel, log
-// }
-
-// var errorsStringType = reflect.TypeOf(errors.New(""))
-
-// // isStringError returns true if err is an error that was created using
-// // errors.New() or fmt.Errorf(), and therefore has no meaningful type.
-// func isStringError(err error) bool {
-// 	return reflect.TypeOf(err) == errorsStringType
-// }
-
-// // unwrapError unwraps err until an error with a meaningful type is found. If
-// // all errors in the chain are "string errors", it returns nil.
-// func unwrapError(err error) error {
-// 	for err != nil && isStringError(err) {
-// 		err = errors.Unwrap(err)
-// 	}
-// 	return err
-// }
