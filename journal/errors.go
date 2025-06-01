@@ -56,7 +56,7 @@ func (e RecordNotFoundError) Error() string {
 	return fmt.Sprintf("the record at position %d of the %q journal has not been appended yet, or has been truncated", e.Position, e.Journal)
 }
 
-// ValueNotFoundError is returned search and can operations if the target
+// ValueNotFoundError is returned by search and scan operations if the target
 // value is not found.
 type ValueNotFoundError struct{}
 

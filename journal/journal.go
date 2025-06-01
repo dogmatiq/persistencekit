@@ -33,7 +33,7 @@ type Journal[T any] interface {
 	// the record at the given position.
 	//
 	// It returns a [RecordNotFoundError] if there is no record at the given
-	// position. if there is no record at the given position.
+	// position.
 	Range(ctx context.Context, pos Position, fn RangeFunc[T]) error
 
 	// Append adds a record to the journal as the given position.
