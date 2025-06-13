@@ -3,7 +3,6 @@ package journal_test
 import (
 	"context"
 	"testing"
-	"time"
 
 	"github.com/dogmatiq/persistencekit/driver/memory/memoryjournal"
 	. "github.com/dogmatiq/persistencekit/journal"
@@ -11,29 +10,26 @@ import (
 )
 
 func TestMarshal(t *testing.T) {
-	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
-	defer cancel()
-
 	store := NewMarshalingStore(
 		&memoryjournal.BinaryStore{},
 		marshaler.NewJSON[int](),
 	)
 
-	j, err := store.Open(ctx, "<name>")
+	j, err := store.Open(t.Context(), "<name>")
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer j.Close()
 
-	if err := j.Append(ctx, 0, 100); err != nil {
+	if err := j.Append(t.Context(), 0, 100); err != nil {
 		t.Fatal(err)
 	}
 
-	if err := j.Append(ctx, 1, 101); err != nil {
+	if err := j.Append(t.Context(), 1, 101); err != nil {
 		t.Fatal(err)
 	}
 
-	fn := func(ctx context.Context, pos Position, rec int) (bool, error) {
+	fn := func(_ context.Context, pos Position, rec int) (bool, error) {
 		expect := int(pos) + 100
 		if rec != expect {
 			t.Fatalf("unexpected value at position %d: got %d, want %d", pos, rec, expect)
@@ -41,15 +37,15 @@ func TestMarshal(t *testing.T) {
 		return true, nil
 	}
 
-	if err := j.Range(ctx, 0, fn); err != nil {
+	if err := j.Range(t.Context(), 0, fn); err != nil {
 		t.Fatal(err)
 	}
 
 	for pos := Position(0); pos < 2; pos++ {
-		rec, err := j.Get(ctx, pos)
+		rec, err := j.Get(t.Context(), pos)
 		if err != nil {
 			t.Fatal(err)
 		}
-		fn(ctx, pos, rec)
+		fn(t.Context(), pos, rec)
 	}
 }

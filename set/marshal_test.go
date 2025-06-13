@@ -1,9 +1,7 @@
 package set_test
 
 import (
-	"context"
 	"testing"
-	"time"
 
 	"github.com/dogmatiq/persistencekit/driver/memory/memoryset"
 	"github.com/dogmatiq/persistencekit/marshaler"
@@ -11,15 +9,12 @@ import (
 )
 
 func TestStore(t *testing.T) {
-	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
-	defer cancel()
-
 	store := NewMarshalingStore(
 		&memoryset.BinaryStore{},
 		marshaler.NewJSON[int](),
 	)
 
-	set, err := store.Open(ctx, "<name>")
+	set, err := store.Open(t.Context(), "<name>")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -27,7 +22,7 @@ func TestStore(t *testing.T) {
 
 	// add [0, 5)
 	for v := range 5 {
-		if err := set.Add(ctx, v); err != nil {
+		if err := set.Add(t.Context(), v); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -35,7 +30,7 @@ func TestStore(t *testing.T) {
 	// try-add [0, 10)
 	for v := range 10 {
 		want := v >= 5
-		got, err := set.TryAdd(ctx, v)
+		got, err := set.TryAdd(t.Context(), v)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -47,7 +42,7 @@ func TestStore(t *testing.T) {
 
 	// remove [0, 3)
 	for v := range 3 {
-		if err := set.Remove(ctx, v); err != nil {
+		if err := set.Remove(t.Context(), v); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -55,7 +50,7 @@ func TestStore(t *testing.T) {
 	// try-remove [0, 5)
 	for v := range 5 {
 		want := v >= 3
-		got, err := set.TryRemove(ctx, v)
+		got, err := set.TryRemove(t.Context(), v)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -68,7 +63,7 @@ func TestStore(t *testing.T) {
 	// expect set to contain [5, 9]
 	for v := range 10 {
 		want := v >= 5
-		got, err := set.Has(ctx, v)
+		got, err := set.Has(t.Context(), v)
 		if err != nil {
 			t.Fatal(err)
 		}

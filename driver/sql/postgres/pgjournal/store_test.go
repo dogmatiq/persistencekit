@@ -1,10 +1,8 @@
 package pgjournal_test
 
 import (
-	"context"
 	"database/sql"
 	"testing"
-	"time"
 
 	. "github.com/dogmatiq/persistencekit/driver/sql/postgres/pgjournal"
 	"github.com/dogmatiq/persistencekit/journal"
@@ -32,10 +30,11 @@ func BenchmarkStore(b *testing.B) {
 }
 
 func setup(t testing.TB) *sql.DB {
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-	defer cancel()
-
-	database, err := sqltest.NewDatabase(ctx, sqltest.PGXDriver, sqltest.PostgreSQL)
+	database, err := sqltest.NewDatabase(
+		t.Context(),
+		sqltest.PGXDriver,
+		sqltest.PostgreSQL,
+	)
 	if err != nil {
 		t.Fatalf("cannot create test database: %s", err)
 	}

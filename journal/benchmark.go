@@ -17,55 +17,61 @@ func RunBenchmarks(
 	b.Run("Store", func(b *testing.B) {
 		b.Run("Open", func(b *testing.B) {
 			b.Run("existing journal", func(b *testing.B) {
-				var name string
+				var (
+					name  string
+					journ BinaryJournal
+				)
 
-				benchmarkStore(
+				testx.Benchmark(
 					b,
-					store,
 					// SETUP
-					func(ctx context.Context, s BinaryStore) error {
+					func(ctx context.Context) error {
 						name = testx.SequentialName("journal")
 
 						// pre-create the journal
-						ks, err := s.Open(ctx, name)
+						j, err := store.Open(ctx, name)
 						if err != nil {
 							return err
 						}
-						return ks.Close()
+						return j.Close()
 					},
 					// BEFORE EACH
 					nil,
 					// BENCHMARKED CODE
-					func(ctx context.Context, s BinaryStore) (BinaryJournal, error) {
-						return s.Open(ctx, name)
+					func(ctx context.Context) (err error) {
+						journ, err = store.Open(ctx, name)
+						return err
 					},
 					// AFTER EACH
-					func(j BinaryJournal) error {
-						return j.Close()
+					func(context.Context) error {
+						return journ.Close()
 					},
 				)
 			})
 
 			b.Run("new journal", func(b *testing.B) {
-				var name string
+				var (
+					name  string
+					journ BinaryJournal
+				)
 
-				benchmarkStore(
+				testx.Benchmark(
 					b,
-					store,
 					// SETUP
 					nil,
 					// BEFORE EACH
-					func(context.Context, BinaryStore) error {
+					func(context.Context) error {
 						name = testx.SequentialName("journal")
 						return nil
 					},
 					// BENCHMARKED CODE
-					func(ctx context.Context, s BinaryStore) (BinaryJournal, error) {
-						return s.Open(ctx, name)
+					func(ctx context.Context) (err error) {
+						journ, err = store.Open(ctx, name)
+						return err
 					},
 					// AFTER EACH
-					func(j BinaryJournal) error {
-						return j.Close()
+					func(context.Context) error {
+						return journ.Close()
 					},
 				)
 			})
@@ -283,45 +289,6 @@ func RunBenchmarks(
 			)
 		})
 	})
-}
-
-func benchmarkStore[T any](
-	b *testing.B,
-	store BinaryStore,
-	setup func(context.Context, BinaryStore) error,
-	before func(context.Context, BinaryStore) error,
-	fn func(context.Context, BinaryStore) (T, error),
-	after func(T) error,
-) {
-	var result T
-
-	testx.Benchmark(
-		b,
-		func(ctx context.Context) error {
-			if setup != nil {
-				return setup(ctx, store)
-			}
-
-			return nil
-		},
-		func(ctx context.Context) error {
-			if before != nil {
-				return before(ctx, store)
-			}
-			return nil
-		},
-		func(ctx context.Context) error {
-			var err error
-			result, err = fn(ctx, store)
-			return err
-		},
-		func(context.Context) error {
-			if after != nil {
-				return after(result)
-			}
-			return nil
-		},
-	)
 }
 
 func benchmarkJournal(

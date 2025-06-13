@@ -4,39 +4,35 @@ import (
 	"context"
 	"errors"
 	"testing"
-	"time"
 
 	"github.com/dogmatiq/persistencekit/driver/memory/memoryjournal"
 	. "github.com/dogmatiq/persistencekit/journal"
 )
 
 func TestSearch(t *testing.T) {
-	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
-	defer cancel()
-
 	store := &memoryjournal.Store[int]{}
-	j, err := store.Open(ctx, "test")
+	j, err := store.Open(t.Context(), "test")
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer j.Close()
 
 	for i := range 100 {
-		if err := j.Append(ctx, Position(i), i); err != nil {
+		if err := j.Append(t.Context(), Position(i), i); err != nil {
 			t.Fatal(err)
 		}
 	}
 
 	datum := 55
 	cmp := func(
-		ctx context.Context,
-		pos Position,
+		_ context.Context,
+		_ Position,
 		rec int,
 	) (int, error) {
 		return rec - datum, nil
 	}
 
-	pos, rec, err := Search(ctx, j, Interval{0, 100}, cmp)
+	pos, rec, err := Search(t.Context(), j, Interval{0, 100}, cmp)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -51,32 +47,29 @@ func TestSearch(t *testing.T) {
 	}
 
 	datum = 101
-	if _, _, err := Search(ctx, j, Interval{0, 100}, cmp); !IsNotFound(err) {
+	if _, _, err := Search(t.Context(), j, Interval{0, 100}, cmp); !IsNotFound(err) {
 		t.Fatalf("unexpected error: got %q, want IsNotFound(err) == true", err)
 	}
 }
 
 func TestRangeFromSearchResult(t *testing.T) {
-	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
-	defer cancel()
-
 	store := &memoryjournal.Store[int]{}
-	j, err := store.Open(ctx, "test")
+	j, err := store.Open(t.Context(), "test")
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer j.Close()
 
 	for i := range 100 {
-		if err := j.Append(ctx, Position(i), i); err != nil {
+		if err := j.Append(t.Context(), Position(i), i); err != nil {
 			t.Fatal(err)
 		}
 	}
 
 	datum := 55
 	cmp := func(
-		ctx context.Context,
-		pos Position,
+		_ context.Context,
+		_ Position,
 		rec int,
 	) (int, error) {
 		return rec - datum, nil
@@ -86,7 +79,7 @@ func TestRangeFromSearchResult(t *testing.T) {
 		called := false
 
 		fn := func(
-			ctx context.Context,
+			_ context.Context,
 			pos Position,
 			rec int,
 		) (bool, error) {
@@ -102,7 +95,7 @@ func TestRangeFromSearchResult(t *testing.T) {
 			return false, nil
 		}
 
-		if err := RangeFromSearchResult(ctx, j, Interval{0, 100}, cmp, fn); err != nil {
+		if err := RangeFromSearchResult(t.Context(), j, Interval{0, 100}, cmp, fn); err != nil {
 			t.Fatal(err)
 		}
 
@@ -116,7 +109,7 @@ func TestRangeFromSearchResult(t *testing.T) {
 		calls := 0
 
 		fn := func(
-			ctx context.Context,
+			_ context.Context,
 			pos Position,
 			rec int,
 		) (bool, error) {
@@ -138,7 +131,7 @@ func TestRangeFromSearchResult(t *testing.T) {
 			return true, nil
 		}
 
-		if err := RangeFromSearchResult(ctx, j, Interval{0, 100}, cmp, fn); err != nil {
+		if err := RangeFromSearchResult(t.Context(), j, Interval{0, 100}, cmp, fn); err != nil {
 			t.Fatal(err)
 		}
 
@@ -152,14 +145,14 @@ func TestRangeFromSearchResult(t *testing.T) {
 		datum = 101
 
 		fn := func(
-			ctx context.Context,
+			_ context.Context,
 			pos Position,
 			rec int,
 		) (bool, error) {
 			return false, errors.New("unexpected call")
 		}
 
-		if err := RangeFromSearchResult(ctx, j, Interval{0, 100}, cmp, fn); !IsNotFound(err) {
+		if err := RangeFromSearchResult(t.Context(), j, Interval{0, 100}, cmp, fn); !IsNotFound(err) {
 			t.Fatalf("unexpected error: got %q, want IsNotFound(err) == true", err)
 		}
 	})
