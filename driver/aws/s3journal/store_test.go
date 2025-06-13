@@ -1,9 +1,7 @@
 package s3journal_test
 
 import (
-	"context"
 	"testing"
-	"time"
 
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/dogmatiq/persistencekit/driver/aws/internal/s3x"
@@ -33,10 +31,12 @@ func setup(t testing.TB) (*s3.Client, string) {
 	bucket := testx.UniqueName("bucket")
 
 	t.Cleanup(func() {
-		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-		defer cancel()
-
-		if err := s3x.DeleteBucketIfExists(ctx, client, bucket, nil); err != nil {
+		if err := s3x.DeleteBucketIfExists(
+			testx.ContextForCleanup(t),
+			client,
+			bucket,
+			nil,
+		); err != nil {
 			t.Error(err)
 		}
 	})

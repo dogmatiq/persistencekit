@@ -4,18 +4,14 @@ import (
 	"context"
 	"errors"
 	"testing"
-	"time"
 
 	"github.com/dogmatiq/persistencekit/driver/memory/memoryjournal"
 	. "github.com/dogmatiq/persistencekit/journal"
 )
 
 func TestAppendWithConflictResolution(t *testing.T) {
-	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
-	defer cancel()
-
 	store := &memoryjournal.Store[int]{}
-	j, err := store.Open(ctx, "test")
+	j, err := store.Open(t.Context(), "test")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -23,7 +19,7 @@ func TestAppendWithConflictResolution(t *testing.T) {
 
 	t.Run("it appends records", func(t *testing.T) {
 		end, err := AppendWithConflictResolution(
-			ctx,
+			t.Context(),
 			j,
 			0,
 			100,
@@ -43,7 +39,7 @@ func TestAppendWithConflictResolution(t *testing.T) {
 			t.Fatalf("unexpected end position: got %d, want %d", end, expectEnd)
 		}
 
-		rec, err := j.Get(ctx, end-1)
+		rec, err := j.Get(t.Context(), end-1)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -54,16 +50,16 @@ func TestAppendWithConflictResolution(t *testing.T) {
 	})
 
 	t.Run("it retries on conflict", func(t *testing.T) {
-		if err := j.Append(ctx, 1, 200); err != nil {
+		if err := j.Append(t.Context(), 1, 200); err != nil {
 			t.Fatal(err)
 		}
 
 		end, err := AppendWithConflictResolution(
-			ctx,
+			t.Context(),
 			j,
 			0,
 			300,
-			func(ctx context.Context, pos Position) (Position, error) {
+			func(_ context.Context, pos Position) (Position, error) {
 				return pos + 1, nil
 			},
 		)
@@ -78,7 +74,7 @@ func TestAppendWithConflictResolution(t *testing.T) {
 			t.Fatalf("unexpected end position: got %d, want %d", end, expectEnd)
 		}
 
-		rec, err := j.Get(ctx, end-1)
+		rec, err := j.Get(t.Context(), end-1)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -92,7 +88,7 @@ func TestAppendWithConflictResolution(t *testing.T) {
 		expectErr := errors.New("<error>")
 
 		if _, err := AppendWithConflictResolution(
-			ctx,
+			t.Context(),
 			j,
 			0,
 			400,

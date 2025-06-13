@@ -1,20 +1,15 @@
 package journal_test
 
 import (
-	"context"
 	"testing"
-	"time"
 
 	"github.com/dogmatiq/persistencekit/driver/memory/memoryjournal"
 	. "github.com/dogmatiq/persistencekit/journal"
 )
 
 func TestIsFresh(t *testing.T) {
-	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
-	defer cancel()
-
 	store := &memoryjournal.Store[int]{}
-	j, err := store.Open(ctx, "test")
+	j, err := store.Open(t.Context(), "test")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -22,7 +17,7 @@ func TestIsFresh(t *testing.T) {
 
 	t.Run("when the journal is empty", func(t *testing.T) {
 		t.Run("it returns true", func(t *testing.T) {
-			ok, err := IsFresh(ctx, j)
+			ok, err := IsFresh(t.Context(), j)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -33,12 +28,12 @@ func TestIsFresh(t *testing.T) {
 	})
 
 	t.Run("when the journal has records", func(t *testing.T) {
-		if err := j.Append(ctx, 0, 100); err != nil {
+		if err := j.Append(t.Context(), 0, 100); err != nil {
 			t.Fatal(err)
 		}
 
 		t.Run("it returns false", func(t *testing.T) {
-			ok, err := IsFresh(ctx, j)
+			ok, err := IsFresh(t.Context(), j)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -49,12 +44,12 @@ func TestIsFresh(t *testing.T) {
 	})
 
 	t.Run("when the journal has been fully truncated", func(t *testing.T) {
-		if err := j.Truncate(ctx, 1); err != nil {
+		if err := j.Truncate(t.Context(), 1); err != nil {
 			t.Fatal(err)
 		}
 
 		t.Run("it continues to return false", func(t *testing.T) {
-			ok, err := IsFresh(ctx, j)
+			ok, err := IsFresh(t.Context(), j)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -66,11 +61,8 @@ func TestIsFresh(t *testing.T) {
 }
 
 func TestIsEmpty(t *testing.T) {
-	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
-	defer cancel()
-
 	store := &memoryjournal.Store[int]{}
-	j, err := store.Open(ctx, "test")
+	j, err := store.Open(t.Context(), "test")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -78,7 +70,7 @@ func TestIsEmpty(t *testing.T) {
 
 	t.Run("when the journal is empty", func(t *testing.T) {
 		t.Run("it returns true", func(t *testing.T) {
-			ok, err := IsEmpty(ctx, j)
+			ok, err := IsEmpty(t.Context(), j)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -89,12 +81,12 @@ func TestIsEmpty(t *testing.T) {
 	})
 
 	t.Run("when the journal has records", func(t *testing.T) {
-		if err := j.Append(ctx, 0, 100); err != nil {
+		if err := j.Append(t.Context(), 0, 100); err != nil {
 			t.Fatal(err)
 		}
 
 		t.Run("it returns false", func(t *testing.T) {
-			ok, err := IsEmpty(ctx, j)
+			ok, err := IsEmpty(t.Context(), j)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -105,12 +97,12 @@ func TestIsEmpty(t *testing.T) {
 	})
 
 	t.Run("when the journal has been fully truncated", func(t *testing.T) {
-		if err := j.Truncate(ctx, 1); err != nil {
+		if err := j.Truncate(t.Context(), 1); err != nil {
 			t.Fatal(err)
 		}
 
 		t.Run("it returns true", func(t *testing.T) {
-			ok, err := IsEmpty(ctx, j)
+			ok, err := IsEmpty(t.Context(), j)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -122,11 +114,8 @@ func TestIsEmpty(t *testing.T) {
 }
 
 func TestFirstRecord(t *testing.T) {
-	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
-	defer cancel()
-
 	store := &memoryjournal.Store[int]{}
-	j, err := store.Open(ctx, "test")
+	j, err := store.Open(t.Context(), "test")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -134,7 +123,7 @@ func TestFirstRecord(t *testing.T) {
 
 	t.Run("when the journal is empty", func(t *testing.T) {
 		t.Run("it returns false", func(t *testing.T) {
-			_, _, ok, err := FirstRecord(ctx, j)
+			_, _, ok, err := FirstRecord(t.Context(), j)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -145,16 +134,16 @@ func TestFirstRecord(t *testing.T) {
 	})
 
 	t.Run("when the journal has records", func(t *testing.T) {
-		if err := j.Append(ctx, 0, 100); err != nil {
+		if err := j.Append(t.Context(), 0, 100); err != nil {
 			t.Fatal(err)
 		}
 
-		if err := j.Append(ctx, 1, 200); err != nil {
+		if err := j.Append(t.Context(), 1, 200); err != nil {
 			t.Fatal(err)
 		}
 
 		t.Run("it returns the first record", func(t *testing.T) {
-			pos, rec, ok, err := FirstRecord(ctx, j)
+			pos, rec, ok, err := FirstRecord(t.Context(), j)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -173,12 +162,12 @@ func TestFirstRecord(t *testing.T) {
 	})
 
 	t.Run("when the journal has been partially truncated", func(t *testing.T) {
-		if err := j.Truncate(ctx, 1); err != nil {
+		if err := j.Truncate(t.Context(), 1); err != nil {
 			t.Fatal(err)
 		}
 
 		t.Run("it returns the first non-truncated record", func(t *testing.T) {
-			pos, rec, ok, err := FirstRecord(ctx, j)
+			pos, rec, ok, err := FirstRecord(t.Context(), j)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -197,12 +186,12 @@ func TestFirstRecord(t *testing.T) {
 	})
 
 	t.Run("when the journal has been fully truncated", func(t *testing.T) {
-		if err := j.Truncate(ctx, 2); err != nil {
+		if err := j.Truncate(t.Context(), 2); err != nil {
 			t.Fatal(err)
 		}
 
 		t.Run("it returns false", func(t *testing.T) {
-			_, _, ok, err := FirstRecord(ctx, j)
+			_, _, ok, err := FirstRecord(t.Context(), j)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -214,11 +203,8 @@ func TestFirstRecord(t *testing.T) {
 }
 
 func TestLastRecord(t *testing.T) {
-	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
-	defer cancel()
-
 	store := &memoryjournal.Store[int]{}
-	j, err := store.Open(ctx, "test")
+	j, err := store.Open(t.Context(), "test")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -226,7 +212,7 @@ func TestLastRecord(t *testing.T) {
 
 	t.Run("when the journal is empty", func(t *testing.T) {
 		t.Run("it returns false", func(t *testing.T) {
-			_, _, ok, err := LastRecord(ctx, j)
+			_, _, ok, err := LastRecord(t.Context(), j)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -237,16 +223,16 @@ func TestLastRecord(t *testing.T) {
 	})
 
 	t.Run("when the journal has records", func(t *testing.T) {
-		if err := j.Append(ctx, 0, 100); err != nil {
+		if err := j.Append(t.Context(), 0, 100); err != nil {
 			t.Fatal(err)
 		}
 
-		if err := j.Append(ctx, 1, 200); err != nil {
+		if err := j.Append(t.Context(), 1, 200); err != nil {
 			t.Fatal(err)
 		}
 
 		t.Run("it returns the last record", func(t *testing.T) {
-			pos, rec, ok, err := LastRecord(ctx, j)
+			pos, rec, ok, err := LastRecord(t.Context(), j)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -265,12 +251,12 @@ func TestLastRecord(t *testing.T) {
 	})
 
 	t.Run("when the journal has been partially truncated", func(t *testing.T) {
-		if err := j.Truncate(ctx, 1); err != nil {
+		if err := j.Truncate(t.Context(), 1); err != nil {
 			t.Fatal(err)
 		}
 
 		t.Run("it continues to return the last record", func(t *testing.T) {
-			pos, rec, ok, err := LastRecord(ctx, j)
+			pos, rec, ok, err := LastRecord(t.Context(), j)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -289,12 +275,12 @@ func TestLastRecord(t *testing.T) {
 	})
 
 	t.Run("when the journal has been fully truncated", func(t *testing.T) {
-		if err := j.Truncate(ctx, 2); err != nil {
+		if err := j.Truncate(t.Context(), 2); err != nil {
 			t.Fatal(err)
 		}
 
 		t.Run("it returns false", func(t *testing.T) {
-			_, _, ok, err := LastRecord(ctx, j)
+			_, _, ok, err := LastRecord(t.Context(), j)
 			if err != nil {
 				t.Fatal(err)
 			}

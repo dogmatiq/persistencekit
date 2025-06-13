@@ -1,9 +1,7 @@
 package dynamokv_test
 
 import (
-	"context"
 	"testing"
-	"time"
 
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	. "github.com/dogmatiq/persistencekit/driver/aws/dynamokv"
@@ -33,10 +31,12 @@ func setup(t testing.TB) (*dynamodb.Client, string) {
 	table := testx.UniqueName("table")
 
 	t.Cleanup(func() {
-		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-		defer cancel()
-
-		if err := dynamox.DeleteTableIfExists(ctx, client, table, nil); err != nil {
+		if err := dynamox.DeleteTableIfExists(
+			testx.ContextForCleanup(t),
+			client,
+			table,
+			nil,
+		); err != nil {
 			t.Error(err)
 		}
 	})

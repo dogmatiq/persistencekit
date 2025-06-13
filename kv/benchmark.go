@@ -18,17 +18,19 @@ func RunBenchmarks(
 	b.Run("Store", func(b *testing.B) {
 		b.Run("Open", func(b *testing.B) {
 			b.Run("existing keyspace", func(b *testing.B) {
-				var name string
+				var (
+					name string
+					ks   BinaryKeyspace
+				)
 
-				benchmarkStore(
+				testx.Benchmark(
 					b,
-					store,
 					// SETUP
-					func(ctx context.Context, s BinaryStore) error {
+					func(ctx context.Context) error {
 						name = testx.SequentialName("keyspace")
 
 						// pre-create the keyspace
-						ks, err := s.Open(ctx, name)
+						ks, err := store.Open(ctx, name)
 						if err != nil {
 							return err
 						}
@@ -37,35 +39,39 @@ func RunBenchmarks(
 					// BEFORE EACH
 					nil,
 					// BENCHMARKED CODE
-					func(ctx context.Context, s BinaryStore) (BinaryKeyspace, error) {
-						return s.Open(ctx, name)
+					func(ctx context.Context) (err error) {
+						ks, err = store.Open(ctx, name)
+						return err
 					},
 					// AFTER EACH
-					func(ks BinaryKeyspace) error {
+					func(context.Context) error {
 						return ks.Close()
 					},
 				)
 			})
 
 			b.Run("new keyspace", func(b *testing.B) {
-				var name string
+				var (
+					name string
+					ks   BinaryKeyspace
+				)
 
-				benchmarkStore(
+				testx.Benchmark(
 					b,
-					store,
 					// SETUP
 					nil,
 					// BEFORE EACH
-					func(context.Context, BinaryStore) error {
+					func(context.Context) error {
 						name = testx.SequentialName("keyspace")
 						return nil
 					},
 					// BENCHMARKED CODE
-					func(ctx context.Context, s BinaryStore) (BinaryKeyspace, error) {
-						return s.Open(ctx, name)
+					func(ctx context.Context) (err error) {
+						ks, err = store.Open(ctx, name)
+						return err
 					},
 					// AFTER EACH
-					func(ks BinaryKeyspace) error {
+					func(context.Context) error {
 						return ks.Close()
 					},
 				)
@@ -279,45 +285,6 @@ func RunBenchmarks(
 	})
 }
 
-func benchmarkStore[T any](
-	b *testing.B,
-	store BinaryStore,
-	setup func(context.Context, BinaryStore) error,
-	before func(context.Context, BinaryStore) error,
-	fn func(context.Context, BinaryStore) (T, error),
-	after func(T) error,
-) {
-	var result T
-
-	testx.Benchmark(
-		b,
-		func(ctx context.Context) error {
-			if setup != nil {
-				return setup(ctx, store)
-			}
-
-			return nil
-		},
-		func(ctx context.Context) error {
-			if before != nil {
-				return before(ctx, store)
-			}
-			return nil
-		},
-		func(ctx context.Context) error {
-			var err error
-			result, err = fn(ctx, store)
-			return err
-		},
-		func(ctx context.Context) error {
-			if after != nil {
-				return after(result)
-			}
-			return nil
-		},
-	)
-}
-
 func benchmarkKeyspace(
 	b *testing.B,
 	store BinaryStore,
@@ -356,7 +323,7 @@ func benchmarkKeyspace(
 		func(ctx context.Context) error {
 			return fn(ctx, keyspace)
 		},
-		func(ctx context.Context) error {
+		func(context.Context) error {
 			if after != nil {
 				return after()
 			}

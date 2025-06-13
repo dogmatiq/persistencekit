@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"math"
 	"testing"
-	"time"
 
 	"github.com/dogmatiq/persistencekit/internal/testx"
 	"github.com/google/go-cmp/cmp"
@@ -19,13 +18,10 @@ func RunTests(
 	t *testing.T,
 	store BinaryStore,
 ) {
-	setup := func(t *testing.T) (context.Context, BinaryJournal) {
-		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-		t.Cleanup(cancel)
-
+	setup := func(t *testing.T) BinaryJournal {
 		name := testx.SequentialName("journal")
 
-		j, err := store.Open(ctx, name)
+		j, err := store.Open(t.Context(), name)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -39,7 +35,7 @@ func RunTests(
 			t.Fatalf("unexpected journal name: got %q, want %q", j.Name(), name)
 		}
 
-		return ctx, j
+		return j
 	}
 
 	t.Run("Store", func(t *testing.T) {
@@ -51,29 +47,26 @@ func RunTests(
 			t.Run("allows a journal to be opened multiple times", func(t *testing.T) {
 				t.Parallel()
 
-				ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-				defer cancel()
-
 				name := testx.SequentialName("journal")
 
-				j1, err := store.Open(ctx, name)
+				j1, err := store.Open(t.Context(), name)
 				if err != nil {
 					t.Fatal(err)
 				}
 				defer j1.Close()
 
-				j2, err := store.Open(ctx, name)
+				j2, err := store.Open(t.Context(), name)
 				if err != nil {
 					t.Fatal(err)
 				}
 				defer j2.Close()
 
 				want := []byte("<record>")
-				if err := j1.Append(ctx, 0, want); err != nil {
+				if err := j1.Append(t.Context(), 0, want); err != nil {
 					t.Fatal(err)
 				}
 
-				got, err := j2.Get(ctx, 0)
+				got, err := j2.Get(t.Context(), 0)
 				if err != nil {
 					t.Fatal(err)
 				}
@@ -95,26 +88,26 @@ func RunTests(
 				cases := []struct {
 					Name   string
 					Expect Interval
-					Setup  func(context.Context, *testing.T, BinaryJournal)
+					Setup  func(*testing.T, BinaryJournal)
 				}{
 					{
 						"empty",
 						Interval{0, 0},
-						func(context.Context, *testing.T, BinaryJournal) {},
+						func(*testing.T, BinaryJournal) {},
 					},
 					{
 						"with records",
 						Interval{0, 10},
-						func(ctx context.Context, t *testing.T, j BinaryJournal) {
-							appendRecords(ctx, t, j, 10)
+						func(t *testing.T, j BinaryJournal) {
+							appendRecords(t, j, 10)
 						},
 					},
 					{
 						"with some records truncated",
 						Interval{5, 10},
-						func(ctx context.Context, t *testing.T, j BinaryJournal) {
-							appendRecords(ctx, t, j, 10)
-							if err := j.Truncate(ctx, 5); err != nil {
+						func(t *testing.T, j BinaryJournal) {
+							appendRecords(t, j, 10)
+							if err := j.Truncate(t.Context(), 5); err != nil {
 								t.Fatal(err)
 							}
 						},
@@ -122,9 +115,9 @@ func RunTests(
 					{
 						"with all records truncated",
 						Interval{10, 10},
-						func(ctx context.Context, t *testing.T, j BinaryJournal) {
-							appendRecords(ctx, t, j, 10)
-							if err := j.Truncate(ctx, 10); err != nil {
+						func(t *testing.T, j BinaryJournal) {
+							appendRecords(t, j, 10)
+							if err := j.Truncate(t.Context(), 10); err != nil {
 								t.Fatal(err)
 							}
 						},
@@ -135,11 +128,11 @@ func RunTests(
 					t.Run(c.Name, func(t *testing.T) {
 						t.Parallel()
 
-						ctx, j := setup(t)
+						j := setup(t)
 
-						c.Setup(ctx, t, j)
+						c.Setup(t, j)
 
-						bounds, err := j.Bounds(ctx)
+						bounds, err := j.Bounds(t.Context())
 						if err != nil {
 							t.Fatal(err)
 						}
@@ -162,9 +155,9 @@ func RunTests(
 			t.Run("it returns a RecordNotFoundError if there is no record at the given position", func(t *testing.T) {
 				t.Parallel()
 
-				ctx, j := setup(t)
+				j := setup(t)
 
-				_, err := j.Get(ctx, 1)
+				_, err := j.Get(t.Context(), 1)
 
 				expect := RecordNotFoundError{
 					Journal:  j.Name(),
@@ -178,14 +171,14 @@ func RunTests(
 			t.Run("it returns the record if it exists", func(t *testing.T) {
 				t.Parallel()
 
-				ctx, j := setup(t)
+				j := setup(t)
 
 				// Ensure we test with a position that becomes 2 digits long to
 				// confirm that the implementation is not using a lexical sort.
-				records := appendRecords(ctx, t, j, 15)
+				records := appendRecords(t, j, 15)
 
 				for i, want := range records {
-					got, err := j.Get(ctx, Position(i))
+					got, err := j.Get(t.Context(), Position(i))
 					if err != nil {
 						t.Fatal(err)
 					}
@@ -204,13 +197,13 @@ func RunTests(
 			t.Run("it returns a RecordNotFoundError if the record has been truncated", func(t *testing.T) {
 				t.Parallel()
 
-				ctx, j := setup(t)
+				j := setup(t)
 
 				const recordCount = 5
 				const truncateBefore = 3
-				records := appendRecords(ctx, t, j, recordCount)
+				records := appendRecords(t, j, recordCount)
 
-				err := j.Truncate(ctx, truncateBefore)
+				err := j.Truncate(t.Context(), truncateBefore)
 				if err != nil {
 					t.Fatal(err)
 				}
@@ -223,11 +216,11 @@ func RunTests(
 							Journal:  j.Name(),
 							Position: pos,
 						}
-						if _, err := j.Get(ctx, pos); err != expect {
+						if _, err := j.Get(t.Context(), pos); err != expect {
 							t.Fatalf("unexpected error at position %d: got %q, want %q", pos, err, expect)
 						}
 					} else {
-						got, err := j.Get(ctx, pos)
+						got, err := j.Get(t.Context(), pos)
 						if err != nil {
 							t.Fatal(err)
 						}
@@ -247,11 +240,11 @@ func RunTests(
 			t.Run("it does not return any records when all records are truncated", func(t *testing.T) {
 				t.Parallel()
 
-				ctx, j := setup(t)
+				j := setup(t)
 
-				records := appendRecords(ctx, t, j, 5)
+				records := appendRecords(t, j, 5)
 
-				err := j.Truncate(ctx, 5)
+				err := j.Truncate(t.Context(), 5)
 				if err != nil {
 					t.Fatal(err)
 				}
@@ -262,7 +255,7 @@ func RunTests(
 						Journal:  j.Name(),
 						Position: pos,
 					}
-					if _, err := j.Get(ctx, pos); err != expect {
+					if _, err := j.Get(t.Context(), pos); err != expect {
 						t.Fatalf("unexpected error at position %d: got %q, want %q", pos, err, expect)
 					}
 				}
@@ -271,18 +264,18 @@ func RunTests(
 			t.Run("it does not return its internal byte slice", func(t *testing.T) {
 				t.Parallel()
 
-				ctx, j := setup(t)
+				j := setup(t)
 
-				appendRecords(ctx, t, j, 1)
+				appendRecords(t, j, 1)
 
-				rec, err := j.Get(ctx, 0)
+				rec, err := j.Get(t.Context(), 0)
 				if err != nil {
 					t.Fatal(err)
 				}
 
 				rec[0] = 'X'
 
-				got, err := j.Get(ctx, 0)
+				got, err := j.Get(t.Context(), 0)
 				if err != nil {
 					t.Fatal(err)
 				}
@@ -300,9 +293,9 @@ func RunTests(
 			t.Run("handles maximum position value", func(t *testing.T) {
 				t.Parallel()
 
-				ctx, j := setup(t)
+				j := setup(t)
 
-				_, err := j.Get(ctx, math.MaxUint64)
+				_, err := j.Get(t.Context(), math.MaxUint64)
 				if !IsNotFound(err) {
 					t.Fatalf("unexpected error: got %q, want IsNotFound(err) == true", err)
 				}
@@ -315,16 +308,16 @@ func RunTests(
 			t.Run("calls the function for each record in the journal", func(t *testing.T) {
 				t.Parallel()
 
-				ctx, j := setup(t)
+				j := setup(t)
 
-				want := appendRecords(ctx, t, j, 15)
+				want := appendRecords(t, j, 15)
 
 				var got [][]byte
 				wantPos := Position(10)
 				want = want[wantPos:]
 
 				if err := j.Range(
-					ctx,
+					t.Context(),
 					wantPos,
 					func(_ context.Context, gotPos Position, rec []byte) (bool, error) {
 						if gotPos != wantPos {
@@ -348,13 +341,13 @@ func RunTests(
 			t.Run("it stops iterating if the function returns false", func(t *testing.T) {
 				t.Parallel()
 
-				ctx, j := setup(t)
+				j := setup(t)
 
-				appendRecords(ctx, t, j, 2)
+				appendRecords(t, j, 2)
 
 				called := false
 				if err := j.Range(
-					ctx,
+					t.Context(),
 					0,
 					func(context.Context, Position, []byte) (bool, error) {
 						if called {
@@ -372,10 +365,10 @@ func RunTests(
 			t.Run("it returns a RecordNotFoundError if the journal is empty", func(t *testing.T) {
 				t.Parallel()
 
-				ctx, j := setup(t)
+				j := setup(t)
 
 				err := j.Range(
-					ctx,
+					t.Context(),
 					0,
 					func(context.Context, Position, []byte) (bool, error) {
 						t.Fatal("unexpected call")
@@ -395,13 +388,13 @@ func RunTests(
 			t.Run("it does not range over truncated records", func(t *testing.T) {
 				t.Parallel()
 
-				ctx, j := setup(t)
+				j := setup(t)
 
 				const recordCount = 5
 				const truncateBefore = 3
-				records := appendRecords(ctx, t, j, recordCount)
+				records := appendRecords(t, j, recordCount)
 
-				err := j.Truncate(ctx, truncateBefore)
+				err := j.Truncate(t.Context(), truncateBefore)
 				if err != nil {
 					t.Fatal(err)
 				}
@@ -416,7 +409,7 @@ func RunTests(
 						}
 
 						if err := j.Range(
-							ctx,
+							t.Context(),
 							pos,
 							func(context.Context, Position, []byte) (bool, error) {
 								t.Fatal("unexpected call")
@@ -427,7 +420,7 @@ func RunTests(
 						}
 					} else {
 						if err := j.Range(
-							ctx,
+							t.Context(),
 							pos,
 							func(_ context.Context, pos Position, got []byte) (bool, error) {
 								if !bytes.Equal(want, got) {
@@ -450,11 +443,11 @@ func RunTests(
 			t.Run("it does not range over truncated records when all records are truncated", func(t *testing.T) {
 				t.Parallel()
 
-				ctx, j := setup(t)
+				j := setup(t)
 
-				records := appendRecords(ctx, t, j, 5)
+				records := appendRecords(t, j, 5)
 
-				err := j.Truncate(ctx, 5)
+				err := j.Truncate(t.Context(), 5)
 				if err != nil {
 					t.Fatal(err)
 				}
@@ -467,7 +460,7 @@ func RunTests(
 					}
 
 					if err := j.Range(
-						ctx,
+						t.Context(),
 						pos,
 						func(context.Context, Position, []byte) (bool, error) {
 							t.Fatal("unexpected call")
@@ -486,12 +479,12 @@ func RunTests(
 			t.Run("it does not invoke the function with its internal byte slice", func(t *testing.T) {
 				t.Parallel()
 
-				ctx, j := setup(t)
+				j := setup(t)
 
-				appendRecords(ctx, t, j, 1)
+				appendRecords(t, j, 1)
 
 				if err := j.Range(
-					ctx,
+					t.Context(),
 					0,
 					func(_ context.Context, _ Position, rec []byte) (bool, error) {
 						rec[0] = 'X'
@@ -501,7 +494,7 @@ func RunTests(
 					t.Fatal(err)
 				}
 
-				got, err := j.Get(ctx, 0)
+				got, err := j.Get(t.Context(), 0)
 				if err != nil {
 					t.Fatal(err)
 				}
@@ -519,10 +512,10 @@ func RunTests(
 			t.Run("handles maximum position value", func(t *testing.T) {
 				t.Parallel()
 
-				ctx, j := setup(t)
+				j := setup(t)
 
 				err := j.Range(
-					ctx,
+					t.Context(),
 					math.MaxUint64,
 					func(context.Context, Position, []byte) (bool, error) {
 						t.Fatal("unexpected call")
@@ -542,9 +535,9 @@ func RunTests(
 			t.Run("it does not return an error if there is no record at the given position", func(t *testing.T) {
 				t.Parallel()
 
-				ctx, j := setup(t)
+				j := setup(t)
 
-				if err := j.Append(ctx, 0, []byte("<record>")); err != nil {
+				if err := j.Append(t.Context(), 0, []byte("<record>")); err != nil {
 					t.Fatal(err)
 				}
 			})
@@ -552,18 +545,18 @@ func RunTests(
 			t.Run("it returns a ConflictError if there is already a record at the given position", func(t *testing.T) {
 				t.Parallel()
 
-				ctx, j := setup(t)
+				j := setup(t)
 
-				if err := j.Append(ctx, 0, []byte("<prior>")); err != nil {
+				if err := j.Append(t.Context(), 0, []byte("<prior>")); err != nil {
 					t.Fatal(err)
 				}
 
 				want := []byte("<original>")
-				if err := j.Append(ctx, 1, want); err != nil {
+				if err := j.Append(t.Context(), 1, want); err != nil {
 					t.Fatal(err)
 				}
 
-				err := j.Append(ctx, 1, []byte("<conflicting>"))
+				err := j.Append(t.Context(), 1, []byte("<conflicting>"))
 
 				expect := ConflictError{
 					Journal:  j.Name(),
@@ -573,7 +566,7 @@ func RunTests(
 					t.Fatalf("unexpected error: got %q, want %q", err, expect)
 				}
 
-				got, err := j.Get(ctx, 1)
+				got, err := j.Get(t.Context(), 1)
 				if err != nil {
 					t.Fatal(err)
 				}
@@ -590,14 +583,14 @@ func RunTests(
 			t.Run("it returns a ConflictError if there is a truncated record at the given position", func(t *testing.T) {
 				t.Parallel()
 
-				ctx, j := setup(t)
+				j := setup(t)
 
-				appendRecords(ctx, t, j, 2)
-				if err := j.Truncate(ctx, 2); err != nil {
+				appendRecords(t, j, 2)
+				if err := j.Truncate(t.Context(), 2); err != nil {
 					t.Fatal(err)
 				}
 
-				err := j.Append(ctx, 0, []byte("<conflicting>"))
+				err := j.Append(t.Context(), 0, []byte("<conflicting>"))
 
 				expect := ConflictError{
 					Journal:  j.Name(),
@@ -607,7 +600,7 @@ func RunTests(
 					t.Fatalf("unexpected error: got %q, want %q", err, expect)
 				}
 
-				_, err = j.Get(ctx, 0)
+				_, err = j.Get(t.Context(), 0)
 				if !IsNotFound(err) {
 					t.Fatalf("unexpected error: got %q, want IsNotFound(err) == true", err)
 				}
@@ -616,12 +609,12 @@ func RunTests(
 					Journal:  j.Name(),
 					Position: 1,
 				}
-				err = j.Append(ctx, 1, []byte("<conflicting>"))
+				err = j.Append(t.Context(), 1, []byte("<conflicting>"))
 				if err != expect {
 					t.Fatalf("unexpected error: got %q, want %q", err, expect)
 				}
 
-				_, err = j.Get(ctx, 1)
+				_, err = j.Get(t.Context(), 1)
 				if !IsNotFound(err) {
 					t.Fatalf("unexpected error: got %q, want IsNotFound(err) == true", err)
 				}
@@ -630,17 +623,17 @@ func RunTests(
 			t.Run("it does not keep a reference to the record slice", func(t *testing.T) {
 				t.Parallel()
 
-				ctx, j := setup(t)
+				j := setup(t)
 
 				rec := []byte("<record>")
 
-				if err := j.Append(ctx, 0, rec); err != nil {
+				if err := j.Append(t.Context(), 0, rec); err != nil {
 					t.Fatal(err)
 				}
 
 				rec[0] = 'X'
 
-				got, err := j.Get(ctx, 0)
+				got, err := j.Get(t.Context(), 0)
 				if err != nil {
 					t.Fatal(err)
 				}
@@ -654,21 +647,21 @@ func RunTests(
 			t.Run("it does not conflate records from separate journals", func(t *testing.T) {
 				t.Parallel()
 
-				ctx, j1 := setup(t)
-				_, j2 := setup(t)
+				j1 := setup(t)
+				j2 := setup(t)
 
 				want1 := []byte("<record-j1>")
 				want2 := []byte("<record-j2>")
 
-				if err := j1.Append(ctx, 0, want1); err != nil {
+				if err := j1.Append(t.Context(), 0, want1); err != nil {
 					t.Fatal(err)
 				}
 
-				if err := j2.Append(ctx, 0, want2); err != nil {
+				if err := j2.Append(t.Context(), 0, want2); err != nil {
 					t.Fatal(err)
 				}
 
-				got1, err := j1.Get(ctx, 0)
+				got1, err := j1.Get(t.Context(), 0)
 				if err != nil {
 					t.Fatal(err)
 				}
@@ -677,7 +670,7 @@ func RunTests(
 					t.Fatalf("unexpected record in j1: got %q, want %q", string(got1), string(want1))
 				}
 
-				got2, err := j2.Get(ctx, 0)
+				got2, err := j2.Get(t.Context(), 0)
 				if err != nil {
 					t.Fatal(err)
 				}
@@ -694,15 +687,15 @@ func RunTests(
 			t.Run("it truncates the journal", func(t *testing.T) {
 				t.Parallel()
 
-				ctx, j := setup(t)
+				j := setup(t)
 
-				appendRecords(ctx, t, j, 3)
+				appendRecords(t, j, 3)
 
-				if err := j.Truncate(ctx, 1); err != nil {
+				if err := j.Truncate(t.Context(), 1); err != nil {
 					t.Fatal(err)
 				}
 
-				got, err := j.Bounds(ctx)
+				got, err := j.Bounds(t.Context())
 				if err != nil {
 					t.Fatal(err)
 				}
@@ -716,15 +709,15 @@ func RunTests(
 			t.Run("it allows truncating all records", func(t *testing.T) {
 				t.Parallel()
 
-				ctx, j := setup(t)
+				j := setup(t)
 
-				appendRecords(ctx, t, j, 3)
+				appendRecords(t, j, 3)
 
-				if err := j.Truncate(ctx, 3); err != nil {
+				if err := j.Truncate(t.Context(), 3); err != nil {
 					t.Fatal(err)
 				}
 
-				got, err := j.Bounds(ctx)
+				got, err := j.Bounds(t.Context())
 				if err != nil {
 					t.Fatal(err)
 				}
@@ -739,19 +732,19 @@ func RunTests(
 			t.Run("it does not fail when the records have already been truncated", func(t *testing.T) {
 				t.Parallel()
 
-				ctx, j := setup(t)
+				j := setup(t)
 
-				appendRecords(ctx, t, j, 3)
+				appendRecords(t, j, 3)
 
-				if err := j.Truncate(ctx, 1); err != nil {
+				if err := j.Truncate(t.Context(), 1); err != nil {
 					t.Fatal(err)
 				}
 
-				if err := j.Truncate(ctx, 2); err != nil {
+				if err := j.Truncate(t.Context(), 2); err != nil {
 					t.Fatal(err)
 				}
 
-				got, err := j.Bounds(ctx)
+				got, err := j.Bounds(t.Context())
 				if err != nil {
 					t.Fatal(err)
 				}
@@ -768,10 +761,7 @@ func RunTests(
 		t.Parallel()
 
 		rapid.Check(t, func(t *rapid.T) {
-			ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-			defer cancel()
-
-			j, err := store.Open(ctx, testx.SequentialName("journal"))
+			j, err := store.Open(t.Context(), testx.SequentialName("journal"))
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -783,7 +773,7 @@ func RunTests(
 			t.Repeat(
 				map[string]func(*rapid.T){
 					"": func(t *rapid.T) {
-						got, err := j.Bounds(ctx)
+						got, err := j.Bounds(t.Context())
 						if err != nil {
 							t.Fatal(err)
 						}
@@ -803,7 +793,7 @@ func RunTests(
 							).Draw(t, "pos"),
 						)
 
-						rec, err := j.Get(ctx, pos)
+						rec, err := j.Get(t.Context(), pos)
 						if err != nil {
 							t.Fatal(err)
 						}
@@ -830,7 +820,7 @@ func RunTests(
 							).Draw(t, "pos"),
 						)
 
-						_, err := j.Get(ctx, pos)
+						_, err := j.Get(t.Context(), pos)
 						if !IsNotFound(err) {
 							t.Fatalf("unexpected error: got %q, want IsNotFound(err) == true", err)
 						}
@@ -842,7 +832,7 @@ func RunTests(
 							).Draw(t, "pos"),
 						)
 
-						_, err := j.Get(ctx, pos)
+						_, err := j.Get(t.Context(), pos)
 						if !IsNotFound(err) {
 							t.Fatalf("unexpected error: got %q, want IsNotFound(err) == true", err)
 						}
@@ -855,7 +845,7 @@ func RunTests(
 						wantPos := bounds.Begin
 
 						if err := j.Range(
-							ctx,
+							t.Context(),
 							wantPos,
 							func(_ context.Context, gotPos Position, gotRec []byte) (bool, error) {
 								if gotPos != wantPos {
@@ -896,7 +886,7 @@ func RunTests(
 						)
 
 						if err := j.Range(
-							ctx,
+							t.Context(),
 							pos,
 							func(context.Context, Position, []byte) (bool, error) {
 								return false, errors.New("unexpected call")
@@ -913,7 +903,7 @@ func RunTests(
 						)
 
 						if err := j.Range(
-							ctx,
+							t.Context(),
 							pos,
 							func(context.Context, Position, []byte) (bool, error) {
 								return false, errors.New("unexpected call")
@@ -925,7 +915,7 @@ func RunTests(
 					"Append (success)": func(t *rapid.T) {
 						rec := rapid.String().Draw(t, "rec")
 
-						err := j.Append(ctx, bounds.End, []byte(rec))
+						err := j.Append(t.Context(), bounds.End, []byte(rec))
 						if err != nil {
 							t.Fatalf("unable to append record at position %d: %s", bounds.End, err)
 						}
@@ -949,7 +939,7 @@ func RunTests(
 
 						rec := rapid.String().Draw(t, "rec")
 
-						err := j.Append(ctx, pos, []byte(rec))
+						err := j.Append(t.Context(), pos, []byte(rec))
 						if !IsConflict(err) {
 							t.Fatalf("unexpected error: got %q, want IsConflict(err) == true", err)
 						}
@@ -970,7 +960,7 @@ func RunTests(
 
 						rec := rapid.String().Draw(t, "rec")
 
-						err := j.Append(ctx, pos, []byte(rec))
+						err := j.Append(t.Context(), pos, []byte(rec))
 						if !IsConflict(err) {
 							t.Fatalf("unexpected error: got %q, want IsConflict(err) == true", err)
 						}
@@ -989,7 +979,7 @@ func RunTests(
 							).Draw(t, "pos"),
 						)
 
-						err := j.Truncate(ctx, pos)
+						err := j.Truncate(t.Context(), pos)
 						if err != nil {
 							t.Fatalf("unable to truncate records before position %d: %s", pos, err)
 						}
@@ -1003,7 +993,7 @@ func RunTests(
 							t.Skip("skip: journal is empty")
 						}
 
-						err := j.Truncate(ctx, bounds.End)
+						err := j.Truncate(t.Context(), bounds.End)
 						if err != nil {
 							t.Fatalf("unable to truncate records before position %d: %s", bounds.End, err)
 						}
@@ -1023,7 +1013,7 @@ func RunTests(
 							).Draw(t, "pos"),
 						)
 
-						err := j.Truncate(ctx, pos)
+						err := j.Truncate(t.Context(), pos)
 						if err != nil {
 							t.Fatalf("unable to truncate records before position %d: %s", pos, err)
 						}
@@ -1038,7 +1028,6 @@ func RunTests(
 
 // appendRecords appends records to j.
 func appendRecords(
-	ctx context.Context,
 	t *testing.T,
 	j BinaryJournal,
 	n int,
@@ -1052,7 +1041,7 @@ func appendRecords(
 
 		records = append(records, rec)
 
-		if err := j.Append(ctx, pos, rec); err != nil {
+		if err := j.Append(t.Context(), pos, rec); err != nil {
 			t.Fatal(err)
 		}
 	}
