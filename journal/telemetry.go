@@ -36,18 +36,17 @@ type instrumentedStore struct {
 func (s *instrumentedStore) Open(ctx context.Context, name string) (BinaryJournal, error) {
 	telem := s.Telemetry.Recorder(
 		"github.com/dogmatiq/persistencekit/journal",
-		telemetry.Type("store", s.Next),
-		telemetry.String("handle", telemetry.HandleID()),
-		telemetry.String("name", name),
+		telemetry.Type("journal.store", s.Next),
+		telemetry.String("journal.name", name),
+		telemetry.String("journal.handle", telemetry.HandleID()),
 	)
 
 	j := &instrumentedJournal{
-		Telemetry:     telem,
-		OpenCount:     telem.UpDownCounter("open_journals", "{journal}", "The number of journals that are currently open."),
-		ConflictCount: telem.Counter("conflicts", "{conflict}", "The number of times appending a record to the journal has failed due to a optimistic-concurrency conflict."),
-		RecordCount:   telem.Counter("records", "{record}", "The number of journal records that have been operated upon."),
-		RecordBytes:   telem.Counter("record_bytes", "By", "The cumulative size of the journal records that have been operated upon."),
-		RecordSizes:   telem.Histogram("record_sizes", "By", "The sizes of the journal records that have been operated upon."),
+		Telemetry:    telem,
+		OpenJournals: telem.UpDownCounter("open_journals", "{journal}", "The number of journal handles that are currently open."),
+		Conflicts:    telem.Counter("conflicts", "{error}", "The number of times appending a record to the journal has failed due to a optimistic-concurrency conflict."),
+		RecordIO:     telem.Counter("record.io", "By", "The cumulative size of the journal records that have been operated upon."),
+		RecordSize:   telem.Histogram("record.size", "By", "The sizes of the journal records that have been operated upon."),
 	}
 
 	ctx, span := j.Telemetry.StartSpan(ctx, "journal.open")
@@ -61,7 +60,7 @@ func (s *instrumentedStore) Open(ctx context.Context, name string) (BinaryJourna
 
 	j.Next = next
 
-	j.OpenCount(ctx, 1)
+	j.OpenJournals(ctx, 1)
 	j.Telemetry.Info(ctx, "journal.open.ok", "journal opened")
 
 	return j, nil
@@ -71,11 +70,10 @@ type instrumentedJournal struct {
 	Next      BinaryJournal
 	Telemetry *telemetry.Recorder
 
-	OpenCount     telemetry.Instrument[int64]
-	ConflictCount telemetry.Instrument[int64]
-	RecordCount   telemetry.Instrument[int64]
-	RecordBytes   telemetry.Instrument[int64]
-	RecordSizes   telemetry.Instrument[int64]
+	OpenJournals telemetry.Instrument[int64]
+	Conflicts    telemetry.Instrument[int64]
+	RecordIO     telemetry.Instrument[int64]
+	RecordSize   telemetry.Instrument[int64]
 }
 
 func (j *instrumentedJournal) Name() string {
@@ -123,9 +121,8 @@ func (j *instrumentedJournal) Get(ctx context.Context, pos Position) ([]byte, er
 		telemetry.Int("record_size", size),
 	)
 
-	j.RecordCount(ctx, 1, telemetry.ReadDirection)
-	j.RecordBytes(ctx, size, telemetry.ReadDirection)
-	j.RecordSizes(ctx, size, telemetry.ReadDirection)
+	j.RecordIO(ctx, size, telemetry.ReadDirection)
+	j.RecordSize(ctx, size, telemetry.ReadDirection)
 
 	j.Telemetry.Info(ctx, "journal.get.ok", "fetched journal record")
 
@@ -164,9 +161,8 @@ func (j *instrumentedJournal) Range(
 			size := int64(len(rec))
 			totalSize += size
 
-			j.RecordCount(ctx, 1, telemetry.ReadDirection)
-			j.RecordBytes(ctx, size, telemetry.ReadDirection)
-			j.RecordSizes(ctx, size, telemetry.ReadDirection)
+			j.RecordIO(ctx, size, telemetry.ReadDirection)
+			j.RecordSize(ctx, size, telemetry.ReadDirection)
 
 			ok, err := fn(ctx, pos, rec)
 			if ok || err != nil {
@@ -216,15 +212,14 @@ func (j *instrumentedJournal) Append(ctx context.Context, pos Position, rec []by
 	)
 	defer span.End()
 
-	j.RecordCount(ctx, 1, telemetry.WriteDirection)
-	j.RecordBytes(ctx, size, telemetry.WriteDirection)
-	j.RecordSizes(ctx, size, telemetry.WriteDirection)
+	j.RecordIO(ctx, size, telemetry.WriteDirection)
+	j.RecordSize(ctx, size, telemetry.WriteDirection)
 
 	err := j.Next.Append(ctx, pos, rec)
 	if err != nil {
 		if IsConflict(err) {
 			j.Telemetry.Error(ctx, "journal.append.conflict", err)
-			j.ConflictCount(ctx, 1)
+			j.Conflicts(ctx, 1)
 			span.SetAttributes(telemetry.Bool("conflict", true))
 		} else {
 			j.Telemetry.Error(ctx, "journal.append.error", err)
@@ -268,7 +263,7 @@ func (j *instrumentedJournal) Close() error {
 
 	defer func() {
 		j.Next = nil
-		j.OpenCount(ctx, -1)
+		j.OpenJournals(ctx, -1)
 	}()
 
 	if err := j.Next.Close(); err != nil {

@@ -36,21 +36,19 @@ type instrumentedStore struct {
 func (s *instrumentedStore) Open(ctx context.Context, name string) (BinaryKeyspace, error) {
 	telem := s.Telemetry.Recorder(
 		"github.com/dogmatiq/persistencekit/kv",
-		telemetry.Type("store", s.Next),
-		telemetry.String("handle", telemetry.HandleID()),
-		telemetry.String("name", name),
+		telemetry.Type("kv.store", s.Next),
+		telemetry.String("keyspace.name", name),
+		telemetry.String("keyspace.handle", telemetry.HandleID()),
 	)
 
 	ks := &instrumentedKeyspace{
-		Telemetry:  telem,
-		OpenCount:  telem.UpDownCounter("open_keyspaces", "{keyspace}", "The number of keyspaces that are currently open."),
-		MissCount:  telem.Counter("misses", "{operation}", "The number of times the value associated with a specific key was requested but not present in the keyspace."),
-		KeyCount:   telem.Counter("keys", "{key}", "The number of keys that have been operated upon."),
-		KeyBytes:   telem.Counter("key_bytes", "By", "The cumulative size of the keys that have been operated upon."),
-		KeySizes:   telem.Histogram("key_sizes", "By", "The sizes of the keys that have been operated upon."),
-		ValueCount: telem.Counter("values", "{value}", "The number of values that have been operated upon."),
-		ValueBytes: telem.Counter("value_bytes", "By", "The cumulative size of the values that have been operated upon."),
-		ValueSizes: telem.Histogram("value_sizes", "By", "The sizes of the values that have been operated upon."),
+		Telemetry:     telem,
+		OpenKeyspaces: telem.UpDownCounter("open_keyspaces", "{keyspace}", "The number of keyspaces that are currently open."),
+		Misses:        telem.Counter("misses", "{operation}", "The number of times the value associated with a specific key was requested but not present in the keyspace."),
+		KeyIO:         telem.Counter("key.io", "By", "The cumulative size of the keys that have been operated upon."),
+		ValueIO:       telem.Counter("value.io", "By", "The cumulative size of the values that have been operated upon."),
+		KeySize:       telem.Histogram("key.size", "By", "The sizes of the keys that have been operated upon."),
+		ValueSize:     telem.Histogram("value.size", "By", "The sizes of the values that have been operated upon."),
 	}
 
 	ctx, span := telem.StartSpan(ctx, "keyspace.open")
@@ -64,7 +62,7 @@ func (s *instrumentedStore) Open(ctx context.Context, name string) (BinaryKeyspa
 
 	ks.Next = next
 
-	ks.OpenCount(ctx, 1)
+	ks.OpenKeyspaces(ctx, 1)
 	ks.Telemetry.Info(ctx, "keyspace.open.ok", "opened keyspace")
 
 	return ks, nil
@@ -74,14 +72,12 @@ type instrumentedKeyspace struct {
 	Next      BinaryKeyspace
 	Telemetry *telemetry.Recorder
 
-	OpenCount  telemetry.Instrument[int64]
-	MissCount  telemetry.Instrument[int64]
-	KeyCount   telemetry.Instrument[int64]
-	KeyBytes   telemetry.Instrument[int64]
-	KeySizes   telemetry.Instrument[int64]
-	ValueCount telemetry.Instrument[int64]
-	ValueBytes telemetry.Instrument[int64]
-	ValueSizes telemetry.Instrument[int64]
+	OpenKeyspaces telemetry.Instrument[int64]
+	Misses        telemetry.Instrument[int64]
+	KeyIO         telemetry.Instrument[int64]
+	ValueIO       telemetry.Instrument[int64]
+	KeySize       telemetry.Instrument[int64]
+	ValueSize     telemetry.Instrument[int64]
 }
 
 func (ks *instrumentedKeyspace) Name() string {
@@ -99,9 +95,8 @@ func (ks *instrumentedKeyspace) Get(ctx context.Context, k []byte) ([]byte, erro
 	)
 	defer span.End()
 
-	ks.KeyCount(ctx, 1, telemetry.WriteDirection)
-	ks.KeyBytes(ctx, keySize, telemetry.WriteDirection)
-	ks.KeySizes(ctx, keySize, telemetry.WriteDirection)
+	ks.KeyIO(ctx, keySize, telemetry.WriteDirection)
+	ks.KeySize(ctx, keySize, telemetry.WriteDirection)
 
 	v, err := ks.Next.Get(ctx, k)
 	if err != nil {
@@ -112,9 +107,8 @@ func (ks *instrumentedKeyspace) Get(ctx context.Context, k []byte) ([]byte, erro
 	valueSize := int64(len(v))
 
 	if valueSize != 0 {
-		ks.ValueCount(ctx, 1, telemetry.ReadDirection)
-		ks.ValueBytes(ctx, valueSize, telemetry.ReadDirection)
-		ks.ValueSizes(ctx, valueSize, telemetry.ReadDirection)
+		ks.ValueIO(ctx, valueSize, telemetry.ReadDirection)
+		ks.ValueSize(ctx, valueSize, telemetry.ReadDirection)
 
 		span.SetAttributes(
 			telemetry.Bool("key_present", true),
@@ -124,7 +118,7 @@ func (ks *instrumentedKeyspace) Get(ctx context.Context, k []byte) ([]byte, erro
 
 		ks.Telemetry.Info(ctx, "keyspace.get.ok", "fetched value associated with key")
 	} else {
-		ks.MissCount(ctx, 1)
+		ks.Misses(ctx, 1)
 
 		span.SetAttributes(
 			telemetry.Bool("key_present", false),
@@ -147,9 +141,8 @@ func (ks *instrumentedKeyspace) Has(ctx context.Context, k []byte) (bool, error)
 	)
 	defer span.End()
 
-	ks.KeyCount(ctx, 1, telemetry.WriteDirection)
-	ks.KeyBytes(ctx, keySize, telemetry.WriteDirection)
-	ks.KeySizes(ctx, keySize, telemetry.WriteDirection)
+	ks.KeyIO(ctx, keySize, telemetry.WriteDirection)
+	ks.KeySize(ctx, keySize, telemetry.WriteDirection)
 
 	ok, err := ks.Next.Has(ctx, k)
 	if err != nil {
@@ -187,9 +180,8 @@ func (ks *instrumentedKeyspace) Set(ctx context.Context, k, v []byte) error {
 	)
 	defer span.End()
 
-	ks.KeyCount(ctx, 1, telemetry.WriteDirection)
-	ks.KeyBytes(ctx, keySize, telemetry.WriteDirection)
-	ks.KeySizes(ctx, keySize, telemetry.WriteDirection)
+	ks.KeyIO(ctx, keySize, telemetry.WriteDirection)
+	ks.KeySize(ctx, keySize, telemetry.WriteDirection)
 
 	if valueSize != 0 {
 		span.SetAttributes(
@@ -197,9 +189,8 @@ func (ks *instrumentedKeyspace) Set(ctx context.Context, k, v []byte) error {
 			telemetry.Int("value_size", valueSize),
 		)
 
-		ks.ValueCount(ctx, 1, telemetry.WriteDirection)
-		ks.ValueBytes(ctx, valueSize, telemetry.WriteDirection)
-		ks.ValueSizes(ctx, valueSize, telemetry.WriteDirection)
+		ks.ValueIO(ctx, valueSize, telemetry.WriteDirection)
+		ks.ValueSize(ctx, valueSize, telemetry.WriteDirection)
 	}
 
 	if err := ks.Next.Set(ctx, k, v); err != nil {
@@ -237,13 +228,11 @@ func (ks *instrumentedKeyspace) Range(ctx context.Context, fn BinaryRangeFunc) e
 			valueSize := int64(len(v))
 			totalSize += keySize + valueSize
 
-			ks.KeyCount(ctx, 1, telemetry.ReadDirection)
-			ks.KeyBytes(ctx, keySize, telemetry.ReadDirection)
-			ks.KeySizes(ctx, keySize, telemetry.ReadDirection)
+			ks.KeyIO(ctx, keySize, telemetry.ReadDirection)
+			ks.KeySize(ctx, keySize, telemetry.ReadDirection)
 
-			ks.ValueCount(ctx, 1, telemetry.ReadDirection)
-			ks.ValueBytes(ctx, valueSize, telemetry.ReadDirection)
-			ks.ValueSizes(ctx, valueSize, telemetry.ReadDirection)
+			ks.ValueIO(ctx, valueSize, telemetry.ReadDirection)
+			ks.ValueSize(ctx, valueSize, telemetry.ReadDirection)
 
 			ok, err := fn(ctx, k, v)
 			if ok || err != nil {
@@ -287,7 +276,7 @@ func (ks *instrumentedKeyspace) Close() error {
 
 	defer func() {
 		ks.Next = nil
-		ks.OpenCount(ctx, -1)
+		ks.OpenKeyspaces(ctx, -1)
 	}()
 
 	if err := ks.Next.Close(); err != nil {

@@ -52,7 +52,7 @@ func (p *Provider) Recorder(pkg string, attrs ...Attr) *Recorder {
 
 	r.errorCount = r.Counter("errors", "{error}", "The number of errors that have occurred.")
 	r.operationCount = r.Counter("operations", "{operation}", "The number of operations that have been performed.")
-	r.operationsInFlightCount = r.UpDownCounter("operations.in_flight", "{operation}", "The number of operations that are currently in progress.")
+	r.operationsInFlightCount = r.UpDownCounter("operations.inflight", "{operation}", "The number of operations that are currently in progress.")
 
 	return r
 }

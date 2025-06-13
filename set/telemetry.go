@@ -36,17 +36,16 @@ type instrumentedStore struct {
 func (s *instrumentedStore) Open(ctx context.Context, name string) (BinarySet, error) {
 	telem := s.Telemetry.Recorder(
 		"github.com/dogmatiq/persistencekit/set",
-		telemetry.Type("store", s.Next),
-		telemetry.String("handle", telemetry.HandleID()),
-		telemetry.String("name", name),
+		telemetry.Type("set.store", s.Next),
+		telemetry.String("set.name", name),
+		telemetry.String("set.handle", telemetry.HandleID()),
 	)
 
 	set := &instrumentedSet{
-		Telemetry:  telem,
-		OpenCount:  telem.UpDownCounter("open_sets", "{set}", "The number of sets that are currently open."),
-		ValueCount: telem.Counter("values", "{value}", "The number of values that have been operated upon."),
-		ValueBytes: telem.Counter("value_bytes", "By", "The cumulative size of the values that have been operated upon."),
-		ValueSizes: telem.Histogram("value_sizes", "By", "The sizes of the values that have been operated upon."),
+		Telemetry: telem,
+		OpenSets:  telem.UpDownCounter("open_sets", "{set}", "The number of sets that are currently open."),
+		ValueIO:   telem.Counter("value.io", "By", "The cumulative size of the values that have been operated upon."),
+		ValueSize: telem.Histogram("value.size", "By", "The sizes of the values that have been operated upon."),
 	}
 
 	ctx, span := telem.StartSpan(ctx, "set.open")
@@ -60,7 +59,7 @@ func (s *instrumentedStore) Open(ctx context.Context, name string) (BinarySet, e
 
 	set.Next = next
 
-	set.OpenCount(ctx, 1)
+	set.OpenSets(ctx, 1)
 	set.Telemetry.Info(ctx, "set.open.ok", "opened set")
 
 	return set, nil
@@ -70,10 +69,9 @@ type instrumentedSet struct {
 	Next      BinarySet
 	Telemetry *telemetry.Recorder
 
-	OpenCount  telemetry.Instrument[int64]
-	ValueCount telemetry.Instrument[int64]
-	ValueBytes telemetry.Instrument[int64]
-	ValueSizes telemetry.Instrument[int64]
+	OpenSets  telemetry.Instrument[int64]
+	ValueIO   telemetry.Instrument[int64]
+	ValueSize telemetry.Instrument[int64]
 }
 
 func (s *instrumentedSet) Name() string {
@@ -91,9 +89,8 @@ func (s *instrumentedSet) Has(ctx context.Context, v []byte) (bool, error) {
 	)
 	defer span.End()
 
-	s.ValueCount(ctx, 1, telemetry.WriteDirection)
-	s.ValueBytes(ctx, size, telemetry.WriteDirection)
-	s.ValueSizes(ctx, size, telemetry.WriteDirection)
+	s.ValueIO(ctx, size, telemetry.WriteDirection)
+	s.ValueSize(ctx, size, telemetry.WriteDirection)
 
 	ok, err := s.Next.Has(ctx, v)
 	if err != nil {
@@ -125,9 +122,8 @@ func (s *instrumentedSet) Add(ctx context.Context, v []byte) error {
 	)
 	defer span.End()
 
-	s.ValueCount(ctx, 1, telemetry.WriteDirection)
-	s.ValueBytes(ctx, size, telemetry.WriteDirection)
-	s.ValueSizes(ctx, size, telemetry.WriteDirection)
+	s.ValueIO(ctx, size, telemetry.WriteDirection)
+	s.ValueSize(ctx, size, telemetry.WriteDirection)
 
 	if err := s.Next.Add(ctx, v); err != nil {
 		s.Telemetry.Error(ctx, "set.add.error", err)
@@ -150,9 +146,8 @@ func (s *instrumentedSet) TryAdd(ctx context.Context, v []byte) (bool, error) {
 	)
 	defer span.End()
 
-	s.ValueCount(ctx, 1, telemetry.WriteDirection)
-	s.ValueBytes(ctx, size, telemetry.WriteDirection)
-	s.ValueSizes(ctx, size, telemetry.WriteDirection)
+	s.ValueIO(ctx, size, telemetry.WriteDirection)
+	s.ValueSize(ctx, size, telemetry.WriteDirection)
 
 	ok, err := s.Next.TryAdd(ctx, v)
 	if err != nil {
@@ -184,9 +179,8 @@ func (s *instrumentedSet) Remove(ctx context.Context, v []byte) error {
 	)
 	defer span.End()
 
-	s.ValueCount(ctx, 1, telemetry.WriteDirection)
-	s.ValueBytes(ctx, size, telemetry.WriteDirection)
-	s.ValueSizes(ctx, size, telemetry.WriteDirection)
+	s.ValueIO(ctx, size, telemetry.WriteDirection)
+	s.ValueSize(ctx, size, telemetry.WriteDirection)
 
 	if err := s.Next.Remove(ctx, v); err != nil {
 		s.Telemetry.Error(ctx, "set.remove.error", err)
@@ -209,9 +203,8 @@ func (s *instrumentedSet) TryRemove(ctx context.Context, v []byte) (bool, error)
 	)
 	defer span.End()
 
-	s.ValueCount(ctx, 1, telemetry.WriteDirection)
-	s.ValueBytes(ctx, size, telemetry.WriteDirection)
-	s.ValueSizes(ctx, size, telemetry.WriteDirection)
+	s.ValueIO(ctx, size, telemetry.WriteDirection)
+	s.ValueSize(ctx, size, telemetry.WriteDirection)
 
 	ok, err := s.Next.TryRemove(ctx, v)
 	if err != nil {
@@ -246,7 +239,7 @@ func (s *instrumentedSet) Close() error {
 
 	defer func() {
 		s.Next = nil
-		s.OpenCount(ctx, -1)
+		s.OpenSets(ctx, -1)
 	}()
 
 	if err := s.Next.Close(); err != nil {
