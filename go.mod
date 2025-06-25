@@ -17,7 +17,7 @@ require (
 	github.com/google/uuid v1.6.0
 	github.com/jackc/pgconn v1.14.3
 	go.opentelemetry.io/otel v1.37.0
-	go.opentelemetry.io/otel/log v0.12.2
+	go.opentelemetry.io/otel/log v0.13.0
 	go.opentelemetry.io/otel/metric v1.37.0
 	go.opentelemetry.io/otel/trace v1.37.0
 	golang.org/x/exp v0.0.0-20230810033253-352e893a4cad
