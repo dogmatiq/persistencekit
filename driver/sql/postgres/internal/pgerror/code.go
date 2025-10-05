@@ -4,7 +4,7 @@ import (
 	"errors"
 	"slices"
 
-	"github.com/jackc/pgconn"
+	"github.com/jackc/pgx/v5/pgconn"
 )
 
 // https://www.postgresql.org/docs/11/errcodes-appendix.html
