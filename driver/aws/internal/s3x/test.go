@@ -2,37 +2,52 @@ package s3x
 
 import (
 	"context"
-	"os"
 	"testing"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
+	"github.com/google/uuid"
+	"github.com/testcontainers/testcontainers-go/modules/minio"
 )
 
 // NewTestClient returns a new S3 client for use in a test.
 func NewTestClient(t testing.TB) *s3.Client {
-	endpoint := os.Getenv("DOGMATIQ_TEST_MINIO_ENDPOINT")
-	if endpoint == "" {
-		endpoint = "http://localhost:29000"
+	username := "persistencekit"
+	password := uuid.NewString()
+
+	container, err := minio.Run(
+		t.Context(),
+		"minio/minio",
+		minio.WithUsername(username),
+		minio.WithPassword(password),
+	)
+	if err != nil {
+		t.Fatal(err)
 	}
 
-	accessKey := os.Getenv("DOGMATIQ_TEST_MINIO_ACCESS_KEY")
-	if accessKey == "" {
-		accessKey = "minio"
-	}
+	t.Cleanup(func() {
+		ctx := context.Background()
+		if err := container.Terminate(ctx); err != nil {
+			t.Log(err)
+		}
+	})
 
-	secretKey := os.Getenv("DOGMATIQ_TEST_MINIO_SECRET_KEY")
-	if secretKey == "" {
-		secretKey = "password"
+	endpoint, err := container.ConnectionString(t.Context())
+	if err != nil {
+		t.Fatal(err)
 	}
 
 	cfg, err := config.LoadDefaultConfig(
 		context.Background(),
 		config.WithRegion("us-east-1"),
 		config.WithCredentialsProvider(
-			credentials.NewStaticCredentialsProvider(accessKey, secretKey, ""),
+			credentials.NewStaticCredentialsProvider(
+				username,
+				password,
+				"",
+			),
 		),
 		config.WithRetryer(
 			func() aws.Retryer {
@@ -47,7 +62,7 @@ func NewTestClient(t testing.TB) *s3.Client {
 	return s3.NewFromConfig(
 		cfg,
 		func(opts *s3.Options) {
-			opts.BaseEndpoint = aws.String(endpoint)
+			opts.BaseEndpoint = aws.String("http://" + endpoint)
 			opts.UsePathStyle = true
 		},
 	)
