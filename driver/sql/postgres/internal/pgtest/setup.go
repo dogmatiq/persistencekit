@@ -1,10 +1,10 @@
 package pgtest
 
 import (
-	"context"
 	"database/sql"
 	"testing"
 
+	"github.com/dogmatiq/persistencekit/internal/testx"
 	"github.com/google/uuid"
 	_ "github.com/jackc/pgx/v5/stdlib" // pgx driver for database/sql
 	"github.com/testcontainers/testcontainers-go/modules/postgres"
@@ -28,7 +28,8 @@ func Setup(t testing.TB) *sql.DB {
 	}
 
 	t.Cleanup(func() {
-		if err := container.Terminate(context.Background()); err != nil {
+		ctx := testx.ContextForCleanup(t)
+		if err := container.Terminate(ctx); err != nil {
 			t.Log(err)
 		}
 	})

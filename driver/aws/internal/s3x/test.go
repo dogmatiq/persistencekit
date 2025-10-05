@@ -8,6 +8,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
+	"github.com/dogmatiq/persistencekit/internal/testx"
 	"github.com/google/uuid"
 	"github.com/testcontainers/testcontainers-go/modules/minio"
 )
@@ -28,7 +29,8 @@ func NewTestClient(t testing.TB) *s3.Client {
 	}
 
 	t.Cleanup(func() {
-		if err := container.Terminate(context.Background()); err != nil {
+		ctx := testx.ContextForCleanup(t)
+		if err := container.Terminate(ctx); err != nil {
 			t.Log(err)
 		}
 	})

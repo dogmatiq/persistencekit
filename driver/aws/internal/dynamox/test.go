@@ -8,6 +8,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
+	"github.com/dogmatiq/persistencekit/internal/testx"
 	dynamotc "github.com/testcontainers/testcontainers-go/modules/dynamodb"
 )
 
@@ -23,7 +24,8 @@ func NewTestClient(t testing.TB) *dynamodb.Client {
 	}
 
 	t.Cleanup(func() {
-		if err := container.Terminate(context.Background()); err != nil {
+		ctx := testx.ContextForCleanup(t)
+		if err := container.Terminate(ctx); err != nil {
 			t.Log(err)
 		}
 	})
