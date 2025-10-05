@@ -2,20 +2,36 @@ package dynamox
 
 import (
 	"context"
-	"os"
 	"testing"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
+	dynamotc "github.com/testcontainers/testcontainers-go/modules/dynamodb"
 )
 
 // NewTestClient returns a new DynamoDB client for use in a test.
 func NewTestClient(t testing.TB) *dynamodb.Client {
-	endpoint := os.Getenv("DOGMATIQ_TEST_DYNAMODB_ENDPOINT")
-	if endpoint == "" {
-		endpoint = "http://localhost:28000"
+	container, err := dynamotc.Run(
+		t.Context(),
+		"amazon/dynamodb-local",
+		dynamotc.WithDisableTelemetry(),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	t.Cleanup(func() {
+		ctx := context.Background()
+		if err := container.Terminate(ctx); err != nil {
+			t.Log(err)
+		}
+	})
+
+	endpoint, err := container.ConnectionString(t.Context())
+	if err != nil {
+		t.Fatal(err)
 	}
 
 	cfg, err := config.LoadDefaultConfig(
@@ -37,7 +53,7 @@ func NewTestClient(t testing.TB) *dynamodb.Client {
 	return dynamodb.NewFromConfig(
 		cfg,
 		func(opts *dynamodb.Options) {
-			opts.BaseEndpoint = aws.String(endpoint)
+			opts.BaseEndpoint = aws.String("http://" + endpoint)
 		},
 	)
 }

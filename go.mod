@@ -16,6 +16,7 @@ require (
 	github.com/google/go-cmp v0.7.0
 	github.com/google/uuid v1.6.0
 	github.com/jackc/pgconn v1.14.3
+	github.com/testcontainers/testcontainers-go/modules/dynamodb v0.39.0
 	github.com/testcontainers/testcontainers-go/modules/minio v0.39.0
 	go.opentelemetry.io/otel v1.38.0
 	go.opentelemetry.io/otel/log v0.14.0
