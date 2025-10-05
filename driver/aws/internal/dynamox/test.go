@@ -9,7 +9,9 @@ import (
 	"github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/dogmatiq/persistencekit/internal/testx"
+	"github.com/testcontainers/testcontainers-go"
 	dynamotc "github.com/testcontainers/testcontainers-go/modules/dynamodb"
+	"github.com/testcontainers/testcontainers-go/wait"
 )
 
 // NewTestClient returns a new DynamoDB client for use in a test.
@@ -18,6 +20,15 @@ func NewTestClient(t testing.TB) *dynamodb.Client {
 		t.Context(),
 		"amazon/dynamodb-local",
 		dynamotc.WithDisableTelemetry(),
+		testcontainers.WithWaitStrategy(
+			wait.
+				ForHTTP("/").
+				WithPort("8000").
+				WithStatusCodeMatcher(func(int) bool {
+					// Accept any status, we just want to know when it's up.
+					return true
+				}),
+		),
 	)
 	if err != nil {
 		t.Fatal(err)
@@ -33,10 +44,7 @@ func NewTestClient(t testing.TB) *dynamodb.Client {
 		if err := container.Terminate(ctx); err != nil {
 			t.Log(err)
 		}
-		t.Log("TERMINATED", endpoint)
 	})
-
-	t.Log("STARTED", endpoint)
 
 	cfg, err := config.LoadDefaultConfig(
 		context.Background(),
