@@ -23,17 +23,20 @@ func NewTestClient(t testing.TB) *dynamodb.Client {
 		t.Fatal(err)
 	}
 
+	endpoint, err := container.ConnectionString(t.Context())
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	t.Cleanup(func() {
 		ctx := testx.ContextForCleanup(t)
 		if err := container.Terminate(ctx); err != nil {
 			t.Log(err)
 		}
+		t.Log("TERMINATED", endpoint)
 	})
 
-	endpoint, err := container.ConnectionString(t.Context())
-	if err != nil {
-		t.Fatal(err)
-	}
+	t.Log("STARTED", endpoint)
 
 	cfg, err := config.LoadDefaultConfig(
 		context.Background(),
