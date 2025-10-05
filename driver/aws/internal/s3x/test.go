@@ -28,8 +28,7 @@ func NewTestClient(t testing.TB) *s3.Client {
 	}
 
 	t.Cleanup(func() {
-		ctx := context.Background()
-		if err := container.Terminate(ctx); err != nil {
+		if err := container.Terminate(context.Background()); err != nil {
 			t.Log(err)
 		}
 	})
