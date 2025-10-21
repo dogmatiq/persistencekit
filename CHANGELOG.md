@@ -7,8 +7,9 @@ The format is based on [Keep a Changelog], and this project adheres to
 
 <!-- references -->
 
-[Keep a Changelog]: https://keepachangelog.com/en/1.0.0/
-[Semantic Versioning]: https://semver.org/spec/v2.0.0.html
+[keep a changelog]: https://keepachangelog.com/en/1.0.0/
+[semantic versioning]: https://semver.org/spec/v2.0.0.html
+[bc]: https://github.com/dogmatiq/.github/blob/main/VERSIONING.md#changelogs
 
 ## [0.11.0] - 2025-05-31
 
