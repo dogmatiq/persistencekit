@@ -36,7 +36,6 @@ const (
 
 const (
 	operationIDMetaData   = "id"
-	compactionEndMetaData = "compaction-end"
 	operationTypeMetaData = "type"
 	beginPositionMetaData = "begin"
 	endPositionMetaData   = "end"
