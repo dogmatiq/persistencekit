@@ -9,7 +9,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/config v1.31.17
 	github.com/aws/aws-sdk-go-v2/credentials v1.18.21
 	github.com/aws/aws-sdk-go-v2/service/dynamodb v1.52.4
-	github.com/aws/aws-sdk-go-v2/service/s3 v1.89.2
+	github.com/aws/aws-sdk-go-v2/service/s3 v1.90.0
 	github.com/aws/smithy-go v1.23.2
 	github.com/dogmatiq/dyad v1.0.0
 	github.com/google/go-cmp v0.7.0
