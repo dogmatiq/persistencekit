@@ -184,8 +184,8 @@ github.com/testcontainers/testcontainers-go v0.40.0 h1:pSdJYLOVgLE8YdUY2FHQ1Fxu+
 github.com/testcontainers/testcontainers-go v0.40.0/go.mod h1:FSXV5KQtX2HAMlm7U3APNyLkkap35zNLxukw9oBi/MY=
 github.com/testcontainers/testcontainers-go/modules/dynamodb v0.39.0 h1:BKFVMR10fh/B1Y3DekbRJxYQmKVxHj7AXeTA22cokBw=
 github.com/testcontainers/testcontainers-go/modules/dynamodb v0.39.0/go.mod h1:RaK8aWpvSw4UNZlyphv7/RHSlXATJMqjhJB8/x+npIo=
-github.com/testcontainers/testcontainers-go/modules/minio v0.39.0 h1:/c1Gb6jd2eBicjiMNKPZeGkDEdJCt0tFgX8xudQDUvA=
-github.com/testcontainers/testcontainers-go/modules/minio v0.39.0/go.mod h1:C+NYupQP71UNlWtI6Rs5I9c0VBcreJtPI2onhZkKnLI=
+github.com/testcontainers/testcontainers-go/modules/minio v0.40.0 h1:M+Ib1mIXq/hEcH8tyEvBnOZ7NJi03zY+P1gYO5GGp6o=
+github.com/testcontainers/testcontainers-go/modules/minio v0.40.0/go.mod h1:ON0MxxS/pME0SJOKLImw/D9R1L7apYsxIZrM/uEqORA=
 github.com/testcontainers/testcontainers-go/modules/postgres v0.39.0 h1:REJz+XwNpGC/dCgTfYvM4SKqobNqDBfvhq74s2oHTUM=
 github.com/testcontainers/testcontainers-go/modules/postgres v0.39.0/go.mod h1:4K2OhtHEeT+JSIFX4V8DkGKsyLa96Y2vLdd3xsxD5HE=
 github.com/tklauser/go-sysconf v0.3.12 h1:0QaGUFOdQaIVdPgfITYzaTegZvdCjmYO52cSFAEVmqU=

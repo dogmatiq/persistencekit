@@ -17,7 +17,7 @@ require (
 	github.com/jackc/pgx/v5 v5.7.6
 	github.com/testcontainers/testcontainers-go v0.40.0
 	github.com/testcontainers/testcontainers-go/modules/dynamodb v0.39.0
-	github.com/testcontainers/testcontainers-go/modules/minio v0.39.0
+	github.com/testcontainers/testcontainers-go/modules/minio v0.40.0
 	github.com/testcontainers/testcontainers-go/modules/postgres v0.39.0
 	go.opentelemetry.io/otel v1.38.0
 	go.opentelemetry.io/otel/log v0.14.0
