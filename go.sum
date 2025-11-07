@@ -186,8 +186,8 @@ github.com/testcontainers/testcontainers-go/modules/dynamodb v0.40.0 h1:2MHpOb5F
 github.com/testcontainers/testcontainers-go/modules/dynamodb v0.40.0/go.mod h1:7/xTZTRLo6rmjrtO7x7D4e0Jn6OVAFfQtAR/9a1NvxQ=
 github.com/testcontainers/testcontainers-go/modules/minio v0.40.0 h1:M+Ib1mIXq/hEcH8tyEvBnOZ7NJi03zY+P1gYO5GGp6o=
 github.com/testcontainers/testcontainers-go/modules/minio v0.40.0/go.mod h1:ON0MxxS/pME0SJOKLImw/D9R1L7apYsxIZrM/uEqORA=
-github.com/testcontainers/testcontainers-go/modules/postgres v0.39.0 h1:REJz+XwNpGC/dCgTfYvM4SKqobNqDBfvhq74s2oHTUM=
-github.com/testcontainers/testcontainers-go/modules/postgres v0.39.0/go.mod h1:4K2OhtHEeT+JSIFX4V8DkGKsyLa96Y2vLdd3xsxD5HE=
+github.com/testcontainers/testcontainers-go/modules/postgres v0.40.0 h1:s2bIayFXlbDFexo96y+htn7FzuhpXLYJNnIuglNKqOk=
+github.com/testcontainers/testcontainers-go/modules/postgres v0.40.0/go.mod h1:h+u/2KoREGTnTl9UwrQ/g+XhasAT8E6dClclAADeXoQ=
 github.com/tklauser/go-sysconf v0.3.12 h1:0QaGUFOdQaIVdPgfITYzaTegZvdCjmYO52cSFAEVmqU=
 github.com/tklauser/go-sysconf v0.3.12/go.mod h1:Ho14jnntGE1fpdOqQEEaiKRpvIavV0hSfmBq8nJbHYI=
 github.com/tklauser/numcpus v0.6.1 h1:ng9scYS7az0Bk4OZLvrNXNSAO2Pxr1XXRAPyjhIx+Fk=
