@@ -92,15 +92,15 @@ func (j *journ) prepareRequests(table string) {
 	// UpdateBegin updates the [metaDataBeginPositionAttr] attribute on the
 	// "meta-data" item to j.attr.Begin.
 	j.request.SetBeginPos = dynamodb.UpdateItemInput{
-		TableName:        &table,
-		Key:              metaDataKey,
-		UpdateExpression: aws.String(`SET #B = :B`),
+		TableName: &table,
+		Key:       metaDataKey,
 		ExpressionAttributeNames: map[string]string{
 			"#B": metaDataBeginPositionAttr,
 		},
 		ExpressionAttributeValues: map[string]types.AttributeValue{
 			":B": &j.attr.BeginPos,
 		},
+		UpdateExpression:    aws.String(`SET #B = :B`),
 		ConditionExpression: aws.String(`#B < :B`),
 		ReturnValues:        types.ReturnValueAllNew,
 	}
@@ -108,9 +108,8 @@ func (j *journ) prepareRequests(table string) {
 	// UpdateUncompacted updates the [metaDataUncompactedPositionAttr] attribute
 	// on the "meta-data" item to j.attr.Uncompacted.
 	j.request.SetUncompactedPos = dynamodb.UpdateItemInput{
-		TableName:        &table,
-		Key:              metaDataKey,
-		UpdateExpression: aws.String(`SET #U = :U`),
+		TableName: &table,
+		Key:       metaDataKey,
 		ExpressionAttributeNames: map[string]string{
 			"#U": metaDataUncompactedPositionAttr,
 			"#B": metaDataBeginPositionAttr,
@@ -118,26 +117,25 @@ func (j *journ) prepareRequests(table string) {
 		ExpressionAttributeValues: map[string]types.AttributeValue{
 			":U": &j.attr.UncompactedPos,
 		},
+		UpdateExpression:    aws.String(`SET #U = :U`),
 		ConditionExpression: aws.String(`#U < :U AND #B >= :U`),
 	}
 
 	// LoadBegin fetches the [metaDataBeginPositionAttr] attribute from the
 	// "meta-data" item.
 	j.request.LoadBegin = dynamodb.GetItemInput{
-		TableName:            &table,
-		Key:                  metaDataKey,
-		ProjectionExpression: aws.String(`#B`),
+		TableName: &table,
+		Key:       metaDataKey,
 		ExpressionAttributeNames: map[string]string{
 			"#B": metaDataBeginPositionAttr,
 		},
+		ProjectionExpression: aws.String(`#B`),
 	}
 
 	// LoadEnd loads the "end" position by querying the journal in reverse order
 	// to find the item with the highest [positionAttr].
 	j.request.LoadEnd = dynamodb.QueryInput{
-		TableName:              &table,
-		KeyConditionExpression: aws.String(`#J = :J`),
-		ProjectionExpression:   aws.String("#P, #C"),
+		TableName: &table,
 		ExpressionAttributeNames: map[string]string{
 			"#J": journalAttr,
 			"#P": positionAttr,
@@ -146,8 +144,10 @@ func (j *journ) prepareRequests(table string) {
 		ExpressionAttributeValues: map[string]types.AttributeValue{
 			":J": &j.attr.Journal,
 		},
-		ScanIndexForward: aws.Bool(false),
-		Limit:            aws.Int32(1),
+		KeyConditionExpression: aws.String(`#J = :J`),
+		ProjectionExpression:   aws.String("#P, #C"),
+		ScanIndexForward:       aws.Bool(false),
+		Limit:                  aws.Int32(1),
 	}
 
 	// Get fetches the record at j.attr.Position.
@@ -164,10 +164,7 @@ func (j *journ) prepareRequests(table string) {
 	// Range fetches all non-truncated records in the journal starting at
 	// j.attr.Position.
 	j.request.Range = dynamodb.QueryInput{
-		TableName:              &table,
-		KeyConditionExpression: aws.String(`#J = :J`),
-		FilterExpression:       aws.String(`attribute_not_exists(#C)`),
-		ProjectionExpression:   aws.String("#P, #R"),
+		TableName: &table,
 		ExpressionAttributeNames: map[string]string{
 			"#J": journalAttr,
 			"#P": positionAttr,
@@ -177,7 +174,10 @@ func (j *journ) prepareRequests(table string) {
 		ExpressionAttributeValues: map[string]types.AttributeValue{
 			":J": &j.attr.Journal,
 		},
-		ExclusiveStartKey: recordAtPositionKey,
+		KeyConditionExpression: aws.String(`#J = :J`),
+		FilterExpression:       aws.String(`attribute_not_exists(#C)`),
+		ProjectionExpression:   aws.String("#P, #R"),
+		ExclusiveStartKey:      recordAtPositionKey,
 	}
 
 	// appendReq adds a new record to the journal at j.attr.Position.
@@ -199,9 +199,8 @@ func (j *journ) prepareRequests(table string) {
 	// Compact compacts the truncated record at j.attr.Position by setting the
 	// [recordTruncatedAttr] flag and removing the [recordAttr].
 	j.request.Compact = dynamodb.UpdateItemInput{
-		TableName:        &table,
-		Key:              recordAtPositionKey,
-		UpdateExpression: aws.String(`SET #C = :C REMOVE #R`),
+		TableName: &table,
+		Key:       recordAtPositionKey,
 		ExpressionAttributeNames: map[string]string{
 			"#C": recordIsCompactedAttr,
 			"#R": recordAttr,
@@ -209,5 +208,6 @@ func (j *journ) prepareRequests(table string) {
 		ExpressionAttributeValues: map[string]types.AttributeValue{
 			":C": dynamox.True,
 		},
+		UpdateExpression: aws.String(`SET #C = :C REMOVE #R`),
 	}
 }

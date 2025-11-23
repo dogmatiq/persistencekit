@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
@@ -60,7 +61,25 @@ func CreateTableIfNotExists(
 		return fmt.Errorf("unable to create DynamoDB table: %w", err)
 	}
 
-	return nil
+	in := &dynamodb.DescribeTableInput{
+		TableName: &table,
+	}
+
+	var options []func(*dynamodb.Options)
+	if onRequest != nil {
+		options = onRequest(in)
+	}
+
+	w := dynamodb.NewTableExistsWaiter(
+		client,
+		func(opts *dynamodb.TableExistsWaiterOptions) {
+			opts.ClientOptions = options
+		},
+	)
+
+	// We set the maximum wait time quite high, as the deadline from ctx, if
+	// shorter, will take precedence.
+	return w.Wait(ctx, in, 1*time.Minute)
 }
 
 // DeleteTableIfExists deletes a DynamoDB table if it exists.

@@ -11,6 +11,16 @@ The format is based on [Keep a Changelog], and this project adheres to
 [semantic versioning]: https://semver.org/spec/v2.0.0.html
 [bc]: https://github.com/dogmatiq/.github/blob/main/VERSIONING.md#changelogs
 
+## [0.11.1] - 2025-11-23
+
+### Fixed
+
+- DynamoDB based implementations now wait for table creation to complete before
+  returning from `dynamojournal.NewBinaryStore()` and
+  `dynamokv.NewBinaryStore()`. This prevents potential issues due to the
+  asynchronous nature of DynamoDB table creation, which is not evident when
+  using the local DynamoDB emulator.
+
 ## [0.11.0] - 2025-05-31
 
 ### Changed
@@ -293,6 +303,7 @@ This eliminates the need for duplicating all of the generic algorithms (such as
 [0.10.1]: https://github.com/dogmatiq/persistencekit/releases/tag/v0.10.1
 [0.10.2]: https://github.com/dogmatiq/persistencekit/releases/tag/v0.10.2
 [0.11.0]: https://github.com/dogmatiq/persistencekit/releases/tag/v0.11.0
+[0.11.1]: https://github.com/dogmatiq/persistencekit/releases/tag/v0.11.1
 
 <!-- version template
 ## [0.0.1] - YYYY-MM-DD
