@@ -3,7 +3,8 @@ package kv
 import (
 	"context"
 
-	"github.com/dogmatiq/persistencekit/internal/telemetry"
+	"github.com/dogmatiq/enginekit/telemetry"
+	"github.com/dogmatiq/persistencekit/internal/xtelemetry"
 	"go.opentelemetry.io/otel/log"
 	"go.opentelemetry.io/otel/metric"
 	"go.opentelemetry.io/otel/trace"
@@ -38,7 +39,7 @@ func (s *instrumentedStore) Open(ctx context.Context, name string) (BinaryKeyspa
 		"github.com/dogmatiq/persistencekit/kv",
 		telemetry.Type("kv.store", s.Next),
 		telemetry.String("keyspace.name", name),
-		telemetry.String("keyspace.handle", telemetry.HandleID()),
+		telemetry.String("keyspace.handle", xtelemetry.HandleID()),
 	)
 
 	ks := &instrumentedKeyspace{
@@ -56,7 +57,7 @@ func (s *instrumentedStore) Open(ctx context.Context, name string) (BinaryKeyspa
 
 	next, err := s.Next.Open(ctx, name)
 	if err != nil {
-		ks.Telemetry.Error(ctx, "keyspace.open.error", err)
+		ks.Telemetry.Error(ctx, "keyspace.open.error", "unable to open keyspace", err)
 		return nil, err
 	}
 
@@ -100,7 +101,7 @@ func (ks *instrumentedKeyspace) Get(ctx context.Context, k []byte) ([]byte, erro
 
 	v, err := ks.Next.Get(ctx, k)
 	if err != nil {
-		ks.Telemetry.Error(ctx, "keyspace.get.error", err)
+		ks.Telemetry.Error(ctx, "keyspace.get.error", "unable to fetch value associated with key", err)
 		return nil, err
 	}
 
@@ -146,7 +147,7 @@ func (ks *instrumentedKeyspace) Has(ctx context.Context, k []byte) (bool, error)
 
 	ok, err := ks.Next.Has(ctx, k)
 	if err != nil {
-		ks.Telemetry.Error(ctx, "keyspace.has.error", err)
+		ks.Telemetry.Error(ctx, "keyspace.has.error", "unable to check presence of key in keyspace", err)
 		return false, err
 	}
 
@@ -194,7 +195,11 @@ func (ks *instrumentedKeyspace) Set(ctx context.Context, k, v []byte) error {
 	}
 
 	if err := ks.Next.Set(ctx, k, v); err != nil {
-		ks.Telemetry.Error(ctx, "keyspace.set.error", err)
+		if valueSize == 0 {
+			ks.Telemetry.Error(ctx, "keyspace.set.error", "unable to delete key/value pair", err)
+		} else {
+			ks.Telemetry.Error(ctx, "keyspace.set.error", "unable to set key/value pair", err)
+		}
 		return err
 	}
 
@@ -251,7 +256,7 @@ func (ks *instrumentedKeyspace) Range(ctx context.Context, fn BinaryRangeFunc) e
 	)
 
 	if err != nil {
-		ks.Telemetry.Error(ctx, "keyspace.range.error", err)
+		ks.Telemetry.Error(ctx, "keyspace.range.error", "unable to range over key/value pairs", err)
 		return err
 	}
 
@@ -280,7 +285,7 @@ func (ks *instrumentedKeyspace) Close() error {
 	}()
 
 	if err := ks.Next.Close(); err != nil {
-		ks.Telemetry.Error(ctx, "keyspace.close.error", err)
+		ks.Telemetry.Error(ctx, "keyspace.close.error", "unable to close keyspace cleanly", err)
 		return err
 	}
 

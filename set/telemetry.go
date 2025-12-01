@@ -3,7 +3,8 @@ package set
 import (
 	"context"
 
-	"github.com/dogmatiq/persistencekit/internal/telemetry"
+	"github.com/dogmatiq/enginekit/telemetry"
+	"github.com/dogmatiq/persistencekit/internal/xtelemetry"
 	"go.opentelemetry.io/otel/log"
 	"go.opentelemetry.io/otel/metric"
 	"go.opentelemetry.io/otel/trace"
@@ -38,7 +39,7 @@ func (s *instrumentedStore) Open(ctx context.Context, name string) (BinarySet, e
 		"github.com/dogmatiq/persistencekit/set",
 		telemetry.Type("set.store", s.Next),
 		telemetry.String("set.name", name),
-		telemetry.String("set.handle", telemetry.HandleID()),
+		telemetry.String("set.handle", xtelemetry.HandleID()),
 	)
 
 	set := &instrumentedSet{
@@ -53,7 +54,7 @@ func (s *instrumentedStore) Open(ctx context.Context, name string) (BinarySet, e
 
 	next, err := s.Next.Open(ctx, name)
 	if err != nil {
-		telem.Error(ctx, "set.open.error", err)
+		telem.Error(ctx, "set.open.error", "unable to open set", err)
 		return nil, err
 	}
 
@@ -94,7 +95,7 @@ func (s *instrumentedSet) Has(ctx context.Context, v []byte) (bool, error) {
 
 	ok, err := s.Next.Has(ctx, v)
 	if err != nil {
-		s.Telemetry.Error(ctx, "set.has.error", err)
+		s.Telemetry.Error(ctx, "set.has.error", "unable to check presence of value in set", err)
 		return false, err
 	}
 
@@ -126,7 +127,7 @@ func (s *instrumentedSet) Add(ctx context.Context, v []byte) error {
 	s.ValueSize(ctx, size, telemetry.WriteDirection)
 
 	if err := s.Next.Add(ctx, v); err != nil {
-		s.Telemetry.Error(ctx, "set.add.error", err)
+		s.Telemetry.Error(ctx, "set.add.error", "unable to add value to set", err)
 		return err
 	}
 
@@ -151,7 +152,7 @@ func (s *instrumentedSet) TryAdd(ctx context.Context, v []byte) (bool, error) {
 
 	ok, err := s.Next.TryAdd(ctx, v)
 	if err != nil {
-		s.Telemetry.Error(ctx, "set.try_add.error", err)
+		s.Telemetry.Error(ctx, "set.try_add.error", "unable to add value to set", err)
 		return false, err
 	}
 
@@ -183,7 +184,7 @@ func (s *instrumentedSet) Remove(ctx context.Context, v []byte) error {
 	s.ValueSize(ctx, size, telemetry.WriteDirection)
 
 	if err := s.Next.Remove(ctx, v); err != nil {
-		s.Telemetry.Error(ctx, "set.remove.error", err)
+		s.Telemetry.Error(ctx, "set.remove.error", "unable to remove value from set", err)
 		return err
 	}
 
@@ -208,7 +209,7 @@ func (s *instrumentedSet) TryRemove(ctx context.Context, v []byte) (bool, error)
 
 	ok, err := s.Next.TryRemove(ctx, v)
 	if err != nil {
-		s.Telemetry.Error(ctx, "set.try_remove.error", err)
+		s.Telemetry.Error(ctx, "set.try_remove.error", "unable to remove value from set", err)
 		return false, err
 	}
 
@@ -243,7 +244,7 @@ func (s *instrumentedSet) Close() error {
 	}()
 
 	if err := s.Next.Close(); err != nil {
-		s.Telemetry.Error(ctx, "set.close.error", err)
+		s.Telemetry.Error(ctx, "set.close.error", "unable to close set cleanly", err)
 		return err
 	}
 

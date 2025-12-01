@@ -3,7 +3,8 @@ package journal
 import (
 	"context"
 
-	"github.com/dogmatiq/persistencekit/internal/telemetry"
+	"github.com/dogmatiq/enginekit/telemetry"
+	"github.com/dogmatiq/persistencekit/internal/xtelemetry"
 	"go.opentelemetry.io/otel/log"
 	"go.opentelemetry.io/otel/metric"
 	"go.opentelemetry.io/otel/trace"
@@ -38,7 +39,7 @@ func (s *instrumentedStore) Open(ctx context.Context, name string) (BinaryJourna
 		"github.com/dogmatiq/persistencekit/journal",
 		telemetry.Type("journal.store", s.Next),
 		telemetry.String("journal.name", name),
-		telemetry.String("journal.handle", telemetry.HandleID()),
+		telemetry.String("journal.handle", xtelemetry.HandleID()),
 	)
 
 	j := &instrumentedJournal{
@@ -54,7 +55,7 @@ func (s *instrumentedStore) Open(ctx context.Context, name string) (BinaryJourna
 
 	next, err := s.Next.Open(ctx, name)
 	if err != nil {
-		j.Telemetry.Error(ctx, "journal.open.error", err)
+		j.Telemetry.Error(ctx, "journal.open.error", "unable to open journal", err)
 		return nil, err
 	}
 
@@ -86,7 +87,7 @@ func (j *instrumentedJournal) Bounds(ctx context.Context) (bounds Interval, err 
 
 	bounds, err = j.Next.Bounds(ctx)
 	if err != nil {
-		j.Telemetry.Error(ctx, "journal.bounds.error", err)
+		j.Telemetry.Error(ctx, "journal.bounds.error", "unable to fetch journal bounds", err)
 		return Interval{}, err
 	}
 
@@ -110,7 +111,7 @@ func (j *instrumentedJournal) Get(ctx context.Context, pos Position) ([]byte, er
 
 	rec, err := j.Next.Get(ctx, pos)
 	if err != nil {
-		j.Telemetry.Error(ctx, "journal.get.error", err)
+		j.Telemetry.Error(ctx, "journal.get.error", "unable to fetch journal record", err)
 		return nil, err
 	}
 
@@ -188,7 +189,7 @@ func (j *instrumentedJournal) Range(
 	)
 
 	if err != nil {
-		j.Telemetry.Error(ctx, "journal.range.error", err)
+		j.Telemetry.Error(ctx, "journal.range.error", "unable to range over journal records", err)
 		return err
 	}
 
@@ -218,11 +219,11 @@ func (j *instrumentedJournal) Append(ctx context.Context, pos Position, rec []by
 	err := j.Next.Append(ctx, pos, rec)
 	if err != nil {
 		if IsConflict(err) {
-			j.Telemetry.Error(ctx, "journal.append.conflict", err)
+			j.Telemetry.Error(ctx, "journal.append.conflict", "optimistic concurrency conflict", err)
 			j.Conflicts(ctx, 1)
 			span.SetAttributes(telemetry.Bool("conflict", true))
 		} else {
-			j.Telemetry.Error(ctx, "journal.append.error", err)
+			j.Telemetry.Error(ctx, "journal.append.error", "unable to append journal record", err)
 		}
 
 		return err
@@ -242,7 +243,7 @@ func (j *instrumentedJournal) Truncate(ctx context.Context, pos Position) error 
 	defer span.End()
 
 	if err := j.Next.Truncate(ctx, pos); err != nil {
-		j.Telemetry.Error(ctx, "journal.truncate.error", err)
+		j.Telemetry.Error(ctx, "journal.truncate.error", "unable to truncate journal records", err)
 		return err
 	}
 
@@ -267,7 +268,7 @@ func (j *instrumentedJournal) Close() error {
 	}()
 
 	if err := j.Next.Close(); err != nil {
-		j.Telemetry.Error(ctx, "journal.close.error", err)
+		j.Telemetry.Error(ctx, "journal.close.error", "unable to close journal cleanly", err)
 		return err
 	}
 
