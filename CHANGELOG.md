@@ -11,6 +11,12 @@ The format is based on [Keep a Changelog], and this project adheres to
 [semantic versioning]: https://semver.org/spec/v2.0.0.html
 [bc]: https://github.com/dogmatiq/.github/blob/main/VERSIONING.md#changelogs
 
+## [0.11.2] - 2025-12-02
+
+### Changed
+
+- Change telemetry to use `enginekit/telemetry` package.
+
 ## [0.11.1] - 2025-11-23
 
 ### Fixed
@@ -304,6 +310,7 @@ This eliminates the need for duplicating all of the generic algorithms (such as
 [0.10.2]: https://github.com/dogmatiq/persistencekit/releases/tag/v0.10.2
 [0.11.0]: https://github.com/dogmatiq/persistencekit/releases/tag/v0.11.0
 [0.11.1]: https://github.com/dogmatiq/persistencekit/releases/tag/v0.11.1
+[0.11.2]: https://github.com/dogmatiq/persistencekit/releases/tag/v0.11.2
 
 <!-- version template
 ## [0.0.1] - YYYY-MM-DD
