@@ -15,7 +15,18 @@ The format is based on [Keep a Changelog], and this project adheres to
 
 ### Added
 
-- Added `memoryset` and `memorykv` `BeforeOpen` hooks.
+- Added `set.WithInterceptor()` to allow intercepting operations on sets.
+- Added `kv.WithInterceptor()` to allow intercepting operations on keyspaces.
+- Added `journal.WithInterceptor()` to allow intercepting operations on journals.
+
+### Removed
+
+- **[BC]** Removed hooks from `memoryset.Store` and `BinaryStore`. Use
+  `set.WithInterceptor()` instead.
+- **[BC]** Removed hooks from `memorykv.Store` and `BinaryStore`. Use
+  `kv.WithInterceptor()` instead.
+- **[BC]** Removed hooks from `memoryjournal.Store`. Use
+  `journal.WithInterceptor()` instead.
 
 ## [0.12.0] - 2025-12-04
 

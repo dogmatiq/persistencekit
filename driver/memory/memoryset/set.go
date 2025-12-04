@@ -20,10 +20,6 @@ type state[C comparable] struct {
 type setimpl[T any, C comparable] struct {
 	name           string
 	state          *state[C]
-	afterAdd       func(set string, v T) error
-	beforeAdd      func(set string, v T) error
-	afterRemove    func(set string, v T) error
-	beforeRemove   func(set string, v T) error
 	marshalValue   func(T) C
 	unmarshalValue func(C) T
 }
@@ -61,12 +57,6 @@ func (s *setimpl[T, C]) TryAdd(ctx context.Context, v T) (bool, error) {
 	s.state.Lock()
 	defer s.state.Unlock()
 
-	if s.beforeAdd != nil {
-		if err := s.beforeAdd(s.name, v); err != nil {
-			return false, err
-		}
-	}
-
 	if s.state.Values == nil {
 		s.state.Values = map[C]struct{}{}
 	}
@@ -74,12 +64,6 @@ func (s *setimpl[T, C]) TryAdd(ctx context.Context, v T) (bool, error) {
 	before := len(s.state.Values)
 	s.state.Values[c] = struct{}{}
 	after := len(s.state.Values)
-
-	if s.afterAdd != nil {
-		if err := s.afterAdd(s.name, v); err != nil {
-			return false, err
-		}
-	}
 
 	return before < after, ctx.Err()
 }
@@ -99,12 +83,6 @@ func (s *setimpl[T, C]) TryRemove(ctx context.Context, v T) (bool, error) {
 	s.state.Lock()
 	defer s.state.Unlock()
 
-	if s.beforeRemove != nil {
-		if err := s.beforeRemove(s.name, v); err != nil {
-			return false, err
-		}
-	}
-
 	if s.state.Values == nil {
 		return false, ctx.Err()
 	}
@@ -112,12 +90,6 @@ func (s *setimpl[T, C]) TryRemove(ctx context.Context, v T) (bool, error) {
 	before := len(s.state.Values)
 	delete(s.state.Values, c)
 	after := len(s.state.Values)
-
-	if s.afterRemove != nil {
-		if err := s.afterRemove(s.name, v); err != nil {
-			return false, err
-		}
-	}
 
 	return before > after, ctx.Err()
 }

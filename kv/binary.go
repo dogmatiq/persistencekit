@@ -15,3 +15,7 @@ type BinaryKeyspace = Keyspace[[]byte, []byte]
 // If err is non-nil, ranging stops and err is propagated up the stack.
 // Otherwise, if ok is false, ranging stops without any error being propagated.
 type BinaryRangeFunc = RangeFunc[[]byte, []byte]
+
+// BinaryInterceptor is an [Interceptor] that can be used to intercept
+// operations on a [BinaryKeyspace].
+type BinaryInterceptor = Interceptor[[]byte, []byte]
