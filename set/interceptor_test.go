@@ -138,7 +138,7 @@ func TestWithInterceptor(t *testing.T) {
 
 		ok, err := set.Has(t.Context(), []byte("<member>"))
 		if err != nil {
-			t.Fatal(got)
+			t.Fatal(err)
 		}
 		if !ok {
 			t.Fatal("expected member to be added")

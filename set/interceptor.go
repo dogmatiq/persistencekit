@@ -20,7 +20,7 @@ func (i *Interceptor[T]) BeforeOpen(fn func(name string) error) {
 	i.beforeOpen.Store(fn)
 }
 
-// BeforeAdd sets the function that is invoked before member is added to the
+// BeforeAdd sets the function that is invoked before a member is added to the
 // [Set].
 func (i *Interceptor[T]) BeforeAdd(fn func(set string, v T) error) {
 	i.beforeAdd.Store(fn)
