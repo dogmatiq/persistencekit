@@ -6,8 +6,8 @@ github.com/Azure/go-ansiterm v0.0.0-20210617225240-d185dfc1b5a1 h1:UQHMgLO+TxOEl
 github.com/Azure/go-ansiterm v0.0.0-20210617225240-d185dfc1b5a1/go.mod h1:xomTg63KZ2rFqZQzSB4Vz2SUXa1BpHTVz9L5PTmPC4E=
 github.com/Microsoft/go-winio v0.6.2 h1:F2VQgta7ecxGYO8k3ZZz3RS8fVIXVxONVUPlNERoyfY=
 github.com/Microsoft/go-winio v0.6.2/go.mod h1:yd8OoFMLzJbo9gZq8j5qaps8bJ9aShtEA8Ipt1oGCvU=
-github.com/aws/aws-sdk-go-v2 v1.40.0 h1:/WMUA0kjhZExjOQN2z3oLALDREea1A7TobfuiBrKlwc=
-github.com/aws/aws-sdk-go-v2 v1.40.0/go.mod h1:c9pm7VwuW0UPxAEYGyTmyurVcNrbF6Rt/wixFqDhcjE=
+github.com/aws/aws-sdk-go-v2 v1.40.1 h1:difXb4maDZkRH0x//Qkwcfpdg1XQVXEAEs2DdXldFFc=
+github.com/aws/aws-sdk-go-v2 v1.40.1/go.mod h1:MayyLB8y+buD9hZqkCW3kX1AKq07Y5pXxtgB+rRFhz0=
 github.com/aws/aws-sdk-go-v2/aws/protocol/eventstream v1.7.3 h1:DHctwEM8P8iTXFxC/QK0MRjwEpWQeM9yzidCRjldUz0=
 github.com/aws/aws-sdk-go-v2/aws/protocol/eventstream v1.7.3/go.mod h1:xdCzcZEtnSTKVDOmUZs4l/j3pSV6rpo1WXl5ugNsL8Y=
 github.com/aws/aws-sdk-go-v2/config v1.32.2 h1:4liUsdEpUUPZs5WVapsJLx5NPmQhQdez7nYFcovrytk=
@@ -79,14 +79,10 @@ github.com/dogmatiq/dogma v0.18.0 h1:H3SAIacQKICve42zCKHosKv7YoQ+ckn/oCz3Pnw3I84
 github.com/dogmatiq/dogma v0.18.0/go.mod h1:TF6xisRxQ2RE3JQwFr6MCI4nWLKQQp7KRWXVHOq9K0k=
 github.com/dogmatiq/dyad v1.0.0 h1:T50WQ9rAzCMcT941wVH5RW5+tAGRssuVlNog+ZMQR54=
 github.com/dogmatiq/dyad v1.0.0/go.mod h1:PrUQr7OCSEUjAkhi7ad8BjxFPKe0I9yP2f1kGimPcJE=
-github.com/dogmatiq/enginekit v0.19.13 h1:bWKrt/CFKm7S7xfDSZeshthVvS7FKvqiZ+lxhr77oWg=
-github.com/dogmatiq/enginekit v0.19.13/go.mod h1:34zcGyd/pqUhFKODOAnl1cGA4Q3MnccTze6M5CozTW8=
 github.com/dogmatiq/enginekit v0.19.14 h1:l5PsNj9oeuhjENtxgtlmr1chPYtUUS5WJA3Ry/RLEys=
 github.com/dogmatiq/enginekit v0.19.14/go.mod h1:34zcGyd/pqUhFKODOAnl1cGA4Q3MnccTze6M5CozTW8=
 github.com/dogmatiq/jumble v0.1.0 h1:Cb3ExfxY+AoUP4G9/sOwoOdYX8o+kOLK8+dhXAry+QA=
 github.com/dogmatiq/jumble v0.1.0/go.mod h1:FCGV2ImXu8zvThxhd4QLstiEdu74vbIVw9bFJSBcKr4=
-github.com/dogmatiq/primo v0.3.2 h1:aXozRZarqNE6XUo15pzfpR8SQGp1CDrDNTuy9OKsYy0=
-github.com/dogmatiq/primo v0.3.2/go.mod h1:KxVdMIF/PdkZzN0Toz2XNCSnP93EcoLarKhS52HqxvQ=
 github.com/dogmatiq/spruce v0.2.3 h1:sm5WLRYTtrNiIePLDXeElChI+/cXK3w4Wy1qL+quBQ0=
 github.com/dogmatiq/spruce v0.2.3/go.mod h1:za5ZdNvh+FRWg4B3DCn8jfNB2LVR/9Dk3fkuHVDJLrk=
 github.com/dustin/go-humanize v1.0.1 h1:GzkhY7T5VNhEkwH0PVJgjz+fX1rhBrR7pRT3mDkpeCY=
