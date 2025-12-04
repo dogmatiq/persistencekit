@@ -2,45 +2,46 @@ package set
 
 import (
 	"context"
-	"sync/atomic"
+
+	"github.com/dogmatiq/persistencekit/internal/x/xatomic"
 )
 
 // Interceptor defines functions that are invoked around set operations.
 type Interceptor[T any] struct {
-	beforeOpen   atomic.Pointer[func(string) error]
-	beforeAdd    atomic.Pointer[func(string, T) error]
-	afterAdd     atomic.Pointer[func(string, T) error]
-	beforeRemove atomic.Pointer[func(string, T) error]
-	afterRemove  atomic.Pointer[func(string, T) error]
+	beforeOpen   xatomic.Value[func(string) error]
+	beforeAdd    xatomic.Value[func(string, T) error]
+	afterAdd     xatomic.Value[func(string, T) error]
+	beforeRemove xatomic.Value[func(string, T) error]
+	afterRemove  xatomic.Value[func(string, T) error]
 }
 
 // BeforeOpen sets the function that is invoked before a [Set] is opened.
 func (i *Interceptor[T]) BeforeOpen(fn func(name string) error) {
-	setOpenFn(&i.beforeOpen, fn)
+	i.beforeOpen.Store(fn)
 }
 
 // BeforeAdd sets the function that is invoked before member is added to the
 // [Set].
 func (i *Interceptor[T]) BeforeAdd(fn func(set string, v T) error) {
-	setMemberFn(&i.beforeAdd, fn)
+	i.beforeAdd.Store(fn)
 }
 
 // AfterAdd sets the function that is invoked after a member is added to the
 // [Set].
 func (i *Interceptor[T]) AfterAdd(fn func(set string, v T) error) {
-	setMemberFn(&i.afterAdd, fn)
+	i.afterAdd.Store(fn)
 }
 
 // BeforeRemove sets the function that is invoked before a member is removed
 // from the [Set].
 func (i *Interceptor[T]) BeforeRemove(fn func(set string, v T) error) {
-	setMemberFn(&i.beforeRemove, fn)
+	i.beforeRemove.Store(fn)
 }
 
 // AfterRemove sets the function that is invoked after a member is removed from
 // the [Set].
 func (i *Interceptor[T]) AfterRemove(fn func(set string, v T) error) {
-	setMemberFn(&i.afterRemove, fn)
+	i.afterRemove.Store(fn)
 }
 
 // WithInterceptor returns a [Store] that invokes the functions defined
@@ -56,31 +57,13 @@ func WithInterceptor[T any](s Store[T], in *Interceptor[T]) Store[T] {
 	}
 }
 
-func setOpenFn(dst *atomic.Pointer[func(string) error], fn func(string) error) {
-	if fn == nil {
-		dst.Store(nil)
-		return
-	}
-
-	dst.Store(&fn)
-}
-
-func setMemberFn[T any](dst *atomic.Pointer[func(string, T) error], fn func(string, T) error) {
-	if fn == nil {
-		dst.Store(nil)
-		return
-	}
-
-	dst.Store(&fn)
-}
-
 type interceptedStore[T any] struct {
 	Next        Store[T]
 	Interceptor *Interceptor[T]
 }
 
 func (s *interceptedStore[T]) Open(ctx context.Context, name string) (Set[T], error) {
-	if fn := s.Interceptor.beforeOpenFn(); fn != nil {
+	if fn := s.Interceptor.beforeOpen.Load(); fn != nil {
 		if err := fn(name); err != nil {
 			return nil, err
 		}
@@ -113,7 +96,7 @@ func (s *interceptedSet[T]) Has(ctx context.Context, v T) (bool, error) {
 }
 
 func (s *interceptedSet[T]) Add(ctx context.Context, v T) error {
-	if fn := s.Interceptor.beforeAddFn(); fn != nil {
+	if fn := s.Interceptor.beforeAdd.Load(); fn != nil {
 		if err := fn(s.set, v); err != nil {
 			return err
 		}
@@ -123,7 +106,7 @@ func (s *interceptedSet[T]) Add(ctx context.Context, v T) error {
 		return err
 	}
 
-	if fn := s.Interceptor.afterAddFn(); fn != nil {
+	if fn := s.Interceptor.afterAdd.Load(); fn != nil {
 		if err := fn(s.set, v); err != nil {
 			return err
 		}
@@ -133,7 +116,7 @@ func (s *interceptedSet[T]) Add(ctx context.Context, v T) error {
 }
 
 func (s *interceptedSet[T]) TryAdd(ctx context.Context, v T) (bool, error) {
-	if fn := s.Interceptor.beforeAddFn(); fn != nil {
+	if fn := s.Interceptor.beforeAdd.Load(); fn != nil {
 		if err := fn(s.set, v); err != nil {
 			return false, err
 		}
@@ -144,7 +127,7 @@ func (s *interceptedSet[T]) TryAdd(ctx context.Context, v T) (bool, error) {
 		return false, err
 	}
 
-	if fn := s.Interceptor.afterAddFn(); fn != nil {
+	if fn := s.Interceptor.afterAdd.Load(); fn != nil {
 		if err := fn(s.set, v); err != nil {
 			return false, err
 		}
@@ -154,7 +137,7 @@ func (s *interceptedSet[T]) TryAdd(ctx context.Context, v T) (bool, error) {
 }
 
 func (s *interceptedSet[T]) Remove(ctx context.Context, v T) error {
-	if fn := s.Interceptor.beforeRemoveFn(); fn != nil {
+	if fn := s.Interceptor.beforeRemove.Load(); fn != nil {
 		if err := fn(s.set, v); err != nil {
 			return err
 		}
@@ -164,7 +147,7 @@ func (s *interceptedSet[T]) Remove(ctx context.Context, v T) error {
 		return err
 	}
 
-	if fn := s.Interceptor.afterRemoveFn(); fn != nil {
+	if fn := s.Interceptor.afterRemove.Load(); fn != nil {
 		if err := fn(s.set, v); err != nil {
 			return err
 		}
@@ -174,7 +157,7 @@ func (s *interceptedSet[T]) Remove(ctx context.Context, v T) error {
 }
 
 func (s *interceptedSet[T]) TryRemove(ctx context.Context, v T) (bool, error) {
-	if fn := s.Interceptor.beforeRemoveFn(); fn != nil {
+	if fn := s.Interceptor.beforeRemove.Load(); fn != nil {
 		if err := fn(s.set, v); err != nil {
 			return false, err
 		}
@@ -185,7 +168,7 @@ func (s *interceptedSet[T]) TryRemove(ctx context.Context, v T) (bool, error) {
 		return false, err
 	}
 
-	if fn := s.Interceptor.afterRemoveFn(); fn != nil {
+	if fn := s.Interceptor.afterRemove.Load(); fn != nil {
 		if err := fn(s.set, v); err != nil {
 			return false, err
 		}
@@ -200,64 +183,4 @@ func (s *interceptedSet[T]) Range(ctx context.Context, fn RangeFunc[T]) error {
 
 func (s *interceptedSet[T]) Close() error {
 	return s.Next.Close()
-}
-
-func (i *Interceptor[T]) beforeOpenFn() func(string) error {
-	if i == nil {
-		return nil
-	}
-
-	if fn := i.beforeOpen.Load(); fn != nil {
-		return *fn
-	}
-
-	return nil
-}
-
-func (i *Interceptor[T]) beforeAddFn() func(string, T) error {
-	if i == nil {
-		return nil
-	}
-
-	if fn := i.beforeAdd.Load(); fn != nil {
-		return *fn
-	}
-
-	return nil
-}
-
-func (i *Interceptor[T]) afterAddFn() func(string, T) error {
-	if i == nil {
-		return nil
-	}
-
-	if fn := i.afterAdd.Load(); fn != nil {
-		return *fn
-	}
-
-	return nil
-}
-
-func (i *Interceptor[T]) beforeRemoveFn() func(string, T) error {
-	if i == nil {
-		return nil
-	}
-
-	if fn := i.beforeRemove.Load(); fn != nil {
-		return *fn
-	}
-
-	return nil
-}
-
-func (i *Interceptor[T]) afterRemoveFn() func(string, T) error {
-	if i == nil {
-		return nil
-	}
-
-	if fn := i.afterRemove.Load(); fn != nil {
-		return *fn
-	}
-
-	return nil
 }
