@@ -17,5 +17,5 @@ type BinaryKeyspace = Keyspace[[]byte, []byte]
 type BinaryRangeFunc = RangeFunc[[]byte, []byte]
 
 // BinaryInterceptor is an [Interceptor] that can be used to intercept
-// operations on a [BinaryStore].
+// operations on a [BinaryKeyspace].
 type BinaryInterceptor = Interceptor[[]byte, []byte]
