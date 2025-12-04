@@ -22,8 +22,6 @@ type state[C comparable, V any] struct {
 type keyspace[K, V any, C comparable] struct {
 	name         string
 	state        *state[C, V]
-	beforeSet    func(ks string, k K, v V) error
-	afterSet     func(ks string, k K, v V) error
 	marshalKey   func(K) C
 	unmarshalKey func(C) K
 }
@@ -67,12 +65,6 @@ func (ks *keyspace[K, V, C]) Set(ctx context.Context, k K, v V) error {
 	ks.state.Lock()
 	defer ks.state.Unlock()
 
-	if ks.beforeSet != nil {
-		if err := ks.beforeSet(ks.name, k, v); err != nil {
-			return err
-		}
-	}
-
 	c := ks.marshalKey(k)
 
 	if reflect.ValueOf(v).IsZero() {
@@ -83,12 +75,6 @@ func (ks *keyspace[K, V, C]) Set(ctx context.Context, k K, v V) error {
 		}
 
 		ks.state.Values[c] = v
-	}
-
-	if ks.afterSet != nil {
-		if err := ks.afterSet(ks.name, k, v); err != nil {
-			return err
-		}
 	}
 
 	return ctx.Err()

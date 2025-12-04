@@ -16,11 +16,14 @@ The format is based on [Keep a Changelog], and this project adheres to
 ### Added
 
 - Added `set.WithInterceptor()` to allow intercepting operations on sets.
+- Added `kv.WithInterceptor()` to allow intercepting operations on keyspaces.
 
 ### Removed
 
-- **[BC]** Removed inception hooks from `memoryset.Store` and `BinaryStore`. Use
+- **[BC]** Removed hooks from `memoryset.Store` and `BinaryStore`. Use
   `set.WithInterceptor()` instead.
+- **[BC]** Removed hooks from `memorykv.Store` and `BinaryStore`. Use
+  `kv.WithInterceptor()` instead.
 
 ## [0.12.0] - 2025-12-04
 
