@@ -19,10 +19,8 @@ type state[T any] struct {
 // journ is an implementation of [journal.Journal] that manipulates a journal's
 // in-memory [state].
 type journ[T any] struct {
-	name         string
-	state        *state[T]
-	beforeAppend func(name string, rec T) error
-	afterAppend  func(name string, rec T) error
+	name  string
+	state *state[T]
 }
 
 func (j *journ[T]) Name() string {
@@ -106,12 +104,6 @@ func (j *journ[T]) Append(ctx context.Context, pos journal.Position, rec T) erro
 	j.state.Lock()
 	defer j.state.Unlock()
 
-	if j.beforeAppend != nil {
-		if err := j.beforeAppend(j.name, rec); err != nil {
-			return err
-		}
-	}
-
 	switch {
 	case pos < j.state.Bounds.End:
 		return journal.ConflictError{
@@ -123,12 +115,6 @@ func (j *journ[T]) Append(ctx context.Context, pos journal.Position, rec T) erro
 		j.state.Bounds.End++
 	default:
 		panic("position out of range, this causes undefined behavior in a 'real' journal implementation")
-	}
-
-	if j.afterAppend != nil {
-		if err := j.afterAppend(j.name, rec); err != nil {
-			return err
-		}
 	}
 
 	return ctx.Err()
