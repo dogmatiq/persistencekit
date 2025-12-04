@@ -226,6 +226,58 @@ func (s *instrumentedSet) TryRemove(ctx context.Context, v []byte) (bool, error)
 	return ok, nil
 }
 
+func (s *instrumentedSet) Range(ctx context.Context, fn RangeFunc[[]byte]) error {
+	ctx, span := s.Telemetry.StartSpan(ctx, "set.range")
+	defer span.End()
+
+	var (
+		count     int64
+		totalSize int64
+		brokeLoop bool
+	)
+
+	s.Telemetry.Info(ctx, "set.range.start", "reading set members")
+
+	err := s.Next.Range(
+		ctx,
+		func(ctx context.Context, v []byte) (bool, error) {
+			count++
+
+			size := int64(len(v))
+			totalSize += size
+
+			s.ValueIO(ctx, size, telemetry.ReadDirection)
+			s.ValueSize(ctx, size, telemetry.ReadDirection)
+
+			ok, err := fn(ctx, v)
+			if ok || err != nil {
+				return ok, err
+			}
+
+			brokeLoop = true
+			return false, nil
+		},
+	)
+
+	span.SetAttributes(
+		telemetry.Int("members_read", count),
+		telemetry.Int("bytes_read", totalSize),
+		telemetry.Bool("reached_end", !brokeLoop && err == nil),
+	)
+
+	if err != nil {
+		s.Telemetry.Error(ctx, "set.range.error", "unable to range over set members", err)
+		return err
+	}
+
+	if brokeLoop {
+		s.Telemetry.Info(ctx, "set.range.break", "range aborted cleanly before visiting all set members")
+	} else {
+		s.Telemetry.Info(ctx, "set.range.end", "range visited all set members")
+	}
+	return nil
+}
+
 func (s *instrumentedSet) Close() error {
 	if s.Next == nil {
 		// If the resource has already been closed don't do anything at all,

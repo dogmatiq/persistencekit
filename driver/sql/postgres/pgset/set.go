@@ -4,6 +4,8 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+
+	"github.com/dogmatiq/persistencekit/set"
 )
 
 type setimpl struct {
@@ -19,17 +21,17 @@ func (s *setimpl) Name() string {
 func (s *setimpl) Has(ctx context.Context, k []byte) (bool, error) {
 	row := s.db.QueryRowContext(
 		ctx,
-		`SELECT COUNT(value) != 0
-		FROM persistencekit.set_value
+		`SELECT COUNT(member) != 0
+		FROM persistencekit.set_member
 		WHERE set_id = $1
-		AND value = $2`,
+		AND member = $2`,
 		s.id,
 		k,
 	)
 
 	var exists bool
 	if err := row.Scan(&exists); err != nil {
-		return false, fmt.Errorf("cannot scan set value: %w", err)
+		return false, fmt.Errorf("cannot scan set membership: %w", err)
 	}
 
 	return exists, nil
@@ -61,6 +63,38 @@ func (s *setimpl) TryRemove(ctx context.Context, v []byte) (bool, error) {
 	return checkRowAffected(res)
 }
 
+func (s *setimpl) Range(ctx context.Context, fn set.BinaryRangeFunc) error {
+	rows, err := s.db.QueryContext(
+		ctx,
+		`SELECT member
+		FROM persistencekit.set_member
+		WHERE set_id = $1`,
+		s.id,
+	)
+	if err != nil {
+		return fmt.Errorf("cannot query set members: %w", err)
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var v []byte
+		if err := rows.Scan(&v); err != nil {
+			return fmt.Errorf("cannot scan set member: %w", err)
+		}
+
+		ok, err := fn(ctx, v)
+		if !ok || err != nil {
+			return err
+		}
+	}
+
+	if err := rows.Err(); err != nil {
+		return fmt.Errorf("cannot range over set members: %w", err)
+	}
+
+	return nil
+}
+
 func (s *setimpl) Close() error {
 	return nil
 }
@@ -68,18 +102,18 @@ func (s *setimpl) Close() error {
 func (s *setimpl) insert(ctx context.Context, v []byte) (sql.Result, error) {
 	res, err := s.db.ExecContext(
 		ctx,
-		`INSERT INTO persistencekit.set_value AS o (
+		`INSERT INTO persistencekit.set_member AS o (
 			set_id,
-			value
+			member
 		) VALUES (
 			$1, $2
-		) ON CONFLICT (set_id, value) DO NOTHING
+		) ON CONFLICT (set_id, member) DO NOTHING
 		`,
 		s.id,
 		v,
 	)
 	if err != nil {
-		return nil, fmt.Errorf("cannot insert value into set: %w", err)
+		return nil, fmt.Errorf("cannot insert member into set: %w", err)
 	}
 
 	return res, nil
@@ -88,14 +122,14 @@ func (s *setimpl) insert(ctx context.Context, v []byte) (sql.Result, error) {
 func (s *setimpl) delete(ctx context.Context, v []byte) (sql.Result, error) {
 	res, err := s.db.ExecContext(
 		ctx,
-		`DELETE FROM persistencekit.set_value
+		`DELETE FROM persistencekit.set_member
 		WHERE set_id = $1
-		AND value = $2`,
+		AND member = $2`,
 		s.id,
 		v,
 	)
 	if err != nil {
-		return nil, fmt.Errorf("cannot delete value from set: %w", err)
+		return nil, fmt.Errorf("cannot delete member from set: %w", err)
 	}
 
 	return res, nil

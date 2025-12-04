@@ -79,3 +79,17 @@ func (s *mset[T]) TryRemove(ctx context.Context, v T) (bool, error) {
 	}
 	return s.BinarySet.TryRemove(ctx, data)
 }
+
+func (s *mset[T]) Range(ctx context.Context, fn RangeFunc[T]) error {
+	return s.BinarySet.Range(
+		ctx,
+		func(ctx context.Context, v []byte) (bool, error) {
+			value, err := s.m.Unmarshal(v)
+			if err != nil {
+				return false, err
+			}
+
+			return fn(ctx, value)
+		},
+	)
+}

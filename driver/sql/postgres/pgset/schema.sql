@@ -9,8 +9,8 @@ CREATE TABLE
     );
 
 CREATE TABLE
-    IF NOT EXISTS persistencekit.set_value (
+    IF NOT EXISTS persistencekit.set_member (
         set_id BIGINT NOT NULL,
-        value BYTEA NOT NULL,
-        PRIMARY KEY (set_id, value)
+        member BYTEA NOT NULL,
+        PRIMARY KEY (set_id, member)
     );

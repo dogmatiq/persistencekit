@@ -8,3 +8,9 @@ type BinaryStore = Store[[]byte]
 //
 // Values in a binary set cannot be an empty slice.
 type BinarySet = Set[[]byte]
+
+// A BinaryRangeFunc is a function used to range over members of a [BinarySet].
+//
+// If err is non-nil, ranging stops and err is propagated up the stack.
+// Otherwise, if ok is false, ranging stops without any error being propagated.
+type BinaryRangeFunc = RangeFunc[[]byte]

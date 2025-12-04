@@ -3,7 +3,10 @@ package memoryset
 import (
 	"context"
 	"errors"
+	"maps"
 	"sync"
+
+	"github.com/dogmatiq/persistencekit/set"
 )
 
 // state is the in-memory state of a set.
@@ -117,6 +120,26 @@ func (s *setimpl[T, C]) TryRemove(ctx context.Context, v T) (bool, error) {
 	}
 
 	return before > after, ctx.Err()
+}
+
+func (s *setimpl[T, C]) Range(ctx context.Context, fn set.RangeFunc[T]) error {
+	if s.state == nil {
+		panic("set is closed")
+	}
+
+	s.state.RLock()
+	values := maps.Clone(s.state.Values)
+	s.state.RUnlock()
+
+	for c := range values {
+		v := s.unmarshalValue(c)
+		ok, err := fn(ctx, v)
+		if !ok || err != nil {
+			return err
+		}
+	}
+
+	return ctx.Err()
 }
 
 func (s *setimpl[T, C]) Close() error {

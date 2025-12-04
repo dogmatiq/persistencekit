@@ -2,6 +2,12 @@ package set
 
 import "context"
 
+// A RangeFunc is a function used to range over the members of a [Set].
+//
+// If err is non-nil, ranging stops and err is propagated up the stack.
+// Otherwise, if ok is false, ranging stops without any error being propagated.
+type RangeFunc[T any] func(ctx context.Context, v T) (ok bool, err error)
+
 // Set is a unique set of values of type T.
 type Set[T any] interface {
 	// Name returns the name of the set.
@@ -29,6 +35,9 @@ type Set[T any] interface {
 	// Remove() may be more performant when knowledge of v's prior membership is
 	// not required.
 	TryRemove(ctx context.Context, v T) (bool, error)
+
+	// Range invokes fn for each member of the set in an undefined order.
+	Range(ctx context.Context, fn RangeFunc[T]) error
 
 	// Close closes the set.
 	Close() error

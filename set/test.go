@@ -2,6 +2,7 @@ package set
 
 import (
 	"bytes"
+	"context"
 	"slices"
 	"testing"
 
@@ -328,7 +329,7 @@ func RunTests(
 			t.Parallel()
 
 			rapid.Check(t, func(t *rapid.T) {
-				set, err := store.Open(t.Context(), testx.SequentialName("keyspace"))
+				set, err := store.Open(t.Context(), testx.SequentialName("set"))
 				if err != nil {
 					t.Fatal(err)
 				}
@@ -467,6 +468,37 @@ func RunTests(
 									return bytes.Equal(k, value)
 								},
 							)
+						},
+						"Range": func(t *rapid.T) {
+							visited := map[string]struct{}{}
+
+							err := set.Range(
+								t.Context(),
+								func(
+									_ context.Context,
+									v []byte,
+								) (bool, error) {
+									visited[string(v)] = struct{}{}
+									return true, nil
+								},
+							)
+							if err != nil {
+								t.Fatal(err)
+							}
+
+							if len(visited) != len(membership) {
+								t.Fatalf(
+									"unexpected number of values: got %d, want %d",
+									len(visited),
+									len(membership),
+								)
+							}
+
+							for v := range membership {
+								if _, ok := visited[v]; !ok {
+									t.Fatalf("missing value from range: %q", v)
+								}
+							}
 						},
 					},
 				)

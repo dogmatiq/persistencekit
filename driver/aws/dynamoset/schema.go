@@ -3,6 +3,7 @@ package dynamoset
 import (
 	"context"
 
+	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 	"github.com/dogmatiq/persistencekit/driver/aws/internal/dynamox"
@@ -10,13 +11,13 @@ import (
 
 var (
 	// setAttr is the name of the attribute that stores the set name
-	// on each item. Together with [valueAttr], it forms the primary key of the
+	// on each item. Together with [memberAttr], it forms the primary key of the
 	// table.
 	setAttr = "S"
 
-	// valueAttr is the name of the attribute that stores the value on each
-	// item.
-	valueAttr = "V"
+	// memberAttr is the name of the attribute that stores the set member on
+	// each item.
+	memberAttr = "M"
 
 	// nonExistentAttr is the name of an attribute that does not exist on any
 	// item. It is used to test for the existence of an item without fetching
@@ -37,7 +38,7 @@ func (s *store) createTable(ctx context.Context) error {
 			KeyType: types.KeyTypeHash,
 		},
 		dynamox.KeyAttr{
-			Name:    &valueAttr,
+			Name:    &memberAttr,
 			Type:    types.ScalarAttributeTypeB,
 			KeyType: types.KeyTypeRange,
 		},
@@ -46,11 +47,11 @@ func (s *store) createTable(ctx context.Context) error {
 
 func (s *setimpl) prepareRequests(table string) {
 	key := map[string]types.AttributeValue{
-		setAttr:   &s.attr.Set,
-		valueAttr: &s.attr.Value,
+		setAttr:    &s.attr.Set,
+		memberAttr: &s.attr.Member,
 	}
 
-	// Has requests [nonExistentAttr] for the item at s.attr.Value to check if
+	// Has requests [nonExistentAttr] for the item at s.attr.Member to check if
 	// the item exists at all.
 	s.request.Has = dynamodb.GetItemInput{
 		TableName:            &table,
@@ -58,13 +59,27 @@ func (s *setimpl) prepareRequests(table string) {
 		ProjectionExpression: &nonExistentAttr,
 	}
 
-	// Add adds s.attr.Value to the set.
+	// Range fetches all members of the set.
+	s.request.Range = dynamodb.QueryInput{
+		TableName:              &table,
+		KeyConditionExpression: aws.String(`#S = :S`),
+		ProjectionExpression:   aws.String("#M"),
+		ExpressionAttributeNames: map[string]string{
+			"#S": setAttr,
+			"#M": memberAttr,
+		},
+		ExpressionAttributeValues: map[string]types.AttributeValue{
+			":S": &s.attr.Set,
+		},
+	}
+
+	// Add adds s.attr.Member to the set.
 	s.request.Put = dynamodb.PutItemInput{
 		TableName: &table,
 		Item:      key,
 	}
 
-	// Delete removes s.attr.Value from the set.
+	// Delete removes s.attr.Member from the set.
 	s.request.Delete = dynamodb.DeleteItemInput{
 		TableName: &table,
 		Key:       key,

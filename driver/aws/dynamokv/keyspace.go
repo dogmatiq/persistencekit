@@ -134,6 +134,7 @@ func (ks *keyspace) Range(ctx context.Context, fn kv.BinaryRangeFunc) error {
 	); err != nil {
 		return fmt.Errorf("unable to range over keyspace: %w", err)
 	}
+
 	return nil
 }
 

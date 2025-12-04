@@ -1,6 +1,7 @@
 package set_test
 
 import (
+	"context"
 	"testing"
 
 	"github.com/dogmatiq/persistencekit/driver/memory/memoryset"
@@ -67,6 +68,27 @@ func TestStore(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
+
+		if got != want {
+			t.Fatalf("unexpected membership for %d: got %t, want %t", v, got, want)
+		}
+	}
+
+	visited := map[int]struct{}{}
+	if err := set.Range(
+		t.Context(),
+		func(_ context.Context, v int) (bool, error) {
+			visited[v] = struct{}{}
+			return true, nil
+		},
+	); err != nil {
+		t.Fatal(err)
+	}
+
+	// expect visited to contain [5, 9]
+	for v := range 10 {
+		want := v >= 5
+		_, got := visited[v]
 
 		if got != want {
 			t.Fatalf("unexpected membership for %d: got %t, want %t", v, got, want)

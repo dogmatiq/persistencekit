@@ -11,6 +11,17 @@ The format is based on [Keep a Changelog], and this project adheres to
 [semantic versioning]: https://semver.org/spec/v2.0.0.html
 [bc]: https://github.com/dogmatiq/.github/blob/main/VERSIONING.md#changelogs
 
+## [Unreleased] - 2025-12-04
+
+### Added
+
+- Added `set.Set.Range()` method to iterate over all members of a set.
+
+### Changed
+
+- **[BC]** Renamed `pgset` table from `set_value` to `set_member` to match terminology elsewhere.
+- **[BC]** Renamed `dynamoset` attribute from `V` (value) to `M` (member) to match terminology elsewhere.
+
 ## [0.11.2] - 2025-12-02
 
 ### Changed
