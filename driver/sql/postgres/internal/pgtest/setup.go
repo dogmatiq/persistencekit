@@ -4,7 +4,7 @@ import (
 	"database/sql"
 	"testing"
 
-	"github.com/dogmatiq/persistencekit/internal/testx"
+	"github.com/dogmatiq/persistencekit/internal/x/xtesting"
 	"github.com/google/uuid"
 	_ "github.com/jackc/pgx/v5/stdlib" // pgx driver for database/sql
 	"github.com/testcontainers/testcontainers-go/modules/postgres"
@@ -28,7 +28,7 @@ func Setup(t testing.TB) *sql.DB {
 	}
 
 	t.Cleanup(func() {
-		ctx := testx.ContextForCleanup(t)
+		ctx := xtesting.ContextForCleanup(t)
 		if err := container.Terminate(ctx); err != nil {
 			t.Log(err)
 		}

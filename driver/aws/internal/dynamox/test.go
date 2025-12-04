@@ -8,7 +8,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
-	"github.com/dogmatiq/persistencekit/internal/testx"
+	"github.com/dogmatiq/persistencekit/internal/x/xtesting"
 	"github.com/testcontainers/testcontainers-go"
 	dynamotc "github.com/testcontainers/testcontainers-go/modules/dynamodb"
 	"github.com/testcontainers/testcontainers-go/wait"
@@ -40,7 +40,7 @@ func NewTestClient(t testing.TB) *dynamodb.Client {
 	}
 
 	t.Cleanup(func() {
-		ctx := testx.ContextForCleanup(t)
+		ctx := xtesting.ContextForCleanup(t)
 		if err := container.Terminate(ctx); err != nil {
 			t.Log(err)
 		}

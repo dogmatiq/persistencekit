@@ -8,7 +8,7 @@ import (
 	"slices"
 	"testing"
 
-	"github.com/dogmatiq/persistencekit/internal/testx"
+	"github.com/dogmatiq/persistencekit/internal/x/xtesting"
 	"github.com/google/go-cmp/cmp"
 	"pgregory.net/rapid"
 )
@@ -19,7 +19,7 @@ func RunTests(
 	store BinaryStore,
 ) {
 	setup := func(t *testing.T) BinaryKeyspace {
-		name := testx.SequentialName("keyspace")
+		name := xtesting.SequentialName("keyspace")
 
 		ks, err := store.Open(t.Context(), name)
 		if err != nil {
@@ -553,7 +553,7 @@ func RunTests(
 		t.Parallel()
 
 		rapid.Check(t, func(t *rapid.T) {
-			ks, err := store.Open(t.Context(), testx.SequentialName("keyspace"))
+			ks, err := store.Open(t.Context(), xtesting.SequentialName("keyspace"))
 			if err != nil {
 				t.Fatal(err)
 			}

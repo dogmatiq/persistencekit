@@ -6,7 +6,7 @@ import (
 	"io"
 	"testing"
 
-	"github.com/dogmatiq/persistencekit/internal/testx"
+	"github.com/dogmatiq/persistencekit/internal/x/xtesting"
 )
 
 // RunBenchmarks runs benchmarks against a [BinaryStore] implementation.
@@ -22,11 +22,11 @@ func RunBenchmarks(
 					set  BinarySet
 				)
 
-				testx.Benchmark(
+				xtesting.Benchmark(
 					b,
 					// SETUP
 					func(ctx context.Context) error {
-						name = testx.SequentialName("set")
+						name = xtesting.SequentialName("set")
 
 						// pre-create the set
 						set, err := store.Open(ctx, name)
@@ -55,13 +55,13 @@ func RunBenchmarks(
 					set  BinarySet
 				)
 
-				testx.Benchmark(
+				xtesting.Benchmark(
 					b,
 					// SETUP
 					nil,
 					// BEFORE EACH
 					func(context.Context) error {
-						name = testx.SequentialName("set")
+						name = xtesting.SequentialName("set")
 						return nil
 					},
 					// BENCHMARKED CODE
@@ -337,11 +337,11 @@ func benchmarkSet(
 ) {
 	var set BinarySet
 
-	testx.Benchmark(
+	xtesting.Benchmark(
 		b,
 		func(ctx context.Context) error {
 			var err error
-			set, err = store.Open(ctx, testx.SequentialName("set"))
+			set, err = store.Open(ctx, xtesting.SequentialName("set"))
 			if err != nil {
 				return err
 			}

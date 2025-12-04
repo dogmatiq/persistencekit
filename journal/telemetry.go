@@ -4,7 +4,7 @@ import (
 	"context"
 
 	"github.com/dogmatiq/enginekit/telemetry"
-	"github.com/dogmatiq/persistencekit/internal/xtelemetry"
+	"github.com/dogmatiq/persistencekit/internal/x/xtelemetry"
 	"go.opentelemetry.io/otel/log"
 	"go.opentelemetry.io/otel/metric"
 	"go.opentelemetry.io/otel/trace"

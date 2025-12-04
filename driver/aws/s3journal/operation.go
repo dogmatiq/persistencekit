@@ -11,7 +11,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/dogmatiq/persistencekit/driver/aws/internal/awsx"
 	"github.com/dogmatiq/persistencekit/driver/aws/internal/s3x"
-	"github.com/dogmatiq/persistencekit/internal/errorx"
+	"github.com/dogmatiq/persistencekit/internal/x/xerrors"
 	"github.com/dogmatiq/persistencekit/journal"
 )
 
@@ -152,7 +152,7 @@ func (j *journ) doOperation(
 
 // loadOperation returns the operation with the given ID.
 func (j *journ) loadOperation(ctx context.Context, id operationID) (op operation, ok bool, err error) {
-	defer errorx.Wrap(&err, "unable to load operation %d of the %q journal", id, j.Name())
+	defer xerrors.Wrap(&err, "unable to load operation %d of the %q journal", id, j.Name())
 
 	res, err := awsx.Do(
 		ctx,

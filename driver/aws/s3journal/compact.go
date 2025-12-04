@@ -7,13 +7,13 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/aws/aws-sdk-go-v2/service/s3/types"
 	"github.com/dogmatiq/persistencekit/driver/aws/internal/awsx"
-	"github.com/dogmatiq/persistencekit/internal/errorx"
+	"github.com/dogmatiq/persistencekit/internal/x/xerrors"
 )
 
 // compact deletes any operations that occurred before the beginning of the
 // journal (after truncation).
 func (j *journ) compact(ctx context.Context) (err error) {
-	defer errorx.Wrap(&err, "unable to compact operations in the %q journal", j.Name())
+	defer xerrors.Wrap(&err, "unable to compact operations in the %q journal", j.Name())
 
 	if j.cache.IsStale {
 		panic("cannot compact with a stale cache")

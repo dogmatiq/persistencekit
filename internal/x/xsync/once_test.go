@@ -1,11 +1,11 @@
-package syncx_test
+package xsync_test
 
 import (
 	"context"
 	"errors"
 	"testing"
 
-	. "github.com/dogmatiq/persistencekit/internal/syncx"
+	. "github.com/dogmatiq/persistencekit/internal/x/xsync"
 )
 
 func TestSucceedOnce(t *testing.T) {

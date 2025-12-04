@@ -6,7 +6,7 @@ import (
 	"slices"
 	"testing"
 
-	"github.com/dogmatiq/persistencekit/internal/testx"
+	"github.com/dogmatiq/persistencekit/internal/x/xtesting"
 	"pgregory.net/rapid"
 )
 
@@ -16,7 +16,7 @@ func RunTests(
 	store BinaryStore,
 ) {
 	setup := func(t *testing.T) BinarySet {
-		name := testx.SequentialName("set")
+		name := xtesting.SequentialName("set")
 
 		set, err := store.Open(t.Context(), name)
 		if err != nil {
@@ -329,7 +329,7 @@ func RunTests(
 			t.Parallel()
 
 			rapid.Check(t, func(t *rapid.T) {
-				set, err := store.Open(t.Context(), testx.SequentialName("set"))
+				set, err := store.Open(t.Context(), xtesting.SequentialName("set"))
 				if err != nil {
 					t.Fatal(err)
 				}

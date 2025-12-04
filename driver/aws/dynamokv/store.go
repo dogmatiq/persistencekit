@@ -4,7 +4,7 @@ import (
 	"context"
 
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
-	"github.com/dogmatiq/persistencekit/internal/syncx"
+	"github.com/dogmatiq/persistencekit/internal/x/xsync"
 	"github.com/dogmatiq/persistencekit/kv"
 )
 
@@ -15,7 +15,7 @@ type store struct {
 	Table     string
 	OnRequest func(any) []func(*dynamodb.Options)
 
-	createTableOnce syncx.SucceedOnce
+	createTableOnce xsync.SucceedOnce
 }
 
 // NewBinaryStore returns a new [kv.BinaryStore] that uses the given DynamoDB

@@ -11,7 +11,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 	"github.com/dogmatiq/persistencekit/driver/aws/internal/awsx"
 	"github.com/dogmatiq/persistencekit/driver/aws/internal/dynamox"
-	"github.com/dogmatiq/persistencekit/internal/errorx"
+	"github.com/dogmatiq/persistencekit/internal/x/xerrors"
 	"github.com/dogmatiq/persistencekit/journal"
 )
 
@@ -48,7 +48,7 @@ type journ struct {
 // init initializes the journal meta-data and compacts any records that have
 // been truncated but not yet compacted.
 func (j *journ) init(ctx context.Context, table, name string) (err error) {
-	defer errorx.Wrap(&err, "unable to initialize the %q journal", name)
+	defer xerrors.Wrap(&err, "unable to initialize the %q journal", name)
 
 	j.attr.Journal.Value = name
 	j.prepareRequests(table)
@@ -126,7 +126,7 @@ func (j *journ) Bounds(ctx context.Context) (journal.Interval, error) {
 }
 
 func (j *journ) loadBegin(ctx context.Context) (_ journal.Position, err error) {
-	defer errorx.Wrap(&err, "unable to load lower bound of the %q journal", j.Name())
+	defer xerrors.Wrap(&err, "unable to load lower bound of the %q journal", j.Name())
 
 	out, err := awsx.Do(
 		ctx,
@@ -146,7 +146,7 @@ func (j *journ) loadBegin(ctx context.Context) (_ journal.Position, err error) {
 }
 
 func (j *journ) loadEnd(ctx context.Context) (end journal.Position, empty bool, err error) {
-	defer errorx.Wrap(&err, "unable to load upper bound of the %q journal", j.Name())
+	defer xerrors.Wrap(&err, "unable to load upper bound of the %q journal", j.Name())
 
 	ok, err := dynamox.QueryOne(
 		ctx,
@@ -188,7 +188,7 @@ func (j *journ) loadEnd(ctx context.Context) (end journal.Position, empty bool, 
 }
 
 func (j *journ) Get(ctx context.Context, pos journal.Position) (_ []byte, err error) {
-	defer errorx.Wrap(&err, "unable to get record at position %d of the %q journal", pos, j.Name())
+	defer xerrors.Wrap(&err, "unable to get record at position %d of the %q journal", pos, j.Name())
 
 	j.attr.Pos.Value = marshalPosition(pos)
 
@@ -234,7 +234,7 @@ func (j *journ) Range(
 	pos journal.Position,
 	fn journal.BinaryRangeFunc,
 ) (err error) {
-	defer errorx.Wrap(&err, "unable to range over records starting at position %d of the %q journal", pos, j.Name())
+	defer xerrors.Wrap(&err, "unable to range over records starting at position %d of the %q journal", pos, j.Name())
 
 	j.attr.Pos.Value = marshalPositionBefore(pos)
 	expectPos := pos
@@ -281,7 +281,7 @@ func (j *journ) Range(
 }
 
 func (j *journ) Append(ctx context.Context, pos journal.Position, rec []byte) (err error) {
-	defer errorx.Wrap(&err, "unable to append record at position %d of the %q journal", pos, j.Name())
+	defer xerrors.Wrap(&err, "unable to append record at position %d of the %q journal", pos, j.Name())
 
 	j.attr.Pos.Value = marshalPosition(pos)
 	j.attr.Record.Value = rec
@@ -305,7 +305,7 @@ func (j *journ) Append(ctx context.Context, pos journal.Position, rec []byte) (e
 }
 
 func (j *journ) Truncate(ctx context.Context, pos journal.Position) (err error) {
-	defer errorx.Wrap(&err, "unable to truncate records before position %d of the %q journal", pos, j.Name())
+	defer xerrors.Wrap(&err, "unable to truncate records before position %d of the %q journal", pos, j.Name())
 
 	j.attr.BeginPos.Value = marshalPosition(pos)
 
@@ -331,7 +331,7 @@ func (j *journ) Truncate(ctx context.Context, pos journal.Position) (err error) 
 }
 
 func (j *journ) compact(ctx context.Context, uncompacted journal.Interval) (err error) {
-	defer errorx.Wrap(&err, "unable to compact records within %s of the %q journal", uncompacted, j.Name())
+	defer xerrors.Wrap(&err, "unable to compact records within %s of the %q journal", uncompacted, j.Name())
 
 	if uncompacted.IsEmpty() {
 		return nil

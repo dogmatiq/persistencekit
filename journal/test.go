@@ -8,7 +8,7 @@ import (
 	"math"
 	"testing"
 
-	"github.com/dogmatiq/persistencekit/internal/testx"
+	"github.com/dogmatiq/persistencekit/internal/x/xtesting"
 	"github.com/google/go-cmp/cmp"
 	"pgregory.net/rapid"
 )
@@ -19,7 +19,7 @@ func RunTests(
 	store BinaryStore,
 ) {
 	setup := func(t *testing.T) BinaryJournal {
-		name := testx.SequentialName("journal")
+		name := xtesting.SequentialName("journal")
 
 		j, err := store.Open(t.Context(), name)
 		if err != nil {
@@ -47,7 +47,7 @@ func RunTests(
 			t.Run("allows a journal to be opened multiple times", func(t *testing.T) {
 				t.Parallel()
 
-				name := testx.SequentialName("journal")
+				name := xtesting.SequentialName("journal")
 
 				j1, err := store.Open(t.Context(), name)
 				if err != nil {
@@ -761,7 +761,7 @@ func RunTests(
 		t.Parallel()
 
 		rapid.Check(t, func(t *rapid.T) {
-			j, err := store.Open(t.Context(), testx.SequentialName("journal"))
+			j, err := store.Open(t.Context(), xtesting.SequentialName("journal"))
 			if err != nil {
 				t.Fatal(err)
 			}

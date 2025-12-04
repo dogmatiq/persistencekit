@@ -6,7 +6,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	. "github.com/dogmatiq/persistencekit/driver/aws/dynamokv"
 	"github.com/dogmatiq/persistencekit/driver/aws/internal/dynamox"
-	"github.com/dogmatiq/persistencekit/internal/testx"
+	"github.com/dogmatiq/persistencekit/internal/x/xtesting"
 	"github.com/dogmatiq/persistencekit/kv"
 )
 
@@ -28,11 +28,11 @@ func BenchmarkStore(b *testing.B) {
 
 func setup(t testing.TB) (*dynamodb.Client, string) {
 	client := dynamox.NewTestClient(t)
-	table := testx.UniqueName("table")
+	table := xtesting.UniqueName("table")
 
 	t.Cleanup(func() {
 		if err := dynamox.DeleteTableIfExists(
-			testx.ContextForCleanup(t),
+			xtesting.ContextForCleanup(t),
 			client,
 			table,
 			nil,

@@ -8,7 +8,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/dogmatiq/persistencekit/driver/aws/internal/awsx"
-	"github.com/dogmatiq/persistencekit/internal/errorx"
+	"github.com/dogmatiq/persistencekit/internal/x/xerrors"
 	"github.com/dogmatiq/persistencekit/journal"
 )
 
@@ -62,7 +62,7 @@ func (j *journ) Bounds(ctx context.Context) (journal.Interval, error) {
 
 // refresh (re-)loads j.cache.
 func (j *journ) refresh(ctx context.Context) (err error) {
-	defer errorx.Wrap(&err, "unable to refresh meta-data cache for the %q journal", j.Name())
+	defer xerrors.Wrap(&err, "unable to refresh meta-data cache for the %q journal", j.Name())
 
 	defer func() {
 		j.cache.IsStale = err != nil
@@ -108,7 +108,7 @@ func (j *journ) refresh(ctx context.Context) (err error) {
 }
 
 func (j *journ) Get(ctx context.Context, pos journal.Position) (rec []byte, err error) {
-	defer errorx.Wrap(&err, "unable to get record at position %d of the %q journal", pos, j.Name())
+	defer xerrors.Wrap(&err, "unable to get record at position %d of the %q journal", pos, j.Name())
 
 	if pos < j.cache.Bounds.Begin {
 		return nil, journal.RecordNotFoundError{
@@ -130,7 +130,7 @@ func (j *journ) Range(
 	pos journal.Position,
 	fn journal.BinaryRangeFunc,
 ) (err error) {
-	defer errorx.Wrap(&err, "unable to range over records starting at position %d of the %q journal", pos, j.Name())
+	defer xerrors.Wrap(&err, "unable to range over records starting at position %d of the %q journal", pos, j.Name())
 
 	if pos < j.cache.Bounds.Begin {
 		return journal.RecordNotFoundError{
@@ -179,7 +179,7 @@ func (j *journ) Range(
 }
 
 func (j *journ) Append(ctx context.Context, pos journal.Position, rec []byte) (err error) {
-	defer errorx.Wrap(&err, "unable to append record at position %d of the %q journal", pos, j.Name())
+	defer xerrors.Wrap(&err, "unable to append record at position %d of the %q journal", pos, j.Name())
 
 	return j.doOperation(
 		ctx,
@@ -206,7 +206,7 @@ func (j *journ) Append(ctx context.Context, pos journal.Position, rec []byte) (e
 }
 
 func (j *journ) Truncate(ctx context.Context, pos journal.Position) (err error) {
-	defer errorx.Wrap(&err, "unable to truncate records before position %d of the %q journal", pos, j.Name())
+	defer xerrors.Wrap(&err, "unable to truncate records before position %d of the %q journal", pos, j.Name())
 
 	if err := j.doOperation(
 		ctx,

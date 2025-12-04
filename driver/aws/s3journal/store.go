@@ -6,7 +6,7 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/dogmatiq/persistencekit/driver/aws/internal/s3x"
-	"github.com/dogmatiq/persistencekit/internal/syncx"
+	"github.com/dogmatiq/persistencekit/internal/x/xsync"
 	"github.com/dogmatiq/persistencekit/journal"
 )
 
@@ -17,7 +17,7 @@ type store struct {
 	Bucket    string
 	OnRequest func(any) []func(*s3.Options)
 
-	createBucketOnce syncx.SucceedOnce
+	createBucketOnce xsync.SucceedOnce
 }
 
 // NewBinaryStore returns a new [journal.BinaryStore] that uses the given
