@@ -14,3 +14,7 @@ type BinarySet = Set[[]byte]
 // If err is non-nil, ranging stops and err is propagated up the stack.
 // Otherwise, if ok is false, ranging stops without any error being propagated.
 type BinaryRangeFunc = RangeFunc[[]byte]
+
+// BinaryInterceptor is a [Interceptor] that can be used to intercept operations
+// on a [BinarySet].
+type BinaryInterceptor = Interceptor[[]byte]

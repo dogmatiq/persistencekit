@@ -15,7 +15,12 @@ The format is based on [Keep a Changelog], and this project adheres to
 
 ### Added
 
-- Added `memoryset` and `memorykv` `BeforeOpen` hooks.
+- Added `set.WithInterceptor()` to allow intercepting operations on sets.
+
+### Removed
+
+- **[BC]** Removed inception hooks from `memoryset.Store` and `BinaryStore`. Use
+  `set.WithInterceptor()` instead.
 
 ## [0.12.0] - 2025-12-04
 
