@@ -9,6 +9,9 @@ import (
 
 // Store is an in-memory implementation of [set.Store].
 type Store[T comparable] struct {
+	// BeforeOpen, if non-nil, is called before a set is opened.
+	BeforeOpen func(name string) error
+
 	// BeforeAdd, if non-nil, is called before a value is added to the set.
 	BeforeAdd func(set string, v T) error
 
@@ -27,6 +30,12 @@ type Store[T comparable] struct {
 
 // Open returns the set with the given name.
 func (s *Store[T]) Open(ctx context.Context, name string) (set.Set[T], error) {
+	if s.BeforeOpen != nil {
+		if err := s.BeforeOpen(name); err != nil {
+			return nil, err
+		}
+	}
+
 	st, ok := s.state.Load(name)
 
 	if !ok {
@@ -55,6 +64,9 @@ func identity[K any](k K) K {
 // BinaryStore is an implementation of [set.BinaryStore] that stores
 // sets in memory.
 type BinaryStore struct {
+	// BeforeOpen, if non-nil, is called before a set is opened.
+	BeforeOpen func(name string) error
+
 	// BeforeAdd, if non-nil, is called before a value is added to the set.
 	BeforeAdd func(set string, v []byte) error
 
@@ -73,6 +85,12 @@ type BinaryStore struct {
 
 // Open returns the keyspace with the given name.
 func (s *BinaryStore) Open(ctx context.Context, name string) (set.BinarySet, error) {
+	if s.BeforeOpen != nil {
+		if err := s.BeforeOpen(name); err != nil {
+			return nil, err
+		}
+	}
+
 	st, ok := s.state.Load(name)
 
 	if !ok {

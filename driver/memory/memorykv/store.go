@@ -9,6 +9,9 @@ import (
 
 // Store is an in-memory implementation of [kv.Store].
 type Store[K comparable, V any] struct {
+	// BeforeOpen, if non-nil, is called before a keyspace is opened.
+	BeforeOpen func(name string) error
+
 	// BeforeSet, if non-nil, is called before a value is set.
 	BeforeSet func(ks string, k K, v V) error
 
@@ -20,6 +23,12 @@ type Store[K comparable, V any] struct {
 
 // Open returns the keyspace with the given name.
 func (s *Store[K, V]) Open(ctx context.Context, name string) (kv.Keyspace[K, V], error) {
+	if s.BeforeOpen != nil {
+		if err := s.BeforeOpen(name); err != nil {
+			return nil, err
+		}
+	}
+
 	st, ok := s.keyspaces.Load(name)
 
 	if !ok {
@@ -46,6 +55,9 @@ func identity[K any](k K) K {
 // BinaryStore is an implementation of [keyspace.BinaryStore] that stores
 // records in memory.
 type BinaryStore struct {
+	// BeforeOpen, if non-nil, is called before a keyspace is opened.
+	BeforeOpen func(name string) error
+
 	// BeforeSet, if non-nil, is called before a value is set.
 	BeforeSet func(ks string, k, v []byte) error
 
@@ -57,6 +69,12 @@ type BinaryStore struct {
 
 // Open returns the keyspace with the given name.
 func (s *BinaryStore) Open(ctx context.Context, name string) (kv.BinaryKeyspace, error) {
+	if s.BeforeOpen != nil {
+		if err := s.BeforeOpen(name); err != nil {
+			return nil, err
+		}
+	}
+
 	st, ok := s.keyspaces.Load(name)
 
 	if !ok {
