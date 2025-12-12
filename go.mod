@@ -23,7 +23,7 @@ require (
 	go.opentelemetry.io/otel/log v0.15.0
 	go.opentelemetry.io/otel/metric v1.39.0
 	go.opentelemetry.io/otel/trace v1.39.0
-	google.golang.org/protobuf v1.36.10
+	google.golang.org/protobuf v1.36.11
 	pgregory.net/rapid v1.2.0
 )
 
