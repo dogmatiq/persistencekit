@@ -5,8 +5,8 @@ import (
 	"net/url"
 
 	"github.com/aws/aws-sdk-go-v2/service/s3"
+	"github.com/dogmatiq/enginekit/x/xsync"
 	"github.com/dogmatiq/persistencekit/driver/aws/internal/s3x"
-	"github.com/dogmatiq/persistencekit/internal/x/xsync"
 	"github.com/dogmatiq/persistencekit/journal"
 )
 

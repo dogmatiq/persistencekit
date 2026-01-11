@@ -4,7 +4,7 @@ import (
 	"context"
 
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
-	"github.com/dogmatiq/persistencekit/internal/x/xsync"
+	"github.com/dogmatiq/enginekit/x/xsync"
 	"github.com/dogmatiq/persistencekit/kv"
 )
 

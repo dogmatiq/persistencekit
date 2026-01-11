@@ -3,7 +3,7 @@ package journal
 import (
 	"context"
 
-	"github.com/dogmatiq/persistencekit/internal/x/xatomic"
+	"github.com/dogmatiq/enginekit/x/xatomic"
 )
 
 // Interceptor defines functions that are invoked around journal operations.
