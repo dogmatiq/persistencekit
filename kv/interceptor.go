@@ -9,8 +9,8 @@ import (
 // Interceptor defines functions that are invoked around keyspace operations.
 type Interceptor[K, V any] struct {
 	beforeOpen xatomic.Value[func(string) error]
-	beforeSet  xatomic.Value[func(string, K, V) error]
-	afterSet   xatomic.Value[func(string, K, V) error]
+	beforeSet  xatomic.Value[func(string, K, V, []byte) error]
+	afterSet   xatomic.Value[func(string, K, V, []byte) error]
 }
 
 // BeforeOpen sets the function that is invoked before a [Keyspace] is opened.
@@ -19,12 +19,12 @@ func (i *Interceptor[K, V]) BeforeOpen(fn func(name string) error) {
 }
 
 // BeforeSet sets the function that is invoked before a key/value pair is set.
-func (i *Interceptor[K, V]) BeforeSet(fn func(keyspace string, k K, v V) error) {
+func (i *Interceptor[K, V]) BeforeSet(fn func(keyspace string, k K, v V, t []byte) error) {
 	i.beforeSet.Store(fn)
 }
 
 // AfterSet sets the function that is invoked after a key/value pair is set.
-func (i *Interceptor[K, V]) AfterSet(fn func(keyspace string, k K, v V) error) {
+func (i *Interceptor[K, V]) AfterSet(fn func(keyspace string, k K, v V, t []byte) error) {
 	i.afterSet.Store(fn)
 }
 
@@ -75,7 +75,7 @@ func (ks *interceptedKeyspace[K, V]) Name() string {
 	return ks.Next.Name()
 }
 
-func (ks *interceptedKeyspace[K, V]) Get(ctx context.Context, k K) (V, error) {
+func (ks *interceptedKeyspace[K, V]) Get(ctx context.Context, k K) (V, []byte, error) {
 	return ks.Next.Get(ctx, k)
 }
 
@@ -83,24 +83,25 @@ func (ks *interceptedKeyspace[K, V]) Has(ctx context.Context, k K) (bool, error)
 	return ks.Next.Has(ctx, k)
 }
 
-func (ks *interceptedKeyspace[K, V]) Set(ctx context.Context, k K, v V) error {
+func (ks *interceptedKeyspace[K, V]) Set(ctx context.Context, k K, v V, t []byte) ([]byte, error) {
 	if fn := ks.Interceptor.beforeSet.Load(); fn != nil {
-		if err := fn(ks.keyspace, k, v); err != nil {
-			return err
+		if err := fn(ks.keyspace, k, v, t); err != nil {
+			return nil, err
 		}
 	}
 
-	if err := ks.Next.Set(ctx, k, v); err != nil {
-		return err
+	t, err := ks.Next.Set(ctx, k, v, t)
+	if err != nil {
+		return nil, err
 	}
 
 	if fn := ks.Interceptor.afterSet.Load(); fn != nil {
-		if err := fn(ks.keyspace, k, v); err != nil {
-			return err
+		if err := fn(ks.keyspace, k, v, t); err != nil {
+			return nil, err
 		}
 	}
 
-	return nil
+	return t, nil
 }
 
 func (ks *interceptedKeyspace[K, V]) Range(ctx context.Context, fn RangeFunc[K, V]) error {

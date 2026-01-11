@@ -42,20 +42,21 @@ type mkeyspace[K, V any] struct {
 	vm marshaler.Marshaler[V]
 }
 
-func (ks *mkeyspace[K, V]) Get(ctx context.Context, k K) (v V, err error) {
+func (ks *mkeyspace[K, V]) Get(ctx context.Context, k K) (v V, t []byte, err error) {
 	keyData, err := ks.km.Marshal(k)
 	if err != nil {
 		var zero V
-		return zero, err
+		return zero, nil, err
 	}
 
-	valueData, err := ks.BinaryKeyspace.Get(ctx, keyData)
+	valueData, t, err := ks.BinaryKeyspace.Get(ctx, keyData)
 	if err != nil || len(valueData) == 0 {
 		var zero V
-		return zero, err
+		return zero, t, err
 	}
 
-	return ks.vm.Unmarshal(valueData)
+	v, err = ks.vm.Unmarshal(valueData)
+	return v, t, err
 }
 
 func (ks *mkeyspace[K, V]) Has(ctx context.Context, k K) (bool, error) {
@@ -66,38 +67,38 @@ func (ks *mkeyspace[K, V]) Has(ctx context.Context, k K) (bool, error) {
 	return ks.BinaryKeyspace.Has(ctx, keyData)
 }
 
-func (ks *mkeyspace[K, V]) Set(ctx context.Context, k K, v V) error {
+func (ks *mkeyspace[K, V]) Set(ctx context.Context, k K, v V, t []byte) ([]byte, error) {
 	keyData, err := ks.km.Marshal(k)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	var valueData []byte
 	if !reflect.ValueOf(v).IsZero() {
 		valueData, err = ks.vm.Marshal(v)
 		if err != nil {
-			return err
+			return nil, err
 		}
 	}
 
-	return ks.BinaryKeyspace.Set(ctx, keyData, valueData)
+	return ks.BinaryKeyspace.Set(ctx, keyData, valueData, t)
 }
 
 func (ks *mkeyspace[K, V]) Range(ctx context.Context, fn RangeFunc[K, V]) error {
 	return ks.BinaryKeyspace.Range(
 		ctx,
-		func(ctx context.Context, k, v []byte) (bool, error) {
-			key, err := ks.km.Unmarshal(k)
+		func(ctx context.Context, keyData, valueData, t []byte) (bool, error) {
+			k, err := ks.km.Unmarshal(keyData)
 			if err != nil {
 				return false, err
 			}
 
-			value, err := ks.vm.Unmarshal(v)
+			v, err := ks.vm.Unmarshal(valueData)
 			if err != nil {
 				return false, err
 			}
 
-			return fn(ctx, key, value)
+			return fn(ctx, k, v, t)
 		},
 	)
 }
