@@ -2,6 +2,7 @@ package kv
 
 import (
 	"context"
+	"errors"
 	"reflect"
 
 	"github.com/dogmatiq/persistencekit/marshaler"
@@ -42,20 +43,21 @@ type mkeyspace[K, V any] struct {
 	vm marshaler.Marshaler[V]
 }
 
-func (ks *mkeyspace[K, V]) Get(ctx context.Context, k K) (v V, err error) {
+func (ks *mkeyspace[K, V]) Get(ctx context.Context, k K) (v V, r uint64, err error) {
 	keyData, err := ks.km.Marshal(k)
 	if err != nil {
 		var zero V
-		return zero, err
+		return zero, 0, err
 	}
 
-	valueData, err := ks.BinaryKeyspace.Get(ctx, keyData)
+	valueData, r, err := ks.BinaryKeyspace.Get(ctx, keyData)
 	if err != nil || len(valueData) == 0 {
 		var zero V
-		return zero, err
+		return zero, r, err
 	}
 
-	return ks.vm.Unmarshal(valueData)
+	v, err = ks.vm.Unmarshal(valueData)
+	return v, r, err
 }
 
 func (ks *mkeyspace[K, V]) Has(ctx context.Context, k K) (bool, error) {
@@ -66,7 +68,7 @@ func (ks *mkeyspace[K, V]) Has(ctx context.Context, k K) (bool, error) {
 	return ks.BinaryKeyspace.Has(ctx, keyData)
 }
 
-func (ks *mkeyspace[K, V]) Set(ctx context.Context, k K, v V) error {
+func (ks *mkeyspace[K, V]) Set(ctx context.Context, k K, v V, r uint64) error {
 	keyData, err := ks.km.Marshal(k)
 	if err != nil {
 		return err
@@ -80,24 +82,38 @@ func (ks *mkeyspace[K, V]) Set(ctx context.Context, k K, v V) error {
 		}
 	}
 
-	return ks.BinaryKeyspace.Set(ctx, keyData, valueData)
+	if err := ks.BinaryKeyspace.Set(ctx, keyData, valueData, r); err != nil {
+		// Re-package conflict errors to use a key of type K, instead of []byte.
+		var conflict ConflictError[K]
+		if errors.As(err, &conflict) {
+			return ConflictError[K]{
+				Keyspace: conflict.Keyspace,
+				Key:      k,
+				Revision: conflict.Revision,
+			}
+		}
+
+		return err
+	}
+
+	return nil
 }
 
 func (ks *mkeyspace[K, V]) Range(ctx context.Context, fn RangeFunc[K, V]) error {
 	return ks.BinaryKeyspace.Range(
 		ctx,
-		func(ctx context.Context, k, v []byte) (bool, error) {
-			key, err := ks.km.Unmarshal(k)
+		func(ctx context.Context, keyData, valueData []byte, r uint64) (bool, error) {
+			k, err := ks.km.Unmarshal(keyData)
 			if err != nil {
 				return false, err
 			}
 
-			value, err := ks.vm.Unmarshal(v)
+			v, err := ks.vm.Unmarshal(valueData)
 			if err != nil {
 				return false, err
 			}
 
-			return fn(ctx, key, value)
+			return fn(ctx, k, v, r)
 		},
 	)
 }

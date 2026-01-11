@@ -26,7 +26,7 @@ func TestIgnoreNotFound(t *testing.T) {
 			Expected: nil,
 		},
 		{
-			Name:     "ErrConflict",
+			Name:     "ConflictError",
 			Err:      ConflictError{},
 			Expected: ConflictError{},
 		},

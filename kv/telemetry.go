@@ -45,6 +45,7 @@ func (s *instrumentedStore) Open(ctx context.Context, name string) (BinaryKeyspa
 	ks := &instrumentedKeyspace{
 		Telemetry:     telem,
 		OpenKeyspaces: telem.UpDownCounter("open_keyspaces", "{keyspace}", "The number of keyspaces that are currently open."),
+		Conflicts:     telem.Counter("conflicts", "{error}", "The number of times setting a value has failed due to an optimistic-concurrency conflict."),
 		Misses:        telem.Counter("misses", "{operation}", "The number of times the value associated with a specific key was requested but not present in the keyspace."),
 		KeyIO:         telem.Counter("key.io", "By", "The cumulative size of the keys that have been operated upon."),
 		ValueIO:       telem.Counter("value.io", "By", "The cumulative size of the values that have been operated upon."),
@@ -74,6 +75,7 @@ type instrumentedKeyspace struct {
 	Telemetry *telemetry.Recorder
 
 	OpenKeyspaces telemetry.Instrument[int64]
+	Conflicts     telemetry.Instrument[int64]
 	Misses        telemetry.Instrument[int64]
 	KeyIO         telemetry.Instrument[int64]
 	ValueIO       telemetry.Instrument[int64]
@@ -85,7 +87,7 @@ func (ks *instrumentedKeyspace) Name() string {
 	return ks.Next.Name()
 }
 
-func (ks *instrumentedKeyspace) Get(ctx context.Context, k []byte) ([]byte, error) {
+func (ks *instrumentedKeyspace) Get(ctx context.Context, k []byte) ([]byte, uint64, error) {
 	keySize := int64(len(k))
 
 	ctx, span := ks.Telemetry.StartSpan(
@@ -99,10 +101,10 @@ func (ks *instrumentedKeyspace) Get(ctx context.Context, k []byte) ([]byte, erro
 	ks.KeyIO(ctx, keySize, telemetry.WriteDirection)
 	ks.KeySize(ctx, keySize, telemetry.WriteDirection)
 
-	v, err := ks.Next.Get(ctx, k)
+	v, r, err := ks.Next.Get(ctx, k)
 	if err != nil {
 		ks.Telemetry.Error(ctx, "keyspace.get.error", "unable to fetch value associated with key", err)
-		return nil, err
+		return nil, 0, err
 	}
 
 	valueSize := int64(len(v))
@@ -115,6 +117,7 @@ func (ks *instrumentedKeyspace) Get(ctx context.Context, k []byte) ([]byte, erro
 			telemetry.Bool("key_present", true),
 			telemetry.Binary("value", v),
 			telemetry.Int("value_size", valueSize),
+			telemetry.Int("revision", r),
 		)
 
 		ks.Telemetry.Info(ctx, "keyspace.get.ok", "fetched value associated with key")
@@ -128,7 +131,7 @@ func (ks *instrumentedKeyspace) Get(ctx context.Context, k []byte) ([]byte, erro
 		ks.Telemetry.Info(ctx, "keyspace.get.ok", "key is not present in keyspace")
 	}
 
-	return v, nil
+	return v, r, nil
 }
 
 func (ks *instrumentedKeyspace) Has(ctx context.Context, k []byte) (bool, error) {
@@ -164,7 +167,7 @@ func (ks *instrumentedKeyspace) Has(ctx context.Context, k []byte) (bool, error)
 	return ok, nil
 }
 
-func (ks *instrumentedKeyspace) Set(ctx context.Context, k, v []byte) error {
+func (ks *instrumentedKeyspace) Set(ctx context.Context, k, v []byte, r uint64) error {
 	keySize := int64(len(k))
 	valueSize := int64(len(v))
 
@@ -178,6 +181,7 @@ func (ks *instrumentedKeyspace) Set(ctx context.Context, k, v []byte) error {
 		op,
 		telemetry.Binary("key", k),
 		telemetry.Int("key_size", keySize),
+		telemetry.Int("revision", r),
 	)
 	defer span.End()
 
@@ -194,12 +198,17 @@ func (ks *instrumentedKeyspace) Set(ctx context.Context, k, v []byte) error {
 		ks.ValueSize(ctx, valueSize, telemetry.WriteDirection)
 	}
 
-	if err := ks.Next.Set(ctx, k, v); err != nil {
-		if valueSize == 0 {
+	if err := ks.Next.Set(ctx, k, v, r); err != nil {
+		if IsConflict(err) {
+			ks.Telemetry.Error(ctx, "keyspace.set.conflict", "optimistic concurrency conflict", err)
+			ks.Conflicts(ctx, 1)
+			span.SetAttributes(telemetry.Bool("conflict", true))
+		} else if valueSize == 0 {
 			ks.Telemetry.Error(ctx, "keyspace.set.error", "unable to delete key/value pair", err)
 		} else {
 			ks.Telemetry.Error(ctx, "keyspace.set.error", "unable to set key/value pair", err)
 		}
+
 		return err
 	}
 
@@ -226,7 +235,7 @@ func (ks *instrumentedKeyspace) Range(ctx context.Context, fn BinaryRangeFunc) e
 
 	err := ks.Next.Range(
 		ctx,
-		func(ctx context.Context, k, v []byte) (bool, error) {
+		func(ctx context.Context, k, v []byte, r uint64) (bool, error) {
 			count++
 
 			keySize := int64(len(k))
@@ -239,7 +248,7 @@ func (ks *instrumentedKeyspace) Range(ctx context.Context, fn BinaryRangeFunc) e
 			ks.ValueIO(ctx, valueSize, telemetry.ReadDirection)
 			ks.ValueSize(ctx, valueSize, telemetry.ReadDirection)
 
-			ok, err := fn(ctx, k, v)
+			ok, err := fn(ctx, k, v, r)
 			if ok || err != nil {
 				return ok, err
 			}

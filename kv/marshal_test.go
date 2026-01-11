@@ -10,7 +10,7 @@ import (
 	"github.com/dogmatiq/persistencekit/marshaler"
 )
 
-func TestStore(t *testing.T) {
+func TestNewMarshalingStore(t *testing.T) {
 	store := NewMarshalingStore(
 		&memorykv.BinaryStore{},
 		marshaler.NewJSON[string](),
@@ -23,22 +23,32 @@ func TestStore(t *testing.T) {
 	}
 	defer ks.Close()
 
-	pairs := map[string]int{
-		"one": 1,
-		"two": 2,
+	pairs := map[string]*struct {
+		Value    int
+		Revision uint64
+	}{
+		"one": {Value: 1},
+		"two": {Value: 2},
 	}
 
-	for k, v := range pairs {
-		if err := ks.Set(t.Context(), k, v); err != nil {
+	for k, p := range pairs {
+		if err := ks.Set(t.Context(), k, p.Value, p.Revision); err != nil {
 			t.Fatal(err)
 		}
+		p.Revision++
 	}
 
-	fn := func(_ context.Context, k string, v int) (bool, error) {
+	fn := func(_ context.Context, k string, actualValue int, actualRevision uint64) (bool, error) {
 		expect := pairs[k]
-		if v != expect {
-			t.Fatalf("unexpected value for key %q: got %d, want %d", k, v, expect)
+
+		if actualValue != expect.Value {
+			t.Fatalf("unexpected value for key %q: got %d, want %d", k, actualValue, expect.Value)
 		}
+
+		if actualRevision != expect.Revision {
+			t.Fatalf("unexpected revision for key %q: got %d, want %d", k, actualRevision, expect.Revision)
+		}
+
 		return true, nil
 	}
 
@@ -55,13 +65,13 @@ func TestStore(t *testing.T) {
 			t.Fatalf("expected key %q to exist", k)
 		}
 
-		v, err := ks.Get(t.Context(), k)
+		actualValue, actualRevision, err := ks.Get(t.Context(), k)
 		if err != nil {
 			t.Fatal(err)
 		}
-		fn(t.Context(), k, v)
+		fn(t.Context(), k, actualValue, actualRevision)
 
-		if err := ks.Set(t.Context(), k, 0); err != nil {
+		if err := ks.Set(t.Context(), k, 0, actualRevision); err != nil {
 			t.Fatal(err)
 		}
 
@@ -84,7 +94,7 @@ func TestStore(t *testing.T) {
 
 	if err := ks.Range(
 		t.Context(),
-		func(_ context.Context, k string, v int) (bool, error) {
+		func(_ context.Context, k string, v int, _ uint64) (bool, error) {
 			return false, fmt.Errorf("unexpected range function invocation (%q, %d)", k, v)
 		},
 	); err != nil {

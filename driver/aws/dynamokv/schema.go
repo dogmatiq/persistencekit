@@ -23,6 +23,10 @@ var (
 	// item.
 	valueAttr = "V"
 
+	// revisionAttr is the name of the attribute that stores the revision of
+	// each item.
+	revisionAttr = "R"
+
 	// nonExistentAttr is the name of an attribute that does not exist on any
 	// item. It is used to test for the existence of an item without fetching
 	// unnecessary data.
@@ -59,9 +63,10 @@ func (ks *keyspace) prepareRequests(table string) {
 	ks.request.Get = dynamodb.GetItemInput{
 		TableName:            &table,
 		Key:                  key,
-		ProjectionExpression: aws.String(`#V`),
+		ProjectionExpression: aws.String(`#V, #R`),
 		ExpressionAttributeNames: map[string]string{
 			"#V": valueAttr,
+			"#R": revisionAttr,
 		},
 	}
 
@@ -77,30 +82,71 @@ func (ks *keyspace) prepareRequests(table string) {
 	ks.request.Range = dynamodb.QueryInput{
 		TableName:              &table,
 		KeyConditionExpression: aws.String(`#S = :S`),
-		ProjectionExpression:   aws.String("#K, #V"),
+		ProjectionExpression:   aws.String("#K, #V, #R"),
 		ExpressionAttributeNames: map[string]string{
 			"#S": keyspaceAttr,
 			"#K": keyAttr,
 			"#V": valueAttr,
+			"#R": revisionAttr,
 		},
 		ExpressionAttributeValues: map[string]types.AttributeValue{
 			":S": &ks.attr.Keyspace,
 		},
 	}
 
-	// Set sets the value associated with ks.attr.Key to ks.attr.Value.
-	ks.request.Set = dynamodb.PutItemInput{
+	// Crate sets the value associated with ks.attr.Key to ks.attr.Value at
+	// revision 0.
+	ks.request.Create = dynamodb.PutItemInput{
 		TableName: &table,
+		ExpressionAttributeNames: map[string]string{
+			"#R": revisionAttr,
+		},
 		Item: map[string]types.AttributeValue{
 			keyspaceAttr: &ks.attr.Keyspace,
 			keyAttr:      &ks.attr.Key,
 			valueAttr:    &ks.attr.Value,
+			revisionAttr: &types.AttributeValueMemberN{Value: "1"},
 		},
+
+		// Fail if the key already exists so we can return [kv.ConflictError].
+		ConditionExpression: aws.String(`attribute_not_exists(#R)`),
+	}
+
+	// Update sets the value associated with ks.attr.Key to ks.attr.Value at
+	// revision ks.attr.CurrentRevision.
+	ks.request.Update = dynamodb.PutItemInput{
+		TableName: &table,
+		ExpressionAttributeNames: map[string]string{
+			"#R": revisionAttr,
+		},
+		ExpressionAttributeValues: map[string]types.AttributeValue{
+			":R": &ks.attr.CurrentRevision,
+		},
+		Item: map[string]types.AttributeValue{
+			keyspaceAttr: &ks.attr.Keyspace,
+			keyAttr:      &ks.attr.Key,
+			valueAttr:    &ks.attr.Value,
+			revisionAttr: &ks.attr.NextRevision,
+		},
+
+		// Fail if the revision does not match so we can return
+		// [kv.ConflictError].
+		ConditionExpression: aws.String(`:R = #R`),
 	}
 
 	// Delete removes the ks.attr.Key key.
 	ks.request.Delete = dynamodb.DeleteItemInput{
 		TableName: &table,
 		Key:       key,
+		ExpressionAttributeNames: map[string]string{
+			"#R": revisionAttr,
+		},
+		ExpressionAttributeValues: map[string]types.AttributeValue{
+			":R": &ks.attr.CurrentRevision,
+		},
+
+		// Fail if the revision does not match so we can return
+		// [kv.ConflictError].
+		ConditionExpression: aws.String(`:R = #R`),
 	}
 }

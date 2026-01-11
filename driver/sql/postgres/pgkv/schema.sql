@@ -13,5 +13,9 @@ CREATE TABLE
         keyspace_id BIGINT NOT NULL,
         key BYTEA NOT NULL,
         value BYTEA NOT NULL,
-        PRIMARY KEY (keyspace_id, key)
+        revision BIGINT NOT NULL DEFAULT 1,
+        PRIMARY KEY (keyspace_id, key),
+
+        CHECK (octet_length(value) > 0),
+        CHECK (revision > 0)
     );

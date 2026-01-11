@@ -316,7 +316,8 @@ func (j *journ) Truncate(ctx context.Context, pos journal.Position) (err error) 
 		&j.request.SetBeginPos,
 	)
 	if err != nil {
-		if errors.As(err, new(*types.ConditionalCheckFailedException)) {
+		var conflict *types.ConditionalCheckFailedException
+		if errors.As(err, &conflict) {
 			return nil
 		}
 		return err

@@ -59,7 +59,7 @@ func TestWithInterceptor(t *testing.T) {
 		store, in := setup()
 
 		want := errors.New("<error>")
-		in.BeforeSet(func(string, []byte, []byte) error {
+		in.BeforeSet(func(_ string, _, _ []byte, _ uint64) error {
 			return want
 		})
 
@@ -69,8 +69,7 @@ func TestWithInterceptor(t *testing.T) {
 		}
 		defer ks.Close()
 
-		err = ks.Set(t.Context(), []byte("<key>"), []byte("<value>"))
-		if err != want {
+		if err := ks.Set(t.Context(), []byte("<key>"), []byte("<value>"), 0); err != want {
 			t.Fatalf("unexpected error: got %v, want %v", err, want)
 		}
 
@@ -89,7 +88,7 @@ func TestWithInterceptor(t *testing.T) {
 		store, in := setup()
 
 		want := errors.New("<error>")
-		in.AfterSet(func(string, []byte, []byte) error {
+		in.AfterSet(func(_ string, _, _ []byte, _ uint64) error {
 			return want
 		})
 
@@ -99,12 +98,11 @@ func TestWithInterceptor(t *testing.T) {
 		}
 		defer ks.Close()
 
-		err = ks.Set(t.Context(), []byte("<key>"), []byte("<value>"))
-		if err != want {
+		if err := ks.Set(t.Context(), []byte("<key>"), []byte("<value>"), 0); err != want {
 			t.Fatalf("unexpected error: got %v, want %v", err, want)
 		}
 
-		v, err := ks.Get(t.Context(), []byte("<key>"))
+		v, _, err := ks.Get(t.Context(), []byte("<key>"))
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -124,12 +122,12 @@ func TestWithInterceptor(t *testing.T) {
 			return nil
 		})
 
-		in.BeforeSet(func(string, []byte, []byte) error {
+		in.BeforeSet(func(_ string, _, _ []byte, _ uint64) error {
 			t.Fatal("unexpected call")
 			return nil
 		})
 
-		in.AfterSet(func(string, []byte, []byte) error {
+		in.AfterSet(func(_ string, _, _ []byte, _ uint64) error {
 			t.Fatal("unexpected call")
 			return nil
 		})
@@ -144,7 +142,7 @@ func TestWithInterceptor(t *testing.T) {
 		}
 		defer ks.Close()
 
-		if err := ks.Set(t.Context(), []byte("<key>"), []byte("<value>")); err != nil {
+		if err := ks.Set(t.Context(), []byte("<key>"), []byte("<value>"), 0); err != nil {
 			t.Fatal(err)
 		}
 	})
