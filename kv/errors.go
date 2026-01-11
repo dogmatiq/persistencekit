@@ -15,7 +15,7 @@ func IsConflict(err error) bool {
 	return errors.As(err, &target)
 }
 
-// ConflictError is returned by [Journal.Append] if there is already a record at
+// ConflictError is returned by [Keyspace.Set] if there is already a record at
 // the specified position.
 type ConflictError[K any] struct {
 	Keyspace string
@@ -31,7 +31,3 @@ func (e ConflictError[K]) Error() string {
 
 	return fmt.Sprintf("the supplied concurrency token (%s) for key %v in the %q keyspace does not match the expected token", token, e.Key, e.Keyspace)
 }
-
-// isConflictError provides a common interface to detect [ConflictError] using
-// [errors.As] without knowing the type of K.
-func (ConflictError[K]) isConflictError() {}

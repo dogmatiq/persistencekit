@@ -271,6 +271,23 @@ func RunTests(
 						t.Fatalf("unexpected error: got %q, want %q", err, expect)
 					}
 				})
+
+				t.Run("it succeeds if deleting with an empty concurrency token", func(t *testing.T) {
+					t.Parallel()
+
+					ks := setup(t)
+
+					k := []byte("<key>")
+
+					ct, err := ks.Set(t.Context(), k, nil, nil)
+					if err != nil {
+						t.Fatal(err)
+					}
+
+					if len(ct) != 0 {
+						t.Fatal("expected zero-length token after deleting key")
+					}
+				})
 			})
 
 			t.Run("it does not keep a reference to the key slice", func(t *testing.T) {

@@ -2,6 +2,7 @@ package kv
 
 import (
 	"context"
+	"errors"
 	"reflect"
 
 	"github.com/dogmatiq/persistencekit/marshaler"
@@ -81,7 +82,24 @@ func (ks *mkeyspace[K, V]) Set(ctx context.Context, k K, v V, t []byte) ([]byte,
 		}
 	}
 
-	return ks.BinaryKeyspace.Set(ctx, keyData, valueData, t)
+	t, err = ks.BinaryKeyspace.Set(ctx, keyData, valueData, t)
+	if err != nil {
+		var conflict ConflictError[K]
+
+		// Re-package the conflict error so that it uses a key of type K,
+		// instead of []byte.
+		if errors.As(err, &conflict) {
+			return nil, ConflictError[K]{
+				Keyspace: conflict.Keyspace,
+				Key:      k,
+				Token:    conflict.Token,
+			}
+		}
+
+		return nil, err
+	}
+
+	return t, nil
 }
 
 func (ks *mkeyspace[K, V]) Range(ctx context.Context, fn RangeFunc[K, V]) error {

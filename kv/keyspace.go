@@ -33,8 +33,8 @@ type Keyspace[K, V any] interface {
 	// If v is the zero-value of V (or equivalent), the key is deleted.
 	//
 	// t is an concurrency token that must match the current token for k. If k
-	// is not present in the keyspace, it's token is an empty byte slice. If the
-	// token does not match, a [ConflictError] occurs.
+	// is not present in the keyspace, t must be empty. Otherwise a
+	// [ConflictError] occurs.
 	//
 	// It returns k's new concurrency token.
 	Set(ctx context.Context, k K, v V, t []byte) ([]byte, error)
