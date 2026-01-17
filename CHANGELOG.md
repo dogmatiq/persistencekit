@@ -11,6 +11,16 @@ The format is based on [Keep a Changelog], and this project adheres to
 [semantic versioning]: https://semver.org/spec/v2.0.0.html
 [bc]: https://github.com/dogmatiq/.github/blob/main/VERSIONING.md#changelogs
 
+## [0.14.0] - 2026-01-17
+
+This release adds revision-based OCC support to the `kv` package.
+
+- `Keyspace.Get()` now returns the current revision of the key/value pair.
+- `Keyspace.Set()` now requires the current revision to be passed as an
+  argument, otherwise a `ConflictError` is returned.
+- Added `Keyspace.SetUnconditional()`, which has the same semantics as `Set()`
+  prior to this version.
+
 ## [0.13.0] - 2025-12-04
 
 ### Added
@@ -341,6 +351,7 @@ This eliminates the need for duplicating all of the generic algorithms (such as
 [0.11.2]: https://github.com/dogmatiq/persistencekit/releases/tag/v0.11.2
 [0.12.0]: https://github.com/dogmatiq/persistencekit/releases/tag/v0.12.0
 [0.13.0]: https://github.com/dogmatiq/persistencekit/releases/tag/v0.13.0
+[0.14.0]: https://github.com/dogmatiq/persistencekit/releases/tag/v0.14.0
 
 <!-- version template
 ## [0.0.1] - YYYY-MM-DD
