@@ -262,7 +262,7 @@ func (ks *instrumentedKeyspace) SetUnconditional(ctx context.Context, k, v []byt
 	}
 
 	if valueSize == 0 {
-		ks.Telemetry.Info(ctx, "keyspace.set-uncondiitional.ok", "deleted key/value pair")
+		ks.Telemetry.Info(ctx, "keyspace.set-unconditional.ok", "deleted key/value pair")
 	} else {
 		ks.Telemetry.Info(ctx, "keyspace.set-unconditional.ok", "set key/value pair")
 	}
