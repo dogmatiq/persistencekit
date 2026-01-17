@@ -14,7 +14,12 @@ import (
 // state is the in-memory state of a keyspace.
 type state[C comparable, V any] struct {
 	sync.RWMutex
-	Values map[C]V
+	Items map[C]item[V]
+}
+
+type item[V any] struct {
+	Value    V
+	Revision uint64
 }
 
 // keyspace is an implementation of [kv.BinaryKeyspace] that manipulates a
@@ -30,7 +35,7 @@ func (ks *keyspace[K, V, C]) Name() string {
 	return ks.name
 }
 
-func (ks *keyspace[K, V, C]) Get(ctx context.Context, k K) (v V, err error) {
+func (ks *keyspace[K, V, C]) Get(ctx context.Context, k K) (v V, r uint64, err error) {
 	if ks.state == nil {
 		panic("keyspace is closed")
 	}
@@ -39,7 +44,13 @@ func (ks *keyspace[K, V, C]) Get(ctx context.Context, k K) (v V, err error) {
 	defer ks.state.RUnlock()
 
 	c := ks.marshalKey(k)
-	return clone.Clone(ks.state.Values[c]), ctx.Err()
+
+	if i, ok := ks.state.Items[c]; ok {
+		v = clone.Clone(i.Value)
+		r = i.Revision
+	}
+
+	return v, r, ctx.Err()
 }
 
 func (ks *keyspace[K, V, C]) Has(ctx context.Context, k K) (ok bool, err error) {
@@ -51,11 +62,11 @@ func (ks *keyspace[K, V, C]) Has(ctx context.Context, k K) (ok bool, err error) 
 	defer ks.state.RUnlock()
 
 	c := ks.marshalKey(k)
-	_, ok = ks.state.Values[c]
+	_, ok = ks.state.Items[c]
 	return ok, ctx.Err()
 }
 
-func (ks *keyspace[K, V, C]) Set(ctx context.Context, k K, v V) error {
+func (ks *keyspace[K, V, C]) Set(ctx context.Context, k K, v V, r uint64) error {
 	if ks.state == nil {
 		panic("keyspace is closed")
 	}
@@ -66,15 +77,28 @@ func (ks *keyspace[K, V, C]) Set(ctx context.Context, k K, v V) error {
 	defer ks.state.Unlock()
 
 	c := ks.marshalKey(k)
+	i := ks.state.Items[c]
+
+	if r != i.Revision {
+		return kv.ConflictError[K]{
+			Keyspace: ks.name,
+			Key:      k,
+			Revision: r,
+		}
+	}
 
 	if reflect.ValueOf(v).IsZero() {
-		delete(ks.state.Values, c)
-	} else {
-		if ks.state.Values == nil {
-			ks.state.Values = map[C]V{}
-		}
+		delete(ks.state.Items, c)
+		return ctx.Err()
+	}
 
-		ks.state.Values[c] = v
+	if ks.state.Items == nil {
+		ks.state.Items = map[C]item[V]{}
+	}
+
+	ks.state.Items[c] = item[V]{
+		Value:    v,
+		Revision: r + 1,
 	}
 
 	return ctx.Err()
@@ -86,12 +110,16 @@ func (ks *keyspace[K, V, C]) Range(ctx context.Context, fn kv.RangeFunc[K, V]) e
 	}
 
 	ks.state.RLock()
-	values := maps.Clone(ks.state.Values)
+	items := maps.Clone(ks.state.Items)
 	ks.state.RUnlock()
 
-	for c, v := range values {
-		k := ks.unmarshalKey(c)
-		ok, err := fn(ctx, k, clone.Clone(v))
+	for c, i := range items {
+		ok, err := fn(
+			ctx,
+			ks.unmarshalKey(c),
+			clone.Clone(i.Value),
+			i.Revision,
+		)
 		if !ok || err != nil {
 			return err
 		}

@@ -42,8 +42,8 @@ type Journal[T any] interface {
 	// becomes pos + 1.
 	//
 	// pos must be the end of the journal, as returned by [Bounds]. If pos < end
-	// then [ErrConflict] is returned, indicating that there is already a record
-	// at the given position. The behavior is undefined if pos > end.
+	// then a [ConflictError] is returned, indicating that there is already a
+	// record at the given position. The behavior is undefined if pos > end.
 	Append(ctx context.Context, pos Position, rec T) error
 
 	// Truncate removes journal records in the half-open interval [begin, pos),

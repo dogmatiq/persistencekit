@@ -566,6 +566,10 @@ func RunTests(
 					t.Fatalf("unexpected error: got %q, want %q", err, expect)
 				}
 
+				if !IsConflict(err) {
+					t.Fatalf("expected IsConflict to return true")
+				}
+
 				got, err := j.Get(t.Context(), 1)
 				if err != nil {
 					t.Fatal(err)
@@ -598,6 +602,10 @@ func RunTests(
 				}
 				if err != expect {
 					t.Fatalf("unexpected error: got %q, want %q", err, expect)
+				}
+
+				if !IsConflict(err) {
+					t.Fatalf("expected IsConflict to return true")
 				}
 
 				_, err = j.Get(t.Context(), 0)

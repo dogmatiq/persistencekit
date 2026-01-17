@@ -96,7 +96,7 @@ func RunBenchmarks(
 					},
 					// BENCHMARKED CODE
 					func(ctx context.Context, ks BinaryKeyspace) error {
-						_, err := ks.Get(ctx, key[:])
+						_, _, err := ks.Get(ctx, key[:])
 						return err
 					},
 					// AFTER EACH
@@ -117,11 +117,11 @@ func RunBenchmarks(
 						if _, err := io.ReadFull(rand.Reader, key[:]); err != nil {
 							return err
 						}
-						return ks.Set(ctx, key[:], []byte("<value>"))
+						return ks.Set(ctx, key[:], []byte("<value>"), 0)
 					},
 					// BENCHMARKED CODE
 					func(ctx context.Context, ks BinaryKeyspace) error {
-						_, err := ks.Get(ctx, key[:])
+						_, _, err := ks.Get(ctx, key[:])
 						return err
 					},
 					// AFTER EACH
@@ -167,7 +167,7 @@ func RunBenchmarks(
 						if _, err := io.ReadFull(rand.Reader, key[:]); err != nil {
 							return err
 						}
-						return ks.Set(ctx, key[:], []byte("<value>"))
+						return ks.Set(ctx, key[:], []byte("<value>"), 0)
 					},
 					// BENCHMARKED CODE
 					func(ctx context.Context, ks BinaryKeyspace) error {
@@ -196,7 +196,7 @@ func RunBenchmarks(
 					},
 					// BENCHMARKED CODE
 					func(ctx context.Context, ks BinaryKeyspace) error {
-						return ks.Set(ctx, key[:], []byte("<value>"))
+						return ks.Set(ctx, key[:], []byte("<value>"), 0)
 					},
 					// AFTER EACH
 					nil,
@@ -216,11 +216,11 @@ func RunBenchmarks(
 						if _, err := io.ReadFull(rand.Reader, key[:]); err != nil {
 							return err
 						}
-						return ks.Set(ctx, key[:], []byte("<value-1>"))
+						return ks.Set(ctx, key[:], []byte("<value-1>"), 0)
 					},
 					// BENCHMARKED CODE
 					func(ctx context.Context, ks BinaryKeyspace) error {
-						return ks.Set(ctx, key[:], []byte("<value-2>"))
+						return ks.Set(ctx, key[:], []byte("<value-2>"), 1)
 					},
 					// AFTER EACH
 					nil,
@@ -240,11 +240,11 @@ func RunBenchmarks(
 						if _, err := io.ReadFull(rand.Reader, key[:]); err != nil {
 							return err
 						}
-						return ks.Set(ctx, key[:], []byte("<value>"))
+						return ks.Set(ctx, key[:], []byte("<value>"), 0)
 					},
 					// BENCHMARKED CODE
 					func(ctx context.Context, ks BinaryKeyspace) error {
-						return ks.Set(ctx, key[:], nil)
+						return ks.Set(ctx, key[:], nil, 1)
 					},
 					// AFTER EACH
 					nil,
@@ -261,7 +261,7 @@ func RunBenchmarks(
 					for i := 0; i < 3000; i++ {
 						k := []byte(fmt.Sprintf("<key-%d>", i))
 						v := []byte("<value>")
-						if err := ks.Set(ctx, k, v); err != nil {
+						if err := ks.Set(ctx, k, v, 0); err != nil {
 							return err
 						}
 					}
@@ -273,7 +273,7 @@ func RunBenchmarks(
 				func(ctx context.Context, ks BinaryKeyspace) error {
 					return ks.Range(
 						ctx,
-						func(context.Context, []byte, []byte) (bool, error) {
+						func(_ context.Context, _, _ []byte, _ uint64) (bool, error) {
 							return true, nil
 						},
 					)

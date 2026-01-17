@@ -192,7 +192,7 @@ func (j *journ) prepareRequests(table string) {
 			recordAttr:   &j.attr.Record,
 		},
 
-		// Fail if the record exists so we can return [journal.ErrConflict].
+		// Fail if the record exists so we can return [journal.ConflictError].
 		ConditionExpression: aws.String(`attribute_not_exists(#J)`),
 	}
 

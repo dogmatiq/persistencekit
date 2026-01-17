@@ -18,10 +18,10 @@ func (ks *keyspace) Name() string {
 	return ks.name
 }
 
-func (ks *keyspace) Get(ctx context.Context, k []byte) ([]byte, error) {
+func (ks *keyspace) Get(ctx context.Context, k []byte) (v []byte, r uint64, err error) {
 	row := ks.db.QueryRowContext(
 		ctx,
-		`SELECT value
+		`SELECT value, revision
 		FROM persistencekit.keyspace_pair
 		WHERE keyspace_id = $1
 		AND key = $2`,
@@ -29,15 +29,14 @@ func (ks *keyspace) Get(ctx context.Context, k []byte) ([]byte, error) {
 		k,
 	)
 
-	var value []byte
-	if err := row.Scan(&value); err != nil {
+	if err := row.Scan(&v, &r); err != nil {
 		if err == sql.ErrNoRows {
-			return nil, nil
+			return nil, 0, nil
 		}
-		return nil, fmt.Errorf("cannot scan keyspace pair: %w", err)
+		return nil, 0, fmt.Errorf("cannot scan keyspace pair: %w", err)
 	}
 
-	return value, nil
+	return v, r, nil
 }
 
 func (ks *keyspace) Has(ctx context.Context, k []byte) (bool, error) {
@@ -59,45 +58,80 @@ func (ks *keyspace) Has(ctx context.Context, k []byte) (bool, error) {
 	return exists, nil
 }
 
-func (ks *keyspace) Set(ctx context.Context, k, v []byte) error {
-	if len(v) == 0 {
-		if _, err := ks.db.ExecContext(
+func (ks *keyspace) Set(ctx context.Context, k, v []byte, r uint64) error {
+	ok, err := ks.set(ctx, v, k, r)
+	if ok || err != nil {
+		return err
+	}
+
+	return kv.ConflictError[[]byte]{
+		Keyspace: ks.name,
+		Key:      k,
+		Revision: r,
+	}
+}
+
+// set inserts, updates, or deletes a key/value pair based on the provided
+// value and revision.
+//
+// It returns true on success, or false on conflict.
+func (ks *keyspace) set(ctx context.Context, v []byte, k []byte, r uint64) (bool, error) {
+	isDelete := len(v) == 0
+	isNew := r == 0
+
+	if isDelete && isNew {
+		exists, err := ks.Has(ctx, k)
+		return !exists, err
+	}
+
+	if isDelete {
+		return ks.execOne(
 			ctx,
 			`DELETE FROM persistencekit.keyspace_pair
 			WHERE keyspace_id = $1
-			AND key = $2`,
+			AND key = $2
+			AND revision = $3`,
 			ks.id,
 			k,
-		); err != nil {
-			return fmt.Errorf("cannot delete keyspace pair: %w", err)
-		}
-		return nil
+			r,
+		)
 	}
 
-	if _, err := ks.db.ExecContext(
+	if isNew {
+		return ks.execOne(
+			ctx,
+			`INSERT INTO persistencekit.keyspace_pair AS o (
+				keyspace_id,
+				key,
+				value
+			) VALUES (
+				$1, $2, $3
+			) ON CONFLICT (keyspace_id, key) DO NOTHING`,
+			ks.id,
+			k,
+			v,
+		)
+	}
+
+	return ks.execOne(
 		ctx,
-		`INSERT INTO persistencekit.keyspace_pair AS o (
-			keyspace_id,
-			key,
-			value
-		) VALUES (
-			$1, $2, $3
-		) ON CONFLICT (keyspace_id, key) DO UPDATE SET
-			value = $3
-		`,
+		`UPDATE persistencekit.keyspace_pair SET
+			value = $3,
+			revision = revision + 1
+		WHERE keyspace_id = $1
+		AND key = $2
+		AND revision = $4`,
 		ks.id,
 		k,
 		v,
-	); err != nil {
-		return fmt.Errorf("cannot insert/update keyspace pair: %w", err)
-	}
-	return nil
+		r,
+	)
 }
 
 func (ks *keyspace) Range(ctx context.Context, fn kv.BinaryRangeFunc) error {
 	rows, err := ks.db.QueryContext(
 		ctx,
-		`SELECT key, value
+		`SELECT key, value, revision
 		FROM persistencekit.keyspace_pair
 		WHERE keyspace_id = $1`,
 		ks.id,
@@ -108,12 +142,15 @@ func (ks *keyspace) Range(ctx context.Context, fn kv.BinaryRangeFunc) error {
 	defer rows.Close()
 
 	for rows.Next() {
-		var k, v []byte
-		if err := rows.Scan(&k, &v); err != nil {
+		var (
+			k, v []byte
+			r    uint64
+		)
+		if err := rows.Scan(&k, &v, &r); err != nil {
 			return fmt.Errorf("cannot scan keyspace pair: %w", err)
 		}
 
-		ok, err := fn(ctx, k, v)
+		ok, err := fn(ctx, k, v, r)
 		if !ok || err != nil {
 			return err
 		}
@@ -128,4 +165,23 @@ func (ks *keyspace) Range(ctx context.Context, fn kv.BinaryRangeFunc) error {
 
 func (ks *keyspace) Close() error {
 	return nil
+}
+
+// execOne executes a query and returns whether exactly one row was affected.
+func (ks *keyspace) execOne(
+	ctx context.Context,
+	query string,
+	args ...any,
+) (bool, error) {
+	res, err := ks.db.ExecContext(ctx, query, args...)
+	if err != nil {
+		return false, fmt.Errorf("cannot execute query: %w", err)
+	}
+
+	n, err := res.RowsAffected()
+	if err != nil {
+		return false, fmt.Errorf("cannot determine affected rows: %w", err)
+	}
+
+	return n == 1, nil
 }

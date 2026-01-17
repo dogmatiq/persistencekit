@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"reflect"
 	"slices"
 	"testing"
 
@@ -61,11 +62,11 @@ func RunTests(
 				defer ks2.Close()
 
 				expect := []byte("<value>")
-				if err := ks1.Set(t.Context(), []byte("<key>"), expect); err != nil {
+				if err := ks1.Set(t.Context(), []byte("<key>"), expect, 0); err != nil {
 					t.Fatal(err)
 				}
 
-				actual, err := ks2.Get(t.Context(), []byte("<key>"))
+				actual, _, err := ks2.Get(t.Context(), []byte("<key>"))
 				if err != nil {
 					t.Fatal(err)
 				}
@@ -92,12 +93,15 @@ func RunTests(
 
 				ks := setup(t)
 
-				v, err := ks.Get(t.Context(), []byte("<key>"))
+				v, r, err := ks.Get(t.Context(), []byte("<key>"))
 				if err != nil {
 					t.Fatal(err)
 				}
 				if len(v) != 0 {
 					t.Fatal("expected zero-length value")
+				}
+				if r != 0 {
+					t.Fatal("expected zero revision")
 				}
 			})
 
@@ -108,20 +112,23 @@ func RunTests(
 
 				k := []byte("<key>")
 
-				if err := ks.Set(t.Context(), k, []byte("<value>")); err != nil {
+				if err := ks.Set(t.Context(), k, []byte("<value>"), 0); err != nil {
 					t.Fatal(err)
 				}
 
-				if err := ks.Set(t.Context(), k, nil); err != nil {
+				if err := ks.Set(t.Context(), k, nil, 1); err != nil {
 					t.Fatal(err)
 				}
 
-				v, err := ks.Get(t.Context(), k)
+				v, r, err := ks.Get(t.Context(), k)
 				if err != nil {
 					t.Fatal(err)
 				}
 				if len(v) != 0 {
 					t.Fatal("expected zero-length value")
+				}
+				if r != 0 {
+					t.Fatal("expected zero revision")
 				}
 			})
 
@@ -134,7 +141,7 @@ func RunTests(
 					k := []byte(fmt.Sprintf("<key-%d>", i))
 					v := []byte(fmt.Sprintf("<value-%d>", i))
 
-					if err := ks.Set(t.Context(), k, v); err != nil {
+					if err := ks.Set(t.Context(), k, v, 0); err != nil {
 						t.Fatal(err)
 					}
 				}
@@ -143,7 +150,7 @@ func RunTests(
 					k := []byte(fmt.Sprintf("<key-%d>", i))
 					expect := []byte(fmt.Sprintf("<value-%d>", i))
 
-					actual, err := ks.Get(t.Context(), k)
+					actual, _, err := ks.Get(t.Context(), k)
 					if err != nil {
 						t.Fatal(err)
 					}
@@ -165,18 +172,18 @@ func RunTests(
 
 				k := []byte("<key>")
 
-				if err := ks.Set(t.Context(), k, []byte("<value>")); err != nil {
+				if err := ks.Set(t.Context(), k, []byte("<value>"), 0); err != nil {
 					t.Fatal(err)
 				}
 
-				v, err := ks.Get(t.Context(), k)
+				v, _, err := ks.Get(t.Context(), k)
 				if err != nil {
 					t.Fatal(err)
 				}
 
 				v[0] = 'X'
 
-				actual, err := ks.Get(t.Context(), k)
+				actual, _, err := ks.Get(t.Context(), k)
 				if err != nil {
 					t.Fatal(err)
 				}
@@ -194,6 +201,86 @@ func RunTests(
 		t.Run("Set", func(t *testing.T) {
 			t.Parallel()
 
+			t.Run("when the key is present in the keyspace", func(t *testing.T) {
+				t.Run("it returns a ConflictError if the given revision does not match", func(t *testing.T) {
+					cases := []struct {
+						Name     string
+						Revision uint64
+					}{
+						{"too low", 0},
+						{"too high", 3},
+					}
+
+					for _, c := range cases {
+						t.Run(c.Name, func(t *testing.T) {
+							t.Parallel()
+
+							ks := setup(t)
+
+							k := []byte("<key>")
+							v := []byte("<value>")
+
+							if err := ks.Set(t.Context(), k, v, 0); err != nil {
+								t.Fatal(err)
+							}
+
+							err := ks.Set(t.Context(), k, v, c.Revision)
+
+							expect := ConflictError[[]byte]{
+								Keyspace: ks.Name(),
+								Key:      k,
+								Revision: c.Revision,
+							}
+							if !reflect.DeepEqual(err, expect) {
+								t.Fatalf("unexpected error: got %q, want %q", err, expect)
+							}
+
+							if !IsConflict(err) {
+								t.Fatalf("expected IsConflict to return true")
+							}
+						})
+					}
+				})
+			})
+
+			t.Run("when the key is not present in the keyspace", func(t *testing.T) {
+				t.Run("it returns a ConflictError if the given revision is not zero", func(t *testing.T) {
+					t.Parallel()
+
+					ks := setup(t)
+
+					k := []byte("<key>")
+					v := []byte("<value>")
+
+					err := ks.Set(t.Context(), k, v, 123)
+
+					expect := ConflictError[[]byte]{
+						Keyspace: ks.Name(),
+						Key:      k,
+						Revision: 123,
+					}
+					if !reflect.DeepEqual(err, expect) {
+						t.Fatalf("unexpected error: got %q, want %q", err, expect)
+					}
+
+					if !IsConflict(err) {
+						t.Fatalf("expected IsConflict to return true")
+					}
+				})
+
+				t.Run("it allows deletion with a zero revision", func(t *testing.T) {
+					t.Parallel()
+
+					ks := setup(t)
+
+					k := []byte("<key>")
+
+					if err := ks.Set(t.Context(), k, nil, 0); err != nil {
+						t.Fatal(err)
+					}
+				})
+			})
+
 			t.Run("it does not keep a reference to the key slice", func(t *testing.T) {
 				t.Parallel()
 
@@ -202,7 +289,7 @@ func RunTests(
 				k := []byte("<key>")
 				v := []byte("<value>")
 
-				if err := ks.Set(t.Context(), k, v); err != nil {
+				if err := ks.Set(t.Context(), k, v, 0); err != nil {
 					t.Fatal(err)
 				}
 
@@ -217,7 +304,7 @@ func RunTests(
 					t.Fatalf("unexpected key: %q", string(k))
 				}
 
-				actual, err := ks.Get(t.Context(), []byte("<key>"))
+				actual, _, err := ks.Get(t.Context(), []byte("<key>"))
 				if err != nil {
 					t.Fatal(err)
 				}
@@ -239,13 +326,13 @@ func RunTests(
 				k := []byte("<key>")
 				v := []byte("<value>")
 
-				if err := ks.Set(t.Context(), k, v); err != nil {
+				if err := ks.Set(t.Context(), k, v, 0); err != nil {
 					t.Fatal(err)
 				}
 
 				v[0] = 'X'
 
-				actual, err := ks.Get(t.Context(), k)
+				actual, _, err := ks.Get(t.Context(), k)
 				if err != nil {
 					t.Fatal(err)
 				}
@@ -284,7 +371,7 @@ func RunTests(
 
 				k := []byte("<key>")
 
-				if err := ks.Set(t.Context(), k, []byte("<value>")); err != nil {
+				if err := ks.Set(t.Context(), k, []byte("<value>"), 0); err != nil {
 					t.Fatal(err)
 				}
 
@@ -304,11 +391,11 @@ func RunTests(
 
 				k := []byte("<key>")
 
-				if err := ks.Set(t.Context(), k, []byte("<value>")); err != nil {
+				if err := ks.Set(t.Context(), k, []byte("<value>"), 0); err != nil {
 					t.Fatal(err)
 				}
 
-				if err := ks.Set(t.Context(), k, nil); err != nil {
+				if err := ks.Set(t.Context(), k, nil, 1); err != nil {
 					t.Fatal(err)
 				}
 
@@ -330,24 +417,38 @@ func RunTests(
 
 				ks := setup(t)
 
-				expect := map[string]string{}
+				expect := map[string]struct {
+					Value    string
+					Revision uint64
+				}{}
 
 				for n := uint64(0); n < 100; n++ {
 					k := fmt.Sprintf("<key-%d>", n)
 					v := fmt.Sprintf("<value-%d>", n)
-					if err := ks.Set(t.Context(), []byte(k), []byte(v)); err != nil {
+
+					if err := ks.Set(t.Context(), []byte(k), []byte(v), 0); err != nil {
 						t.Fatal(err)
 					}
 
-					expect[k] = v
+					expect[k] = struct {
+						Value    string
+						Revision uint64
+					}{v, 1}
 				}
 
-				actual := map[string]string{}
+				actual := map[string]struct {
+					Value    string
+					Revision uint64
+				}{}
 
 				if err := ks.Range(
 					t.Context(),
-					func(_ context.Context, k, v []byte) (bool, error) {
-						actual[string(k)] = string(v)
+					func(_ context.Context, k, v []byte, r uint64) (bool, error) {
+						actual[string(k)] = struct {
+							Value    string
+							Revision uint64
+						}{string(v), r}
+
 						return true, nil
 					},
 				); err != nil {
@@ -367,7 +468,8 @@ func RunTests(
 				for n := uint64(0); n < 2; n++ {
 					k := fmt.Sprintf("<key-%d>", n)
 					v := fmt.Sprintf("<value-%d>", n)
-					if err := ks.Set(t.Context(), []byte(k), []byte(v)); err != nil {
+
+					if err := ks.Set(t.Context(), []byte(k), []byte(v), 0); err != nil {
 						t.Fatal(err)
 					}
 				}
@@ -375,7 +477,7 @@ func RunTests(
 				called := false
 				if err := ks.Range(
 					t.Context(),
-					func(_ context.Context, _, _ []byte) (bool, error) {
+					func(_ context.Context, _, _ []byte, _ uint64) (bool, error) {
 						if called {
 							return false, errors.New("unexpected call")
 						}
@@ -393,17 +495,16 @@ func RunTests(
 
 				ks := setup(t)
 
-				if err := ks.Set(
-					t.Context(),
-					[]byte("<key>"),
-					[]byte("<value>"),
-				); err != nil {
+				expectKey := []byte("<key>")
+				expectValue := []byte("<value>")
+
+				if err := ks.Set(t.Context(), expectKey, expectValue, 0); err != nil {
 					t.Fatal(err)
 				}
 
 				if err := ks.Range(
 					t.Context(),
-					func(_ context.Context, k, v []byte) (bool, error) {
+					func(_ context.Context, k, v []byte, _ uint64) (bool, error) {
 						k[0] = 'X'
 						v[0] = 'Y'
 
@@ -413,27 +514,26 @@ func RunTests(
 					t.Fatal(err)
 				}
 
-				k := []byte("Xkey>")
-
-				ok, err := ks.Has(t.Context(), k)
+				mutatedKey := []byte("Xkey>")
+				ok, err := ks.Has(t.Context(), mutatedKey)
 				if err != nil {
 					t.Fatal(err)
 				}
 
 				if ok {
-					t.Fatalf("unexpected key: %q", string(k))
+					t.Fatalf("unexpected key: %q", string(mutatedKey))
 				}
 
-				actual, err := ks.Get(t.Context(), []byte("<key>"))
+				actualValue, _, err := ks.Get(t.Context(), expectKey)
 				if err != nil {
 					t.Fatal(err)
 				}
 
-				if expect := []byte("<value>"); !bytes.Equal(expect, actual) {
+				if !bytes.Equal(expectValue, actualValue) {
 					t.Fatalf(
-						"unexpected value, want %q, got %q",
-						string(expect),
-						string(actual),
+						"unexpected value: got %q, want %q",
+						string(actualValue),
+						string(expectValue),
 					)
 				}
 			})
@@ -447,23 +547,32 @@ func RunTests(
 					t.Context(),
 					[]byte("<key>"),
 					[]byte("<value>"),
+					0,
 				); err != nil {
 					t.Fatal(err)
 				}
 
 				if err := ks.Range(
 					t.Context(),
-					func(ctx context.Context, k, expect []byte) (bool, error) {
-						actual, err := ks.Get(ctx, k)
+					func(ctx context.Context, k, expectValue []byte, expectRevision uint64) (bool, error) {
+						actualValue, actualRevision, err := ks.Get(ctx, k)
 						if err != nil {
 							t.Fatal(err)
 						}
 
-						if !bytes.Equal(expect, actual) {
+						if !bytes.Equal(actualValue, expectValue) {
 							t.Fatalf(
-								"unexpected value, want %q, got %q",
-								string(expect),
-								string(actual),
+								"unexpected value: got %q, want %q",
+								string(actualValue),
+								string(expectValue),
+							)
+						}
+
+						if actualRevision != expectRevision {
+							t.Fatalf(
+								"unexpected revision: got %d, want %d",
+								actualRevision,
+								expectRevision,
 							)
 						}
 
@@ -483,13 +592,14 @@ func RunTests(
 					t.Context(),
 					[]byte("<key>"),
 					[]byte("<value>"),
+					0,
 				); err != nil {
 					t.Fatal(err)
 				}
 
 				if err := ks.Range(
 					t.Context(),
-					func(ctx context.Context, k, _ []byte) (bool, error) {
+					func(ctx context.Context, k, _ []byte, _ uint64) (bool, error) {
 						ok, err := ks.Has(ctx, k)
 						if err != nil {
 							t.Fatal(err)
@@ -515,6 +625,7 @@ func RunTests(
 					t.Context(),
 					k,
 					[]byte("<value>"),
+					0,
 				); err != nil {
 					t.Fatal(err)
 				}
@@ -523,8 +634,8 @@ func RunTests(
 
 				if err := ks.Range(
 					t.Context(),
-					func(ctx context.Context, k, _ []byte) (bool, error) {
-						if err := ks.Set(ctx, k, expect); err != nil {
+					func(ctx context.Context, k, _ []byte, r uint64) (bool, error) {
+						if err := ks.Set(ctx, k, expect, r); err != nil {
 							t.Fatal(err)
 						}
 						return false, nil
@@ -533,7 +644,7 @@ func RunTests(
 					t.Fatal(err)
 				}
 
-				actual, err := ks.Get(t.Context(), k)
+				actual, _, err := ks.Get(t.Context(), k)
 				if err != nil {
 					t.Fatal(err)
 				}
@@ -561,7 +672,11 @@ func RunTests(
 
 			nonEmptyValue := rapid.StringN(1, -1, -1)
 
-			pairs := map[string][]byte{}
+			pairs := map[string]struct {
+				Value    []byte
+				Revision uint64
+			}{}
+
 			var keys [][]byte
 
 			t.Repeat(
@@ -569,18 +684,28 @@ func RunTests(
 					"Get": func(t *rapid.T) {
 						key := []byte(nonEmptyValue.Draw(t, "key"))
 
-						value, err := ks.Get(t.Context(), key)
+						actualValue, actualRevision, err := ks.Get(t.Context(), key)
 						if err != nil {
 							t.Fatal(err)
 						}
 
 						expect := pairs[string(key)]
-						if !bytes.Equal(expect, value) {
+
+						if !bytes.Equal(actualValue, expect.Value) {
 							t.Fatalf(
 								"unexpected value for key %q: got %q, want %q",
 								string(key),
-								string(value),
-								string(expect),
+								string(actualValue),
+								string(expect.Value),
+							)
+						}
+
+						if actualRevision != expect.Revision {
+							t.Fatalf(
+								"unexpected revision for key %q: got %d, want %d",
+								string(key),
+								actualRevision,
+								expect.Revision,
 							)
 						}
 					},
@@ -591,18 +716,28 @@ func RunTests(
 
 						key := rapid.SampledFrom(keys).Draw(t, "key")
 
-						value, err := ks.Get(t.Context(), key)
+						actualValue, actualRevision, err := ks.Get(t.Context(), key)
 						if err != nil {
 							t.Fatal(err)
 						}
 
 						expect := pairs[string(key)]
-						if !bytes.Equal(expect, value) {
+
+						if !bytes.Equal(actualValue, expect.Value) {
 							t.Fatalf(
 								"unexpected value for key %q: got %q, want %q",
 								string(key),
-								string(value),
-								string(expect),
+								string(actualValue),
+								string(expect.Value),
+							)
+						}
+
+						if actualRevision != expect.Revision {
+							t.Fatalf(
+								"unexpected revision for key %q: got %d, want %d",
+								string(key),
+								actualRevision,
+								expect.Revision,
 							)
 						}
 					},
@@ -646,33 +781,67 @@ func RunTests(
 							)
 						}
 					},
-					"Set": func(t *rapid.T) {
-						key := []byte(nonEmptyValue.Draw(t, "key"))
+					"Set (new key)": func(t *rapid.T) {
+						key := []byte(
+							nonEmptyValue.
+								Filter(func(s string) bool {
+									_, exists := pairs[s]
+									return !exists
+								}).
+								Draw(t, "key"),
+						)
 						value := []byte(nonEmptyValue.Draw(t, "value"))
 
-						if err := ks.Set(t.Context(), key, value); err != nil {
+						if err := ks.Set(t.Context(), key, value, 0); err != nil {
 							t.Fatal(err)
 						}
 
-						n := len(pairs)
-						pairs[string(key)] = value
-						if len(pairs) > n {
-							keys = append(keys, key)
-						}
+						pairs[string(key)] = struct {
+							Value    []byte
+							Revision uint64
+						}{value, 1}
+
+						keys = append(keys, key)
 					},
-					"Set (replace)": func(t *rapid.T) {
+					"Set (existing key, new value)": func(t *rapid.T) {
 						if len(pairs) == 0 {
 							t.Skip("skip: keyspace is empty")
 						}
 
 						key := rapid.SampledFrom(keys).Draw(t, "key")
-						value := []byte(nonEmptyValue.Draw(t, "value"))
+						item := pairs[string(key)]
 
-						if err := ks.Set(t.Context(), key, value); err != nil {
+						value := []byte(
+							nonEmptyValue.
+								Filter(func(s string) bool {
+									return !bytes.Equal([]byte(s), item.Value)
+								}).
+								Draw(t, "value"),
+						)
+
+						if err := ks.Set(t.Context(), key, value, item.Revision); err != nil {
 							t.Fatal(err)
 						}
 
-						pairs[string(key)] = value
+						item.Value = value
+						item.Revision++
+
+						pairs[string(key)] = item
+					},
+					"Set (existing key, same value)": func(t *rapid.T) {
+						if len(pairs) == 0 {
+							t.Skip("skip: keyspace is empty")
+						}
+
+						key := rapid.SampledFrom(keys).Draw(t, "key")
+						item := pairs[string(key)]
+
+						if err := ks.Set(t.Context(), key, item.Value, item.Revision); err != nil {
+							t.Fatal(err)
+						}
+
+						item.Revision++
+						pairs[string(key)] = item
 					},
 					"Set (delete)": func(t *rapid.T) {
 						if len(pairs) == 0 {
@@ -680,12 +849,14 @@ func RunTests(
 						}
 
 						key := rapid.SampledFrom(keys).Draw(t, "key")
+						item := pairs[string(key)]
 
-						if err := ks.Set(t.Context(), key, nil); err != nil {
+						if err := ks.Set(t.Context(), key, nil, item.Revision); err != nil {
 							t.Fatal(err)
 						}
 
 						delete(pairs, string(key))
+
 						keys = slices.DeleteFunc(
 							keys,
 							func(k []byte) bool {
@@ -698,7 +869,7 @@ func RunTests(
 
 						if err := ks.Range(
 							t.Context(),
-							func(_ context.Context, k, v []byte) (bool, error) {
+							func(_ context.Context, k, actualValue []byte, actualRevision uint64) (bool, error) {
 								if _, ok := seen[string(k)]; ok {
 									t.Fatalf(
 										"key seen twice while ranging over pairs: %q",
@@ -708,12 +879,22 @@ func RunTests(
 								seen[string(k)] = struct{}{}
 
 								expect := pairs[string(k)]
-								if !bytes.Equal(expect, v) {
+
+								if !bytes.Equal(actualValue, expect.Value) {
 									t.Fatalf(
 										"unexpected value for key %q: got %q, want %q",
 										string(k),
-										string(v),
-										string(expect),
+										string(actualValue),
+										string(expect.Value),
+									)
+								}
+
+								if actualRevision != expect.Revision {
+									t.Fatalf(
+										"unexpected revision for key %q: got %d, want %d",
+										string(k),
+										actualRevision,
+										expect.Revision,
 									)
 								}
 
