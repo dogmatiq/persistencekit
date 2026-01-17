@@ -128,6 +128,37 @@ func (ks *keyspace) set(ctx context.Context, v []byte, k []byte, r uint64) (bool
 	)
 }
 
+func (ks *keyspace) SetUnconditional(ctx context.Context, k, v []byte) error {
+	if len(v) == 0 {
+		_, err := ks.db.ExecContext(
+			ctx,
+			`DELETE FROM persistencekit.keyspace_pair
+			WHERE keyspace_id = $1
+			AND key = $2`,
+			ks.id,
+			k,
+		)
+		return err
+	}
+
+	_, err := ks.db.ExecContext(
+		ctx,
+		`INSERT INTO persistencekit.keyspace_pair AS o (
+			keyspace_id,
+			key,
+			value
+		) VALUES (
+			$1, $2, $3
+		) ON CONFLICT (keyspace_id, key) DO UPDATE SET
+			value = EXCLUDED.value,
+			revision = o.revision + 1`,
+		ks.id,
+		k,
+		v,
+	)
+	return err
+}
+
 func (ks *keyspace) Range(ctx context.Context, fn kv.BinaryRangeFunc) error {
 	rows, err := ks.db.QueryContext(
 		ctx,

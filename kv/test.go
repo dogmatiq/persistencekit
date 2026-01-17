@@ -137,7 +137,7 @@ func RunTests(
 
 				ks := setup(t)
 
-				for i := 0; i < 5; i++ {
+				for i := range 5 {
 					k := []byte(fmt.Sprintf("<key-%d>", i))
 					v := []byte(fmt.Sprintf("<value-%d>", i))
 
@@ -146,7 +146,7 @@ func RunTests(
 					}
 				}
 
-				for i := 0; i < 5; i++ {
+				for i := range 5 {
 					k := []byte(fmt.Sprintf("<key-%d>", i))
 					expect := []byte(fmt.Sprintf("<value-%d>", i))
 
@@ -343,6 +343,89 @@ func RunTests(
 						string(expect),
 						string(actual),
 					)
+				}
+			})
+		})
+
+		t.Run("SetUnconditional", func(t *testing.T) {
+			t.Parallel()
+
+			t.Run("it always sets the value regardless of the current revision", func(t *testing.T) {
+				t.Parallel()
+
+				ks := setup(t)
+
+				k := []byte("<key>")
+
+				if err := ks.SetUnconditional(t.Context(), k, []byte("<value-1>")); err != nil {
+					t.Fatal(err)
+				}
+
+				actualValue, actualRevision, err := ks.Get(t.Context(), k)
+				if err != nil {
+					t.Fatal(err)
+				}
+
+				var (
+					expectValue    = []byte("<value-1>")
+					expectRevision = uint64(1)
+				)
+
+				if !bytes.Equal(expectValue, actualValue) {
+					t.Fatalf(
+						"unexpected value, want %q, got %q",
+						string(expectValue),
+						string(actualValue),
+					)
+				}
+
+				if expectRevision != actualRevision {
+					t.Fatalf(
+						"unexpected revision, want %d, got %d",
+						expectRevision,
+						actualRevision,
+					)
+				}
+
+				if err := ks.SetUnconditional(t.Context(), k, []byte("<value-2>")); err != nil {
+					t.Fatal(err)
+				}
+
+				actualValue, actualRevision, err = ks.Get(t.Context(), k)
+				if err != nil {
+					t.Fatal(err)
+				}
+
+				expectValue = []byte("<value-2>")
+				expectRevision = uint64(2)
+
+				if !bytes.Equal(expectValue, actualValue) {
+					t.Fatalf(
+						"unexpected value, want %q, got %q",
+						string(expectValue),
+						string(actualValue),
+					)
+				}
+
+				if expectRevision != actualRevision {
+					t.Fatalf(
+						"unexpected revision, want %d, got %d",
+						expectRevision,
+						actualRevision,
+					)
+				}
+
+				if err := ks.SetUnconditional(t.Context(), k, nil); err != nil {
+					t.Fatal(err)
+				}
+
+				exists, err := ks.Has(t.Context(), k)
+				if err != nil {
+					t.Fatal(err)
+				}
+
+				if exists {
+					t.Fatal("expected key to be deleted")
 				}
 			})
 		})

@@ -38,6 +38,15 @@ type Keyspace[K, V any] interface {
 	// On success, the new revision number is always r + 1.
 	Set(ctx context.Context, k K, v V, r uint64) error
 
+	// SetUnconditional associates a value with k, regardless of its current
+	// revision.
+	//
+	// It is equivalent to calling Set with the current revision number, but
+	// offers no optimistic concurrency control.
+	//
+	// If v is the zero-value of V (or equivalent), the key is deleted.
+	SetUnconditional(ctx context.Context, k K, v V) error
+
 	// Range invokes fn for each key in the keyspace in an undefined order.
 	Range(ctx context.Context, fn RangeFunc[K, V]) error
 

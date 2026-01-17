@@ -9,8 +9,8 @@ import (
 // Interceptor defines functions that are invoked around keyspace operations.
 type Interceptor[K, V any] struct {
 	beforeOpen xatomic.Value[func(string) error]
-	beforeSet  xatomic.Value[func(string, K, V, uint64) error]
-	afterSet   xatomic.Value[func(string, K, V, uint64) error]
+	beforeSet  xatomic.Value[func(string, K, V, *uint64) error]
+	afterSet   xatomic.Value[func(string, K, V, *uint64) error]
 }
 
 // BeforeOpen sets the function that is invoked before a [Keyspace] is opened.
@@ -19,12 +19,12 @@ func (i *Interceptor[K, V]) BeforeOpen(fn func(name string) error) {
 }
 
 // BeforeSet sets the function that is invoked before a key/value pair is set.
-func (i *Interceptor[K, V]) BeforeSet(fn func(keyspace string, k K, v V, r uint64) error) {
+func (i *Interceptor[K, V]) BeforeSet(fn func(keyspace string, k K, v V, r *uint64) error) {
 	i.beforeSet.Store(fn)
 }
 
 // AfterSet sets the function that is invoked after a key/value pair is set.
-func (i *Interceptor[K, V]) AfterSet(fn func(keyspace string, k K, v V, r uint64) error) {
+func (i *Interceptor[K, V]) AfterSet(fn func(keyspace string, k K, v V, r *uint64) error) {
 	i.afterSet.Store(fn)
 }
 
@@ -84,8 +84,10 @@ func (ks *interceptedKeyspace[K, V]) Has(ctx context.Context, k K) (bool, error)
 }
 
 func (ks *interceptedKeyspace[K, V]) Set(ctx context.Context, k K, v V, r uint64) error {
+	rClone := r
+
 	if fn := ks.Interceptor.beforeSet.Load(); fn != nil {
-		if err := fn(ks.keyspace, k, v, r); err != nil {
+		if err := fn(ks.keyspace, k, v, &rClone); err != nil {
 			return err
 		}
 	}
@@ -95,7 +97,27 @@ func (ks *interceptedKeyspace[K, V]) Set(ctx context.Context, k K, v V, r uint64
 	}
 
 	if fn := ks.Interceptor.afterSet.Load(); fn != nil {
-		if err := fn(ks.keyspace, k, v, r); err != nil {
+		if err := fn(ks.keyspace, k, v, &rClone); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (ks *interceptedKeyspace[K, V]) SetUnconditional(ctx context.Context, k K, v V) error {
+	if fn := ks.Interceptor.beforeSet.Load(); fn != nil {
+		if err := fn(ks.keyspace, k, v, nil); err != nil {
+			return err
+		}
+	}
+
+	if err := ks.Next.SetUnconditional(ctx, k, v); err != nil {
+		return err
+	}
+
+	if fn := ks.Interceptor.afterSet.Load(); fn != nil {
+		if err := fn(ks.keyspace, k, v, nil); err != nil {
 			return err
 		}
 	}
