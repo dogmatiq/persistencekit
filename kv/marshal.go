@@ -84,7 +84,7 @@ func (ks *mkeyspace[K, V]) Set(ctx context.Context, k K, v V, r uint64) error {
 
 	if err := ks.BinaryKeyspace.Set(ctx, keyData, valueData, r); err != nil {
 		// Re-package conflict errors to use a key of type K, instead of []byte.
-		var conflict ConflictError[K]
+		var conflict ConflictError[[]byte]
 		if errors.As(err, &conflict) {
 			return ConflictError[K]{
 				Keyspace: conflict.Keyspace,
