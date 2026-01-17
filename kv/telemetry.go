@@ -221,6 +221,55 @@ func (ks *instrumentedKeyspace) Set(ctx context.Context, k, v []byte, r uint64) 
 	return nil
 }
 
+func (ks *instrumentedKeyspace) SetUnconditional(ctx context.Context, k, v []byte) error {
+	keySize := int64(len(k))
+	valueSize := int64(len(v))
+
+	op := "keyspace.set-unconditional"
+	if valueSize == 0 {
+		op = "keyspace.set-unconditional.delete"
+	}
+
+	ctx, span := ks.Telemetry.StartSpan(
+		ctx,
+		op,
+		telemetry.Binary("key", k),
+		telemetry.Int("key_size", keySize),
+	)
+	defer span.End()
+
+	ks.KeyIO(ctx, keySize, telemetry.WriteDirection)
+	ks.KeySize(ctx, keySize, telemetry.WriteDirection)
+
+	if valueSize != 0 {
+		span.SetAttributes(
+			telemetry.Binary("value", v),
+			telemetry.Int("value_size", valueSize),
+		)
+
+		ks.ValueIO(ctx, valueSize, telemetry.WriteDirection)
+		ks.ValueSize(ctx, valueSize, telemetry.WriteDirection)
+	}
+
+	if err := ks.Next.SetUnconditional(ctx, k, v); err != nil {
+		if valueSize == 0 {
+			ks.Telemetry.Error(ctx, "keyspace.set-unconditional.error", "unable to delete key/value pair", err)
+		} else {
+			ks.Telemetry.Error(ctx, "keyspace.set-unconditional.error", "unable to set key/value pair", err)
+		}
+
+		return err
+	}
+
+	if valueSize == 0 {
+		ks.Telemetry.Info(ctx, "keyspace.set-uncondiitional.ok", "deleted key/value pair")
+	} else {
+		ks.Telemetry.Info(ctx, "keyspace.set-unconditional.ok", "set key/value pair")
+	}
+
+	return nil
+}
+
 func (ks *instrumentedKeyspace) Range(ctx context.Context, fn BinaryRangeFunc) error {
 	ctx, span := ks.Telemetry.StartSpan(ctx, "keyspace.range")
 	defer span.End()

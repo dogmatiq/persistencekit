@@ -18,20 +18,20 @@ type keyspace struct {
 	OnRequest func(any) []func(*dynamodb.Options)
 
 	attr struct {
-		Keyspace        types.AttributeValueMemberS
-		Key             types.AttributeValueMemberB
-		Value           types.AttributeValueMemberB
-		CurrentRevision types.AttributeValueMemberN
-		NextRevision    types.AttributeValueMemberN
+		Keyspace types.AttributeValueMemberS
+		Key      types.AttributeValueMemberB
+		Value    types.AttributeValueMemberB
+		Revision types.AttributeValueMemberN
 	}
 
 	request struct {
-		Get    dynamodb.GetItemInput
-		Has    dynamodb.GetItemInput
-		Range  dynamodb.QueryInput
-		Create dynamodb.PutItemInput
-		Update dynamodb.PutItemInput
-		Delete dynamodb.DeleteItemInput
+		Get                 dynamodb.GetItemInput
+		Has                 dynamodb.GetItemInput
+		Range               dynamodb.QueryInput
+		Update              dynamodb.UpdateItemInput
+		UpdateUnconditional dynamodb.UpdateItemInput
+		Delete              dynamodb.DeleteItemInput
+		DeleteUnconditional dynamodb.DeleteItemInput
 	}
 }
 
@@ -85,13 +85,13 @@ func (ks *keyspace) Has(ctx context.Context, k []byte) (bool, error) {
 }
 
 func (ks *keyspace) Set(ctx context.Context, k, v []byte, r uint64) error {
-	isDelete := len(v) == 0
-	isNew := r == 0
+	ks.attr.Key.Value = k
+	ks.attr.Value.Value = v
+	ks.attr.Revision.Value = strconv.FormatUint(r, 10)
 
-	if isDelete && isNew {
-		exists, err := ks.Has(ctx, k)
-
-		if exists {
+	convertConflictError := func(message string, err error) error {
+		var conflict *types.ConditionalCheckFailedException
+		if errors.As(err, &conflict) {
 			return kv.ConflictError[[]byte]{
 				Keyspace: ks.attr.Keyspace.Value,
 				Key:      k,
@@ -99,76 +99,58 @@ func (ks *keyspace) Set(ctx context.Context, k, v []byte, r uint64) error {
 			}
 		}
 
-		return err
+		return fmt.Errorf("%s: %w", message, err)
 	}
 
-	var err error
-
-	if isDelete {
-		err = ks.delete(ctx, k, r)
-	} else if isNew {
-		err = ks.create(ctx, k, v)
-	} else {
-		err = ks.update(ctx, k, v, r)
-	}
-
-	var conflict *types.ConditionalCheckFailedException
-	if errors.As(err, &conflict) {
-		return kv.ConflictError[[]byte]{
-			Keyspace: ks.attr.Keyspace.Value,
-			Key:      k,
-			Revision: r,
+	if len(v) == 0 {
+		if _, err := awsx.Do(
+			ctx,
+			ks.Client.DeleteItem,
+			ks.OnRequest,
+			&ks.request.Delete,
+		); err != nil {
+			return convertConflictError("unable to delete keyspace pair", err)
 		}
+
+		return nil
 	}
-
-	return err
-}
-
-func (ks *keyspace) create(ctx context.Context, k, v []byte) error {
-	ks.attr.Key.Value = k
-	ks.attr.Value.Value = v
 
 	if _, err := awsx.Do(
 		ctx,
-		ks.Client.PutItem,
-		ks.OnRequest,
-		&ks.request.Create,
-	); err != nil {
-		return fmt.Errorf("unable to put keyspace pair: %w", err)
-	}
-
-	return nil
-}
-
-func (ks *keyspace) update(ctx context.Context, k, v []byte, r uint64) error {
-	ks.attr.Key.Value = k
-	ks.attr.Value.Value = v
-	ks.attr.CurrentRevision.Value = strconv.FormatUint(r, 10)
-	ks.attr.NextRevision.Value = strconv.FormatUint(r+1, 10)
-
-	if _, err := awsx.Do(
-		ctx,
-		ks.Client.PutItem,
+		ks.Client.UpdateItem,
 		ks.OnRequest,
 		&ks.request.Update,
 	); err != nil {
-		return fmt.Errorf("unable to put keyspace pair: %w", err)
+		return convertConflictError("unable to update keyspace pair", err)
 	}
 
 	return nil
 }
 
-func (ks *keyspace) delete(ctx context.Context, k []byte, r uint64) error {
+func (ks *keyspace) SetUnconditional(ctx context.Context, k, v []byte) error {
 	ks.attr.Key.Value = k
-	ks.attr.CurrentRevision.Value = strconv.FormatUint(r, 10)
+	ks.attr.Value.Value = v
+
+	if len(v) == 0 {
+		if _, err := awsx.Do(
+			ctx,
+			ks.Client.DeleteItem,
+			ks.OnRequest,
+			&ks.request.DeleteUnconditional,
+		); err != nil {
+			return fmt.Errorf("unable to delete keyspace pair: %w", err)
+		}
+
+		return nil
+	}
 
 	if _, err := awsx.Do(
 		ctx,
-		ks.Client.DeleteItem,
+		ks.Client.UpdateItem,
 		ks.OnRequest,
-		&ks.request.Delete,
+		&ks.request.UpdateUnconditional,
 	); err != nil {
-		return fmt.Errorf("unable to delete keyspace pair: %w", err)
+		return fmt.Errorf("unable to update keyspace pair: %w", err)
 	}
 
 	return nil

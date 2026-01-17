@@ -67,6 +67,14 @@ func (ks *keyspace[K, V, C]) Has(ctx context.Context, k K) (ok bool, err error) 
 }
 
 func (ks *keyspace[K, V, C]) Set(ctx context.Context, k K, v V, r uint64) error {
+	return ks.set(ctx, k, v, &r)
+}
+
+func (ks *keyspace[K, V, C]) SetUnconditional(ctx context.Context, k K, v V) error {
+	return ks.set(ctx, k, v, nil)
+}
+
+func (ks *keyspace[K, V, C]) set(ctx context.Context, k K, v V, r *uint64) error {
 	if ks.state == nil {
 		panic("keyspace is closed")
 	}
@@ -79,11 +87,11 @@ func (ks *keyspace[K, V, C]) Set(ctx context.Context, k K, v V, r uint64) error 
 	c := ks.marshalKey(k)
 	i := ks.state.Items[c]
 
-	if r != i.Revision {
+	if r != nil && *r != i.Revision {
 		return kv.ConflictError[K]{
 			Keyspace: ks.name,
 			Key:      k,
-			Revision: r,
+			Revision: *r,
 		}
 	}
 
@@ -98,7 +106,7 @@ func (ks *keyspace[K, V, C]) Set(ctx context.Context, k K, v V, r uint64) error 
 
 	ks.state.Items[c] = item[V]{
 		Value:    v,
-		Revision: r + 1,
+		Revision: i.Revision + 1,
 	}
 
 	return ctx.Err()

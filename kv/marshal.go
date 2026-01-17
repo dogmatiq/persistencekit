@@ -74,12 +74,9 @@ func (ks *mkeyspace[K, V]) Set(ctx context.Context, k K, v V, r uint64) error {
 		return err
 	}
 
-	var valueData []byte
-	if !reflect.ValueOf(v).IsZero() {
-		valueData, err = ks.vm.Marshal(v)
-		if err != nil {
-			return err
-		}
+	valueData, err := ks.marshalValue(v)
+	if err != nil {
+		return err
 	}
 
 	if err := ks.BinaryKeyspace.Set(ctx, keyData, valueData, r); err != nil {
@@ -97,6 +94,27 @@ func (ks *mkeyspace[K, V]) Set(ctx context.Context, k K, v V, r uint64) error {
 	}
 
 	return nil
+}
+
+func (ks *mkeyspace[K, V]) SetUnconditional(ctx context.Context, k K, v V) error {
+	keyData, err := ks.km.Marshal(k)
+	if err != nil {
+		return err
+	}
+
+	valueData, err := ks.marshalValue(v)
+	if err != nil {
+		return err
+	}
+
+	return ks.BinaryKeyspace.SetUnconditional(ctx, keyData, valueData)
+}
+
+func (ks *mkeyspace[K, V]) marshalValue(v V) ([]byte, error) {
+	if reflect.ValueOf(v).IsZero() {
+		return nil, nil
+	}
+	return ks.vm.Marshal(v)
 }
 
 func (ks *mkeyspace[K, V]) Range(ctx context.Context, fn RangeFunc[K, V]) error {
