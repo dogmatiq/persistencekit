@@ -131,7 +131,7 @@ func (ks *keyspace) prepareRequests(table string) {
 
 		// Fail if the revision does not match so we can return
 		// [kv.ConflictError].
-		ConditionExpression: aws.String(`:R = #R`),
+		ConditionExpression: aws.String(`#R = :R`),
 	}
 
 	// Delete removes the ks.attr.Key key.
@@ -147,6 +147,6 @@ func (ks *keyspace) prepareRequests(table string) {
 
 		// Fail if the revision does not match so we can return
 		// [kv.ConflictError].
-		ConditionExpression: aws.String(`:R = #R`),
+		ConditionExpression: aws.String(`#R = :R`),
 	}
 }
