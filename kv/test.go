@@ -234,6 +234,10 @@ func RunTests(
 							if !reflect.DeepEqual(err, expect) {
 								t.Fatalf("unexpected error: got %q, want %q", err, expect)
 							}
+
+							if !IsConflict(err) {
+								t.Fatalf("expected IsConflict to return true")
+							}
 						})
 					}
 				})
@@ -257,6 +261,10 @@ func RunTests(
 					}
 					if !reflect.DeepEqual(err, expect) {
 						t.Fatalf("unexpected error: got %q, want %q", err, expect)
+					}
+
+					if !IsConflict(err) {
+						t.Fatalf("expected IsConflict to return true")
 					}
 				})
 

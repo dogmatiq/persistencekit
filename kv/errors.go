@@ -30,3 +30,5 @@ type ConflictError[K any] struct {
 func (e ConflictError[K]) Error() string {
 	return fmt.Sprintf("the supplied revision (%d) for key %v in the %q keyspace does not match the current revision", e.Revision, e.Key, e.Keyspace)
 }
+
+func (ConflictError[K]) isConflictError() {}
