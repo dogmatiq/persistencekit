@@ -94,7 +94,7 @@ func (ks *keyspace) prepareRequests(table string) {
 		},
 	}
 
-	// Crate sets the value associated with ks.attr.Key to ks.attr.Value at
+	// Create sets the value associated with ks.attr.Key to ks.attr.Value at
 	// revision 0.
 	ks.request.Create = dynamodb.PutItemInput{
 		TableName: &table,
