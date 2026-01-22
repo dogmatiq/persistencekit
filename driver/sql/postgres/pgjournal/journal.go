@@ -5,16 +5,18 @@ import (
 	"database/sql"
 	"fmt"
 
-	"github.com/dogmatiq/persistencekit/driver/sql/postgres/internal/bigint"
+	"github.com/dogmatiq/persistencekit/driver/sql/postgres/internal/commonschema"
+	"github.com/dogmatiq/persistencekit/driver/sql/postgres/pgjournal/internal/xdb"
 	"github.com/dogmatiq/persistencekit/journal"
 )
 
 // journ is an implementation of [journal.BinaryJournal] that persists to a PostgreSQL
 // database.
 type journ struct {
-	db   *sql.DB
-	id   uint64
-	name string
+	db      *sql.DB
+	queries *xdb.Queries
+	id      int64
+	name    string
 }
 
 func (j *journ) Name() string {
@@ -22,39 +24,23 @@ func (j *journ) Name() string {
 }
 
 func (j *journ) Bounds(ctx context.Context) (bounds journal.Interval, err error) {
-	row := j.db.QueryRowContext(
-		ctx,
-		`SELECT
-			j.encoded_begin,
-			j.encoded_end
-		FROM persistencekit.journal AS j
-		WHERE j.id = $1`,
-		j.id,
-	)
-
-	if err := row.Scan(
-		bigint.ConvertUnsigned(&bounds.Begin),
-		bigint.ConvertUnsigned(&bounds.End),
-	); err != nil {
+	row, err := j.queries.SelectBounds(ctx, j.id)
+	if err != nil {
 		return journal.Interval{}, fmt.Errorf("cannot query journal bounds: %w", err)
 	}
 
-	return bounds, nil
+	return journal.Interval{
+		Begin: journal.Position(row.Begin),
+		End:   journal.Position(row.End),
+	}, nil
 }
 
 func (j *journ) Get(ctx context.Context, pos journal.Position) ([]byte, error) {
-	row := j.db.QueryRowContext(
-		ctx,
-		`SELECT record
-		FROM persistencekit.journal_record
-		WHERE journal_id = $1
-		AND encoded_position = $2`,
-		j.id,
-		bigint.ConvertUnsigned(&pos),
-	)
-
-	var rec []byte
-	if err := row.Scan(&rec); err != nil {
+	rec, err := j.queries.SelectRecord(ctx, xdb.SelectRecordParams{
+		JournalID: j.id,
+		Position:  commonschema.Uint64(pos),
+	})
+	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, journal.RecordNotFoundError{
 				Journal:  j.Name(),
@@ -72,64 +58,48 @@ func (j *journ) Range(
 	pos journal.Position,
 	fn journal.BinaryRangeFunc,
 ) error {
-	// TODO: "paginate" results across multiple queries to avoid loading
-	// everything into memory at once.
-	rows, err := j.db.QueryContext(
-		ctx,
-		`SELECT encoded_position, record
-		FROM persistencekit.journal_record
-		WHERE journal_id = $1
-		AND encoded_position >= $2
-		ORDER BY encoded_position`,
-		j.id,
-		bigint.ConvertUnsigned(&pos),
-	)
-	if err != nil {
-		return fmt.Errorf("cannot query journal records: %w", err)
+	params := xdb.SelectRecordsParams{
+		JournalID: j.id,
+		Position:  commonschema.Uint64(pos),
 	}
-	defer rows.Close()
 
-	expectPos := pos
-
-	for rows.Next() {
-		var (
-			pos journal.Position
-			rec []byte
-		)
-		if err := rows.Scan(
-			bigint.ConvertUnsigned(&pos),
-			&rec,
-		); err != nil {
-			return fmt.Errorf("cannot scan journal record: %w", err)
+	for {
+		rows, err := j.queries.SelectRecords(ctx, params)
+		if err != nil {
+			return fmt.Errorf("cannot query journal records: %w", err)
 		}
 
-		if pos != expectPos {
-			return journal.RecordNotFoundError{
-				Journal:  j.Name(),
-				Position: expectPos,
+		if len(rows) == 0 {
+			if journal.Position(params.Position) == pos {
+				return journal.RecordNotFoundError{
+					Journal:  j.Name(),
+					Position: pos,
+				}
 			}
+
+			return nil
 		}
 
-		expectPos++
+		for _, row := range rows {
+			if row.Position != params.Position {
+				return journal.RecordNotFoundError{
+					Journal:  j.Name(),
+					Position: journal.Position(params.Position),
+				}
+			}
 
-		ok, err := fn(ctx, pos, rec)
-		if !ok || err != nil {
-			return err
+			ok, err := fn(
+				ctx,
+				journal.Position(params.Position),
+				row.Record,
+			)
+			if !ok || err != nil {
+				return err
+			}
+
+			params.Position++
 		}
 	}
-
-	if err := rows.Err(); err != nil {
-		return fmt.Errorf("cannot range over journal records: %w", err)
-	}
-
-	if expectPos == pos {
-		return journal.RecordNotFoundError{
-			Journal:  j.Name(),
-			Position: pos,
-		}
-	}
-
-	return nil
 }
 
 func (j *journ) Append(ctx context.Context, pos journal.Position, rec []byte) error {
@@ -139,22 +109,14 @@ func (j *journ) Append(ctx context.Context, pos journal.Position, rec []byte) er
 	}
 	defer tx.Rollback()
 
-	res, err := tx.ExecContext(
-		ctx,
-		`UPDATE persistencekit.journal
-		SET encoded_end = encoded_end + 1
-		WHERE id = $1
-		AND encoded_end = $2`,
-		j.id,
-		bigint.ConvertUnsigned(&pos),
-	)
+	queries := j.queries.WithTx(tx)
+
+	n, err := queries.IncrementEnd(ctx, xdb.IncrementEndParams{
+		JournalID: j.id,
+		End:       commonschema.Uint64(pos),
+	})
 	if err != nil {
 		return fmt.Errorf("cannot update journal bounds: %w", err)
-	}
-
-	n, err := res.RowsAffected()
-	if err != nil {
-		return fmt.Errorf("cannot determine affected rows: %w", err)
 	}
 
 	if n == 0 {
@@ -164,16 +126,13 @@ func (j *journ) Append(ctx context.Context, pos journal.Position, rec []byte) er
 		}
 	}
 
-	res, err = tx.ExecContext(
-		ctx,
-		`INSERT INTO persistencekit.journal_record
-		(journal_id, encoded_position, record) VALUES ($1, $2, $3)`,
-		j.id,
-		bigint.ConvertUnsigned(&pos),
-		rec,
-	)
-	if err != nil {
+	if err := queries.InsertRecord(ctx, xdb.InsertRecordParams{
+		JournalID: j.id,
+		Position:  commonschema.Uint64(pos),
+		Record:    rec,
+	}); err != nil {
 		return fmt.Errorf("cannot insert journal record: %w", err)
+
 	}
 
 	if err := tx.Commit(); err != nil {
@@ -190,35 +149,24 @@ func (j *journ) Truncate(ctx context.Context, pos journal.Position) error {
 	}
 	defer tx.Rollback()
 
-	res, err := tx.ExecContext(
-		ctx,
-		`UPDATE persistencekit.journal
-		SET encoded_begin = $2
-		WHERE id = $1
-		AND encoded_begin < $2`,
-		j.id,
-		bigint.ConvertUnsigned(&pos),
-	)
+	queries := j.queries.WithTx(tx)
+
+	count, err := queries.UpdateBegin(ctx, xdb.UpdateBeginParams{
+		JournalID: j.id,
+		Begin:     commonschema.Uint64(pos),
+	})
 	if err != nil {
 		return fmt.Errorf("cannot update journal bounds: %w", err)
 	}
 
-	n, err := res.RowsAffected()
-	if err != nil {
-		return fmt.Errorf("cannot determine affected rows: %w", err)
-	}
-	if n == 0 {
+	if count == 0 {
 		return nil
 	}
 
-	if _, err := tx.ExecContext(
-		ctx,
-		`DELETE FROM persistencekit.journal_record
-		WHERE journal_id = $1
-		AND encoded_position < $2`,
-		j.id,
-		bigint.ConvertUnsigned(&pos),
-	); err != nil {
+	if err := queries.DeleteRecords(ctx, xdb.DeleteRecordsParams{
+		JournalID: j.id,
+		End:       commonschema.Uint64(pos),
+	}); err != nil {
 		return fmt.Errorf("cannot truncate journal records: %w", err)
 	}
 
