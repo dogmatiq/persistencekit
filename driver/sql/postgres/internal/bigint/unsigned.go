@@ -4,7 +4,6 @@ import (
 	"database/sql"
 	"database/sql/driver"
 	"fmt"
-	"math"
 )
 
 // ConvertUnsigned returns a type that can be used in SQL statements and scan
@@ -27,21 +26,17 @@ type value[T ~uint64] struct {
 
 func (v value[T]) Scan(src any) error {
 	if src, ok := src.(int64); ok {
-		unmarshal(src, v.Target)
+		*v.Target = T(src) ^ signBit
 		return nil
 	}
 
-	return fmt.Errorf("cannot scan %T into journal.Position", src)
+	return fmt.Errorf("cannot scan %T into %T", src, v.Target)
 }
 
 func (v value[T]) Value() (driver.Value, error) {
-	return marshal(*v.Target), nil
+	return int64(*v.Target ^ signBit), nil
 }
 
-func marshal[T ~uint64](target T) int64 {
-	return int64(target - (math.MaxInt64 + 1))
-}
-
-func unmarshal[T ~uint64](src int64, target *T) {
-	*target = T(src) + T(math.MaxInt64) + 1
-}
+// signBit is the bit that is flipped to convert between signed and unsigned
+// integers.
+const signBit = 1 << 63
