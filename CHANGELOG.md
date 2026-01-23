@@ -17,6 +17,9 @@ The format is based on [Keep a Changelog], and this project adheres to
 
 - **[BC]** Changed keyspace revisions to use new `kv.Revision` type instead of
   `uint64`.
+- **[BC]** The `pgkv` package now uses bias-encoded revisions, stored in
+  PostgreSQL as signed `BIGINT` values (PostgreSQL's largest integer type),
+  offering access to the full range of `uint64` values.
 
 ## [0.14.0] - 2026-01-17
 

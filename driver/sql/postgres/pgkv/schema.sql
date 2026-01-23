@@ -13,9 +13,9 @@ CREATE TABLE
         keyspace_id BIGINT NOT NULL,
         key BYTEA NOT NULL,
         value BYTEA NOT NULL,
-        revision BIGINT NOT NULL DEFAULT 1,
+        encoded_revision BIGINT NOT NULL DEFAULT (-1::BIGINT << 63) + 1, -- see `bigint` package
         PRIMARY KEY (keyspace_id, key),
 
         CHECK (octet_length(value) > 0),
-        CHECK (revision > 0)
+        CHECK (encoded_revision > -1::BIGINT << 63)
     );

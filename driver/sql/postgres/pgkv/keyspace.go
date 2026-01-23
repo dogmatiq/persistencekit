@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 
+	"github.com/dogmatiq/persistencekit/driver/sql/postgres/internal/bigint"
 	"github.com/dogmatiq/persistencekit/kv"
 )
 
@@ -21,7 +22,7 @@ func (ks *keyspace) Name() string {
 func (ks *keyspace) Get(ctx context.Context, k []byte) (v []byte, r kv.Revision, err error) {
 	row := ks.db.QueryRowContext(
 		ctx,
-		`SELECT value, revision
+		`SELECT value, encoded_revision
 		FROM persistencekit.keyspace_pair
 		WHERE keyspace_id = $1
 		AND key = $2`,
@@ -29,7 +30,10 @@ func (ks *keyspace) Get(ctx context.Context, k []byte) (v []byte, r kv.Revision,
 		k,
 	)
 
-	if err := row.Scan(&v, &r); err != nil {
+	if err := row.Scan(
+		&v,
+		bigint.ConvertUnsigned(&r),
+	); err != nil {
 		if err == sql.ErrNoRows {
 			return nil, 0, nil
 		}
@@ -90,10 +94,10 @@ func (ks *keyspace) set(ctx context.Context, v []byte, k []byte, r kv.Revision) 
 			`DELETE FROM persistencekit.keyspace_pair
 			WHERE keyspace_id = $1
 			AND key = $2
-			AND revision = $3`,
+			AND encoded_revision = $3`,
 			ks.id,
 			k,
-			r,
+			bigint.ConvertUnsigned(&r),
 		)
 	}
 
@@ -117,14 +121,14 @@ func (ks *keyspace) set(ctx context.Context, v []byte, k []byte, r kv.Revision) 
 		ctx,
 		`UPDATE persistencekit.keyspace_pair SET
 			value = $3,
-			revision = revision + 1
+			encoded_revision = encoded_revision + 1
 		WHERE keyspace_id = $1
 		AND key = $2
-		AND revision = $4`,
+		AND encoded_revision = $4`,
 		ks.id,
 		k,
 		v,
-		r,
+		bigint.ConvertUnsigned(&r),
 	)
 }
 
@@ -143,7 +147,7 @@ func (ks *keyspace) SetUnconditional(ctx context.Context, k, v []byte) error {
 
 	_, err := ks.db.ExecContext(
 		ctx,
-		`INSERT INTO persistencekit.keyspace_pair AS o (
+		`INSERT INTO persistencekit.keyspace_pair AS p (
 			keyspace_id,
 			key,
 			value
@@ -151,7 +155,7 @@ func (ks *keyspace) SetUnconditional(ctx context.Context, k, v []byte) error {
 			$1, $2, $3
 		) ON CONFLICT (keyspace_id, key) DO UPDATE SET
 			value = EXCLUDED.value,
-			revision = o.revision + 1`,
+			encoded_revision = p.encoded_revision + 1`,
 		ks.id,
 		k,
 		v,
@@ -162,7 +166,7 @@ func (ks *keyspace) SetUnconditional(ctx context.Context, k, v []byte) error {
 func (ks *keyspace) Range(ctx context.Context, fn kv.BinaryRangeFunc) error {
 	rows, err := ks.db.QueryContext(
 		ctx,
-		`SELECT key, value, revision
+		`SELECT key, value, encoded_revision
 		FROM persistencekit.keyspace_pair
 		WHERE keyspace_id = $1`,
 		ks.id,
@@ -177,7 +181,11 @@ func (ks *keyspace) Range(ctx context.Context, fn kv.BinaryRangeFunc) error {
 			k, v []byte
 			r    kv.Revision
 		)
-		if err := rows.Scan(&k, &v, &r); err != nil {
+		if err := rows.Scan(
+			&k,
+			&v,
+			bigint.ConvertUnsigned(&r),
+		); err != nil {
 			return fmt.Errorf("cannot scan keyspace pair: %w", err)
 		}
 
