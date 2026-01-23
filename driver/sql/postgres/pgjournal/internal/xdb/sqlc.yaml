@@ -1,0 +1,19 @@
+version: "2"
+sql:
+  - engine: postgresql
+    queries: queries.sql
+    schema:
+      - ../../../internal/commonschema/schema.sql
+      - schema.sql
+    gen:
+      go:
+        package: xdb
+        out: .
+        sql_package: database/sql
+        sql_driver: github.com/jackc/pgx/v5
+        omit_unused_structs: true
+        overrides:
+          - db_type: "persistencekit.uint64"
+            go_type:
+              import: "github.com/dogmatiq/persistencekit/driver/sql/postgres/internal/commonschema"
+              type: Uint64

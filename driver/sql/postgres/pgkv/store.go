@@ -5,7 +5,9 @@ import (
 	"database/sql"
 	"fmt"
 
+	"github.com/dogmatiq/persistencekit/driver/sql/postgres/internal/commonschema"
 	"github.com/dogmatiq/persistencekit/driver/sql/postgres/internal/pgerror"
+	"github.com/dogmatiq/persistencekit/driver/sql/postgres/pgkv/internal/xdb"
 	"github.com/dogmatiq/persistencekit/kv"
 )
 
@@ -17,40 +19,21 @@ type BinaryStore struct {
 
 // Open returns the keyspace with the given name.
 func (s *BinaryStore) Open(ctx context.Context, name string) (kv.BinaryKeyspace, error) {
-	id, err := s.getID(ctx, name)
-	if err != nil {
-		return nil, err
-	}
-	return &keyspace{s.DB, id, name}, nil
-}
+	queries := xdb.New(s.DB)
 
-func (s *BinaryStore) getID(ctx context.Context, name string) (uint64, error) {
 	for {
-		row := s.DB.QueryRowContext(
-			ctx,
-			`INSERT INTO persistencekit.keyspace (
-				name
-			) VALUES (
-				$1
-			) ON CONFLICT (name) DO UPDATE SET
-				name = EXCLUDED.name
-			RETURNING id`,
-			name,
-		)
-
-		var id uint64
-		err := row.Scan(&id)
+		id, err := queries.UpsertKeyspace(ctx, name)
 
 		if err == nil {
-			return id, nil
+			return &keyspace{s.DB, queries, id, name}, nil
 		}
 
 		if !pgerror.Is(err, pgerror.CodeUndefinedTable) {
-			return 0, fmt.Errorf("cannot scan keyspace ID: %w", err)
+			return nil, err
 		}
 
-		if err := createSchema(ctx, s.DB); err != nil {
-			return 0, fmt.Errorf("cannot create keyspace schema: %w", err)
+		if err := commonschema.Create(ctx, s.DB, xdb.Schema); err != nil {
+			return nil, fmt.Errorf("cannot create keyspace schema: %w", err)
 		}
 	}
 }

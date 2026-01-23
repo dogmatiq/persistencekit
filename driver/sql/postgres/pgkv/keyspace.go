@@ -5,13 +5,15 @@ import (
 	"database/sql"
 	"fmt"
 
+	"github.com/dogmatiq/persistencekit/driver/sql/postgres/pgkv/internal/xdb"
 	"github.com/dogmatiq/persistencekit/kv"
 )
 
 type keyspace struct {
-	db   *sql.DB
-	id   uint64
-	name string
+	db      *sql.DB
+	queries *xdb.Queries
+	id      int64
+	name    string
 }
 
 func (ks *keyspace) Name() string {
@@ -19,24 +21,18 @@ func (ks *keyspace) Name() string {
 }
 
 func (ks *keyspace) Get(ctx context.Context, k []byte) (v []byte, r uint64, err error) {
-	row := ks.db.QueryRowContext(
-		ctx,
-		`SELECT value, revision
-		FROM persistencekit.keyspace_pair
-		WHERE keyspace_id = $1
-		AND key = $2`,
-		ks.id,
-		k,
-	)
-
-	if err := row.Scan(&v, &r); err != nil {
+	row, err := ks.queries.SelectPair(ctx, xdb.SelectPairParams{
+		ID:  ks.id,
+		Key: k,
+	})
+	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, 0, nil
 		}
-		return nil, 0, fmt.Errorf("cannot scan keyspace pair: %w", err)
+		return nil, 0, fmt.Errorf("cannot select keyspace pair: %w", err)
 	}
 
-	return v, r, nil
+	return row.Value, uint64(row.Revision), nil
 }
 
 func (ks *keyspace) Has(ctx context.Context, k []byte) (bool, error) {
