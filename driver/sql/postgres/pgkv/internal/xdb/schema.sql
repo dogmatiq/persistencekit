@@ -1,5 +1,3 @@
-CREATE SCHEMA IF NOT EXISTS persistencekit;
-
 CREATE TABLE
     IF NOT EXISTS persistencekit.keyspace (
         id BIGSERIAL NOT NULL,

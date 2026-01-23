@@ -4,6 +4,7 @@
 CI_RUN_BENCHMARKS ?= false
 
 GENERATED_FILES += driver/sql/postgres/pgjournal/internal/xdb/queries.sql.go
+GENERATED_FILES += driver/sql/postgres/pgkv/internal/xdb/queries.sql.go
 
 -include .makefiles/Makefile
 -include .makefiles/pkg/go/v1/Makefile
