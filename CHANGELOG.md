@@ -11,6 +11,13 @@ The format is based on [Keep a Changelog], and this project adheres to
 [semantic versioning]: https://semver.org/spec/v2.0.0.html
 [bc]: https://github.com/dogmatiq/.github/blob/main/VERSIONING.md#changelogs
 
+## [Unreleased]
+
+### Changed
+
+- **[BC]** Changed keyspace revisions to use new `kv.Revision` type instead of
+  `uint64`.
+
 ## [0.14.0] - 2026-01-17
 
 This release adds revision-based OCC support to the `kv` package.

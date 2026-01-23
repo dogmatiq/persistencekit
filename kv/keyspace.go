@@ -2,6 +2,10 @@ package kv
 
 import "context"
 
+// Revision is the "version" or "generation" of a key/value pair within a
+// [Keyspace]. A non-existent key is always at revsion 0.
+type Revision uint64
+
 // A RangeFunc is a function used to range over the key/value pairs in a
 // [Keyspace].
 //
@@ -9,7 +13,7 @@ import "context"
 // Otherwise, if ok is false, ranging stops without any error being propagated.
 //
 // k is the key, v is the value, and r is the current revision.
-type RangeFunc[K, V any] func(ctx context.Context, k K, v V, r uint64) (ok bool, err error)
+type RangeFunc[K, V any] func(ctx context.Context, k K, v V, r Revision) (ok bool, err error)
 
 // A Keyspace is an isolated collection of key/value pairs.
 type Keyspace[K, V any] interface {
@@ -22,7 +26,7 @@ type Keyspace[K, V any] interface {
 	// the value associated with k is modified.
 	//
 	// If the key does not exist v is the zero-value of V and r is zero.
-	Get(ctx context.Context, k K) (v V, r uint64, err error)
+	Get(ctx context.Context, k K) (v V, r Revision, err error)
 
 	// Has returns true if k is present in the keyspace.
 	Has(ctx context.Context, k K) (ok bool, err error)
@@ -36,7 +40,7 @@ type Keyspace[K, V any] interface {
 	// revision, a [ConflictError] occurs.
 	//
 	// On success, the new revision number is always r + 1.
-	Set(ctx context.Context, k K, v V, r uint64) error
+	Set(ctx context.Context, k K, v V, r Revision) error
 
 	// SetUnconditional associates a value with k, regardless of its current
 	// revision.

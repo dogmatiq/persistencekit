@@ -18,7 +18,7 @@ func (ks *keyspace) Name() string {
 	return ks.name
 }
 
-func (ks *keyspace) Get(ctx context.Context, k []byte) (v []byte, r uint64, err error) {
+func (ks *keyspace) Get(ctx context.Context, k []byte) (v []byte, r kv.Revision, err error) {
 	row := ks.db.QueryRowContext(
 		ctx,
 		`SELECT value, revision
@@ -58,7 +58,7 @@ func (ks *keyspace) Has(ctx context.Context, k []byte) (bool, error) {
 	return exists, nil
 }
 
-func (ks *keyspace) Set(ctx context.Context, k, v []byte, r uint64) error {
+func (ks *keyspace) Set(ctx context.Context, k, v []byte, r kv.Revision) error {
 	ok, err := ks.set(ctx, v, k, r)
 	if ok || err != nil {
 		return err
@@ -75,7 +75,7 @@ func (ks *keyspace) Set(ctx context.Context, k, v []byte, r uint64) error {
 // value and revision.
 //
 // It returns true on success, or false on conflict.
-func (ks *keyspace) set(ctx context.Context, v []byte, k []byte, r uint64) (bool, error) {
+func (ks *keyspace) set(ctx context.Context, v []byte, k []byte, r kv.Revision) (bool, error) {
 	isDelete := len(v) == 0
 	isNew := r == 0
 
@@ -175,7 +175,7 @@ func (ks *keyspace) Range(ctx context.Context, fn kv.BinaryRangeFunc) error {
 	for rows.Next() {
 		var (
 			k, v []byte
-			r    uint64
+			r    kv.Revision
 		)
 		if err := rows.Scan(&k, &v, &r); err != nil {
 			return fmt.Errorf("cannot scan keyspace pair: %w", err)

@@ -25,7 +25,7 @@ func TestNewMarshalingStore(t *testing.T) {
 
 	pairs := map[string]*struct {
 		Value    int
-		Revision uint64
+		Revision Revision
 	}{
 		"one": {Value: 1},
 		"two": {Value: 2},
@@ -38,7 +38,7 @@ func TestNewMarshalingStore(t *testing.T) {
 		p.Revision++
 	}
 
-	fn := func(_ context.Context, k string, actualValue int, actualRevision uint64) (bool, error) {
+	fn := func(_ context.Context, k string, actualValue int, actualRevision Revision) (bool, error) {
 		expect := pairs[k]
 
 		if actualValue != expect.Value {
@@ -94,7 +94,7 @@ func TestNewMarshalingStore(t *testing.T) {
 
 	if err := ks.Range(
 		t.Context(),
-		func(_ context.Context, k string, v int, _ uint64) (bool, error) {
+		func(_ context.Context, k string, v int, _ Revision) (bool, error) {
 			return false, fmt.Errorf("unexpected range function invocation (%q, %d)", k, v)
 		},
 	); err != nil {

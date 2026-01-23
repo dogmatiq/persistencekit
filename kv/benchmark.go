@@ -273,7 +273,7 @@ func RunBenchmarks(
 				func(ctx context.Context, ks BinaryKeyspace) error {
 					return ks.Range(
 						ctx,
-						func(_ context.Context, _, _ []byte, _ uint64) (bool, error) {
+						func(_ context.Context, _, _ []byte, _ Revision) (bool, error) {
 							return true, nil
 						},
 					)

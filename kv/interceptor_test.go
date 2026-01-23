@@ -59,7 +59,7 @@ func TestWithInterceptor(t *testing.T) {
 		store, in := setup()
 
 		want := errors.New("<error>")
-		in.BeforeSet(func(_ string, _, _ []byte, _ *uint64) error {
+		in.BeforeSet(func(_ string, _, _ []byte, _ *Revision) error {
 			return want
 		})
 
@@ -88,7 +88,7 @@ func TestWithInterceptor(t *testing.T) {
 		store, in := setup()
 
 		want := errors.New("<error>")
-		in.AfterSet(func(_ string, _, _ []byte, _ *uint64) error {
+		in.AfterSet(func(_ string, _, _ []byte, _ *Revision) error {
 			return want
 		})
 
@@ -122,12 +122,12 @@ func TestWithInterceptor(t *testing.T) {
 			return nil
 		})
 
-		in.BeforeSet(func(_ string, _, _ []byte, _ *uint64) error {
+		in.BeforeSet(func(_ string, _, _ []byte, _ *Revision) error {
 			t.Fatal("unexpected call")
 			return nil
 		})
 
-		in.AfterSet(func(_ string, _, _ []byte, _ *uint64) error {
+		in.AfterSet(func(_ string, _, _ []byte, _ *Revision) error {
 			t.Fatal("unexpected call")
 			return nil
 		})

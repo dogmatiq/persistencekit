@@ -23,12 +23,17 @@ type ConflictError[K any] struct {
 	// Key is the key on which the conflict occurred.
 	Key K
 
-	// Revision is the incorrect revision supplied to [Keyspace.Set].
-	Revision uint64
+	// Revision is the (incorrect) revision supplied to [Keyspace.Set].
+	Revision Revision
 }
 
 func (e ConflictError[K]) Error() string {
-	return fmt.Sprintf("the supplied revision (%d) for key %v in the %q keyspace does not match the current revision", e.Revision, e.Key, e.Keyspace)
+	return fmt.Sprintf(
+		"the supplied revision (%d) for key %v in the %q keyspace does not match the current revision",
+		e.Revision,
+		e.Key,
+		e.Keyspace,
+	)
 }
 
 func (ConflictError[K]) isConflictError() {}

@@ -205,7 +205,7 @@ func RunTests(
 				t.Run("it returns a ConflictError if the given revision does not match", func(t *testing.T) {
 					cases := []struct {
 						Name     string
-						Revision uint64
+						Revision Revision
 					}{
 						{"too low", 0},
 						{"too high", 3},
@@ -368,7 +368,7 @@ func RunTests(
 
 				var (
 					expectValue    = []byte("<value-1>")
-					expectRevision = uint64(1)
+					expectRevision = Revision(1)
 				)
 
 				if !bytes.Equal(expectValue, actualValue) {
@@ -397,7 +397,7 @@ func RunTests(
 				}
 
 				expectValue = []byte("<value-2>")
-				expectRevision = uint64(2)
+				expectRevision = 2
 
 				if !bytes.Equal(expectValue, actualValue) {
 					t.Fatalf(
@@ -502,7 +502,7 @@ func RunTests(
 
 				expect := map[string]struct {
 					Value    string
-					Revision uint64
+					Revision Revision
 				}{}
 
 				for n := uint64(0); n < 100; n++ {
@@ -515,21 +515,21 @@ func RunTests(
 
 					expect[k] = struct {
 						Value    string
-						Revision uint64
+						Revision Revision
 					}{v, 1}
 				}
 
 				actual := map[string]struct {
 					Value    string
-					Revision uint64
+					Revision Revision
 				}{}
 
 				if err := ks.Range(
 					t.Context(),
-					func(_ context.Context, k, v []byte, r uint64) (bool, error) {
+					func(_ context.Context, k, v []byte, r Revision) (bool, error) {
 						actual[string(k)] = struct {
 							Value    string
-							Revision uint64
+							Revision Revision
 						}{string(v), r}
 
 						return true, nil
@@ -560,7 +560,7 @@ func RunTests(
 				called := false
 				if err := ks.Range(
 					t.Context(),
-					func(_ context.Context, _, _ []byte, _ uint64) (bool, error) {
+					func(_ context.Context, _, _ []byte, _ Revision) (bool, error) {
 						if called {
 							return false, errors.New("unexpected call")
 						}
@@ -587,7 +587,7 @@ func RunTests(
 
 				if err := ks.Range(
 					t.Context(),
-					func(_ context.Context, k, v []byte, _ uint64) (bool, error) {
+					func(_ context.Context, k, v []byte, _ Revision) (bool, error) {
 						k[0] = 'X'
 						v[0] = 'Y'
 
@@ -637,7 +637,7 @@ func RunTests(
 
 				if err := ks.Range(
 					t.Context(),
-					func(ctx context.Context, k, expectValue []byte, expectRevision uint64) (bool, error) {
+					func(ctx context.Context, k, expectValue []byte, expectRevision Revision) (bool, error) {
 						actualValue, actualRevision, err := ks.Get(ctx, k)
 						if err != nil {
 							t.Fatal(err)
@@ -682,7 +682,7 @@ func RunTests(
 
 				if err := ks.Range(
 					t.Context(),
-					func(ctx context.Context, k, _ []byte, _ uint64) (bool, error) {
+					func(ctx context.Context, k, _ []byte, _ Revision) (bool, error) {
 						ok, err := ks.Has(ctx, k)
 						if err != nil {
 							t.Fatal(err)
@@ -717,7 +717,7 @@ func RunTests(
 
 				if err := ks.Range(
 					t.Context(),
-					func(ctx context.Context, k, _ []byte, r uint64) (bool, error) {
+					func(ctx context.Context, k, _ []byte, r Revision) (bool, error) {
 						if err := ks.Set(ctx, k, expect, r); err != nil {
 							t.Fatal(err)
 						}
@@ -757,7 +757,7 @@ func RunTests(
 
 			pairs := map[string]struct {
 				Value    []byte
-				Revision uint64
+				Revision Revision
 			}{}
 
 			var keys [][]byte
@@ -881,7 +881,7 @@ func RunTests(
 
 						pairs[string(key)] = struct {
 							Value    []byte
-							Revision uint64
+							Revision Revision
 						}{value, 1}
 
 						keys = append(keys, key)
@@ -952,7 +952,7 @@ func RunTests(
 
 						if err := ks.Range(
 							t.Context(),
-							func(_ context.Context, k, actualValue []byte, actualRevision uint64) (bool, error) {
+							func(_ context.Context, k, actualValue []byte, actualRevision Revision) (bool, error) {
 								if _, ok := seen[string(k)]; ok {
 									t.Fatalf(
 										"key seen twice while ranging over pairs: %q",

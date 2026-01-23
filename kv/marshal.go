@@ -43,7 +43,7 @@ type mkeyspace[K, V any] struct {
 	vm marshaler.Marshaler[V]
 }
 
-func (ks *mkeyspace[K, V]) Get(ctx context.Context, k K) (v V, r uint64, err error) {
+func (ks *mkeyspace[K, V]) Get(ctx context.Context, k K) (v V, r Revision, err error) {
 	keyData, err := ks.km.Marshal(k)
 	if err != nil {
 		var zero V
@@ -68,7 +68,7 @@ func (ks *mkeyspace[K, V]) Has(ctx context.Context, k K) (bool, error) {
 	return ks.BinaryKeyspace.Has(ctx, keyData)
 }
 
-func (ks *mkeyspace[K, V]) Set(ctx context.Context, k K, v V, r uint64) error {
+func (ks *mkeyspace[K, V]) Set(ctx context.Context, k K, v V, r Revision) error {
 	keyData, err := ks.km.Marshal(k)
 	if err != nil {
 		return err
@@ -120,7 +120,7 @@ func (ks *mkeyspace[K, V]) marshalValue(v V) ([]byte, error) {
 func (ks *mkeyspace[K, V]) Range(ctx context.Context, fn RangeFunc[K, V]) error {
 	return ks.BinaryKeyspace.Range(
 		ctx,
-		func(ctx context.Context, keyData, valueData []byte, r uint64) (bool, error) {
+		func(ctx context.Context, keyData, valueData []byte, r Revision) (bool, error) {
 			k, err := ks.km.Unmarshal(keyData)
 			if err != nil {
 				return false, err

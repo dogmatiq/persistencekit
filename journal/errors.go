@@ -18,7 +18,11 @@ type ConflictError struct {
 }
 
 func (e ConflictError) Error() string {
-	return fmt.Sprintf("there is already a record at position %d of the %q journal", e.Position, e.Journal)
+	return fmt.Sprintf(
+		"there is already a record at position %d of the %q journal",
+		e.Position,
+		e.Journal,
+	)
 }
 
 // IgnoreNotFound returns nil if err is a caused by [RecordNotFoundError] or
@@ -53,7 +57,11 @@ type RecordNotFoundError struct {
 }
 
 func (e RecordNotFoundError) Error() string {
-	return fmt.Sprintf("the record at position %d of the %q journal has not been appended yet, or has been truncated", e.Position, e.Journal)
+	return fmt.Sprintf(
+		"the record at position %d of the %q journal has not been appended yet, or has been truncated",
+		e.Position,
+		e.Journal,
+	)
 }
 
 // ValueNotFoundError is returned by search and scan operations if the target

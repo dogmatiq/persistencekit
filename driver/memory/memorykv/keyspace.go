@@ -19,7 +19,7 @@ type state[C comparable, V any] struct {
 
 type item[V any] struct {
 	Value    V
-	Revision uint64
+	Revision kv.Revision
 }
 
 // keyspace is an implementation of [kv.BinaryKeyspace] that manipulates a
@@ -35,7 +35,7 @@ func (ks *keyspace[K, V, C]) Name() string {
 	return ks.name
 }
 
-func (ks *keyspace[K, V, C]) Get(ctx context.Context, k K) (v V, r uint64, err error) {
+func (ks *keyspace[K, V, C]) Get(ctx context.Context, k K) (v V, r kv.Revision, err error) {
 	if ks.state == nil {
 		panic("keyspace is closed")
 	}
@@ -66,7 +66,7 @@ func (ks *keyspace[K, V, C]) Has(ctx context.Context, k K) (ok bool, err error) 
 	return ok, ctx.Err()
 }
 
-func (ks *keyspace[K, V, C]) Set(ctx context.Context, k K, v V, r uint64) error {
+func (ks *keyspace[K, V, C]) Set(ctx context.Context, k K, v V, r kv.Revision) error {
 	return ks.set(ctx, k, v, &r)
 }
 
@@ -74,7 +74,7 @@ func (ks *keyspace[K, V, C]) SetUnconditional(ctx context.Context, k K, v V) err
 	return ks.set(ctx, k, v, nil)
 }
 
-func (ks *keyspace[K, V, C]) set(ctx context.Context, k K, v V, r *uint64) error {
+func (ks *keyspace[K, V, C]) set(ctx context.Context, k K, v V, r *kv.Revision) error {
 	if ks.state == nil {
 		panic("keyspace is closed")
 	}

@@ -39,7 +39,7 @@ func (ks *keyspace) Name() string {
 	return ks.attr.Keyspace.Value
 }
 
-func (ks *keyspace) Get(ctx context.Context, k []byte) ([]byte, uint64, error) {
+func (ks *keyspace) Get(ctx context.Context, k []byte) ([]byte, kv.Revision, error) {
 	ks.attr.Key.Value = k
 
 	out, err := awsx.Do(
@@ -60,7 +60,7 @@ func (ks *keyspace) Get(ctx context.Context, k []byte) ([]byte, uint64, error) {
 		return nil, 0, err
 	}
 
-	r, err := dynamox.AsUint[uint64](out.Item, revisionAttr)
+	r, err := dynamox.AsUint[kv.Revision](out.Item, revisionAttr)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -84,10 +84,10 @@ func (ks *keyspace) Has(ctx context.Context, k []byte) (bool, error) {
 	return out.Item != nil, nil
 }
 
-func (ks *keyspace) Set(ctx context.Context, k, v []byte, r uint64) error {
+func (ks *keyspace) Set(ctx context.Context, k, v []byte, r kv.Revision) error {
 	ks.attr.Key.Value = k
 	ks.attr.Value.Value = v
-	ks.attr.Revision.Value = strconv.FormatUint(r, 10)
+	ks.attr.Revision.Value = strconv.FormatUint(uint64(r), 10)
 
 	convertConflictError := func(message string, err error) error {
 		var conflict *types.ConditionalCheckFailedException
@@ -173,7 +173,7 @@ func (ks *keyspace) Range(ctx context.Context, fn kv.BinaryRangeFunc) error {
 				return false, err
 			}
 
-			r, err := dynamox.AsUint[uint64](item, revisionAttr)
+			r, err := dynamox.AsUint[kv.Revision](item, revisionAttr)
 			if err != nil {
 				return false, err
 			}

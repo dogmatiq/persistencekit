@@ -87,7 +87,7 @@ func (ks *instrumentedKeyspace) Name() string {
 	return ks.Next.Name()
 }
 
-func (ks *instrumentedKeyspace) Get(ctx context.Context, k []byte) ([]byte, uint64, error) {
+func (ks *instrumentedKeyspace) Get(ctx context.Context, k []byte) ([]byte, Revision, error) {
 	keySize := int64(len(k))
 
 	ctx, span := ks.Telemetry.StartSpan(
@@ -167,7 +167,7 @@ func (ks *instrumentedKeyspace) Has(ctx context.Context, k []byte) (bool, error)
 	return ok, nil
 }
 
-func (ks *instrumentedKeyspace) Set(ctx context.Context, k, v []byte, r uint64) error {
+func (ks *instrumentedKeyspace) Set(ctx context.Context, k, v []byte, r Revision) error {
 	keySize := int64(len(k))
 	valueSize := int64(len(v))
 
@@ -284,7 +284,7 @@ func (ks *instrumentedKeyspace) Range(ctx context.Context, fn BinaryRangeFunc) e
 
 	err := ks.Next.Range(
 		ctx,
-		func(ctx context.Context, k, v []byte, r uint64) (bool, error) {
+		func(ctx context.Context, k, v []byte, r Revision) (bool, error) {
 			count++
 
 			keySize := int64(len(k))
