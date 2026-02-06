@@ -1,26 +1,29 @@
-package journal_test
+package kv_test
 
 import (
 	"testing"
 
-	"github.com/dogmatiq/persistencekit/driver/memory/memoryjournal"
-	. "github.com/dogmatiq/persistencekit/journal"
+	"github.com/dogmatiq/persistencekit/driver/memory/memorykv"
+	. "github.com/dogmatiq/persistencekit/kv"
 )
 
 func TestWithNamePrefix(t *testing.T) {
-	var underlying memoryjournal.Store[int]
+	var underlying memorykv.Store[int, string]
 
 	store := WithNamePrefix(&underlying, "prefix-")
 
-	j, err := store.Open(t.Context(), "test")
+	ks, err := store.Open(t.Context(), "test")
 	if err != nil {
-		t.Fatalf("failed to open journal: %v", err)
+		t.Fatal(err)
 	}
 
 	t.Run("it adds the prefix to the name", func(t *testing.T) {
-		const want = 42
+		const (
+			key  = 42
+			want = "<value>"
+		)
 
-		if err := j.Append(t.Context(), 0, want); err != nil {
+		if err := ks.SetUnconditional(t.Context(), key, want); err != nil {
 			t.Fatal(err)
 		}
 
@@ -29,18 +32,18 @@ func TestWithNamePrefix(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		got, err := u.Get(t.Context(), 0)
+		got, _, err := u.Get(t.Context(), key)
 		if err != nil {
 			t.Fatal(err)
 		}
 
 		if got != want {
-			t.Errorf("unexpected record: got %d, want %d", got, want)
+			t.Errorf("unexpected value: got %q, want %q", got, want)
 		}
 	})
 
 	t.Run("it reports the unprefixed name", func(t *testing.T) {
-		if got, want := j.Name(), "test"; got != want {
+		if got, want := ks.Name(), "test"; got != want {
 			t.Errorf("unexpected name: got %q, want %q", got, want)
 		}
 	})
