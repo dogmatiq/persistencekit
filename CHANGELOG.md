@@ -15,7 +15,7 @@ The format is based on [Keep a Changelog], and this project adheres to
 
 ### Added
 
-- Added `journal.WithNamePrefix()` and `kv.WithNamePrefix()`.
+- Added `journal.WithNamePrefix()`, `kv.WithNamePrefix()` and `set.WithNamePrefix()`.
 
 ## [0.15.0] - 2026-01-23
 
