@@ -15,7 +15,9 @@ The format is based on [Keep a Changelog], and this project adheres to
 
 ### Added
 
-- Added `journal.WithNamePrefix()`, `kv.WithNamePrefix()` and `set.WithNamePrefix()`.
+- Added `journal.WithNameTransform()`, `kv.WithNameTransform()` and
+  `set.WithNameTransform()`, which transform the apply a function to transform
+  the name of each journal, keyspace and set, respectively.
 
 ## [0.15.0] - 2026-01-23
 
