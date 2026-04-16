@@ -52,6 +52,91 @@ func TestSearch(t *testing.T) {
 	}
 }
 
+func TestAdaptiveSearch(t *testing.T) {
+	store := &memoryjournal.Store[int]{}
+	j, err := store.Open(t.Context(), "test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer j.Close()
+
+	for i := range 100 {
+		if err := j.Append(t.Context(), Position(i), i); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	datum := 55
+	probe := func(
+		_ context.Context,
+		i Interval,
+		pos Position,
+		rec int,
+	) (Position, bool, error) {
+		if rec == datum {
+			return 0, true, nil
+		}
+		if rec < datum {
+			i.Begin = pos + 1
+		} else {
+			i.End = pos
+		}
+		return (i.Begin >> 1) + (i.End >> 1), false, nil
+	}
+
+	firstPos := (Position(0) >> 1) + (Position(100) >> 1)
+	pos, rec, err := AdaptiveSearch(t.Context(), j, Interval{0, 100}, firstPos, probe)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	expect := Position(55)
+	if pos != expect {
+		t.Fatalf("unexpected position: got %d, want %d", pos, expect)
+	}
+
+	if rec != datum {
+		t.Fatalf("unexpected record: got %d, want %d", rec, datum)
+	}
+
+	t.Run("it returns a not found error if the target is not present", func(t *testing.T) {
+		datum = 101
+		if _, _, err := AdaptiveSearch(t.Context(), j, Interval{0, 100}, firstPos, probe); !IsNotFound(err) {
+			t.Fatalf("unexpected error: got %q, want IsNotFound(err) == true", err)
+		}
+	})
+
+	t.Run("it returns a not found error for an empty interval", func(t *testing.T) {
+		if _, _, err := AdaptiveSearch(t.Context(), j, Interval{0, 0}, firstPos, probe); !IsNotFound(err) {
+			t.Fatalf("unexpected error: got %q, want IsNotFound(err) == true", err)
+		}
+	})
+
+	t.Run("it returns a not found error if the probe func returns the same position", func(t *testing.T) {
+		fn := func(_ context.Context, _ Interval, pos Position, _ int) (Position, bool, error) {
+			return pos, false, nil
+		}
+		if _, _, err := AdaptiveSearch(t.Context(), j, Interval{0, 100}, firstPos, fn); !IsNotFound(err) {
+			t.Fatalf("unexpected error: got %q, want IsNotFound(err) == true", err)
+		}
+	})
+
+	t.Run("it returns a not found error if the probe func returns a position outside the interval", func(t *testing.T) {
+		fn := func(_ context.Context, i Interval, _ Position, _ int) (Position, bool, error) {
+			return i.End + 1, false, nil
+		}
+		if _, _, err := AdaptiveSearch(t.Context(), j, Interval{0, 100}, firstPos, fn); !IsNotFound(err) {
+			t.Fatalf("unexpected error: got %q, want IsNotFound(err) == true", err)
+		}
+	})
+
+	t.Run("it returns a not found error if the initial probe position is outside the interval", func(t *testing.T) {
+		if _, _, err := AdaptiveSearch(t.Context(), j, Interval{0, 100}, Position(100), probe); !IsNotFound(err) {
+			t.Fatalf("unexpected error: got %q, want IsNotFound(err) == true", err)
+		}
+	})
+}
+
 func TestRangeFromSearchResult(t *testing.T) {
 	store := &memoryjournal.Store[int]{}
 	j, err := store.Open(t.Context(), "test")
