@@ -46,6 +46,83 @@ func Search[T any](
 	return 0, rec, ValueNotFoundError{}
 }
 
+// AdaptiveProbeFunc is a function that determines the next probe position for
+// an [AdaptiveSearch].
+//
+// i is the current search bracket — the half-open interval of journal
+// positions still under consideration.
+//
+// On the first call, hasPrev is false and prevPos and prevRec are zero values.
+// On subsequent calls, hasPrev is true and prevPos and prevRec hold the
+// position and record of the most recent probe.
+//
+// If found is true, the record at prevPos/prevRec is the target and next is
+// ignored. When hasPrev is false, found must be false.
+//
+// When found is false, next must be within i. When hasPrev is true, next must
+// differ from prevPos; the algorithm's behavior is undefined otherwise.
+type AdaptiveProbeFunc[T any] func(
+	ctx context.Context,
+	i Interval,
+	prevPos Position,
+	prevRec T,
+	hasPrev bool,
+) (next Position, found bool, err error)
+
+// AdaptiveSearch searches j within the interval i for a target record, using
+// fn to determine which position to probe at each iteration.
+//
+// Unlike [Search], which always probes the midpoint of the remaining interval,
+// AdaptiveSearch allows the caller to choose the next probe position based on
+// the content of the previously probed record. This makes it suitable for
+// implementing interpolation search and similar algorithms that use record
+// content to estimate where the target is likely to be.
+//
+// It returns a [ValueNotFoundError] if the target record is not found.
+func AdaptiveSearch[T any](
+	ctx context.Context,
+	j Journal[T],
+	i Interval,
+	fn AdaptiveProbeFunc[T],
+) (Position, T, error) {
+	var zero T
+
+	if i.IsEmpty() {
+		return 0, zero, ValueNotFoundError{}
+	}
+
+	pos, _, err := fn(ctx, i, 0, zero, false)
+	if err != nil {
+		return 0, zero, err
+	}
+
+	for !i.IsEmpty() {
+		rec, err := j.Get(ctx, pos)
+		if err != nil {
+			return 0, zero, err
+		}
+
+		next, found, err := fn(ctx, i, pos, rec, true)
+		if err != nil {
+			return 0, zero, err
+		}
+
+		if found {
+			return pos, rec, nil
+		}
+
+		if next > pos {
+			i.Begin = pos + 1
+		} else {
+			i.End = pos
+		}
+
+		pos = next
+	}
+
+	return 0, zero, ValueNotFoundError{}
+}
+
 // RangeFromSearchResult invokes fn for each record in the journal, in order,
 // beginning with the record within the interval i for which cmp() returns
 // zero.
