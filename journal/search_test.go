@@ -70,24 +70,22 @@ func TestAdaptiveSearch(t *testing.T) {
 	probe := func(
 		_ context.Context,
 		i Interval,
-		prevPos Position,
-		prevRec int,
-		hasPrev bool,
+		pos Position,
+		rec int,
 	) (Position, bool, error) {
-		if hasPrev {
-			if prevRec == datum {
-				return 0, true, nil
-			}
-			if prevRec < datum {
-				i.Begin = prevPos + 1
-			} else {
-				i.End = prevPos
-			}
+		if rec == datum {
+			return 0, true, nil
+		}
+		if rec < datum {
+			i.Begin = pos + 1
+		} else {
+			i.End = pos
 		}
 		return (i.Begin >> 1) + (i.End >> 1), false, nil
 	}
 
-	pos, rec, err := AdaptiveSearch(t.Context(), j, Interval{0, 100}, probe)
+	firstPos := (Position(0) >> 1) + (Position(100) >> 1)
+	pos, rec, err := AdaptiveSearch(t.Context(), j, Interval{0, 100}, firstPos, probe)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -103,13 +101,13 @@ func TestAdaptiveSearch(t *testing.T) {
 
 	t.Run("it returns a not found error if the target is not present", func(t *testing.T) {
 		datum = 101
-		if _, _, err := AdaptiveSearch(t.Context(), j, Interval{0, 100}, probe); !IsNotFound(err) {
+		if _, _, err := AdaptiveSearch(t.Context(), j, Interval{0, 100}, firstPos, probe); !IsNotFound(err) {
 			t.Fatalf("unexpected error: got %q, want IsNotFound(err) == true", err)
 		}
 	})
 
 	t.Run("it returns a not found error for an empty interval", func(t *testing.T) {
-		if _, _, err := AdaptiveSearch(t.Context(), j, Interval{0, 0}, probe); !IsNotFound(err) {
+		if _, _, err := AdaptiveSearch(t.Context(), j, Interval{0, 0}, firstPos, probe); !IsNotFound(err) {
 			t.Fatalf("unexpected error: got %q, want IsNotFound(err) == true", err)
 		}
 	})

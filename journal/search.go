@@ -49,28 +49,24 @@ func Search[T any](
 // AdaptiveProbeFunc is a function that determines the next probe position for
 // an [AdaptiveSearch].
 //
-// i is the current search bracket — the half-open interval of journal
-// positions still under consideration.
+// i is the current search bracket — the half-open interval of journal positions
+// still under consideration.
 //
-// On the first call, hasPrev is false and prevPos and prevRec are zero values.
-// On subsequent calls, hasPrev is true and prevPos and prevRec hold the
-// position and record of the most recent probe.
+// pos and rec are the position and record of the most recent probe.
 //
-// If found is true, the record at prevPos/prevRec is the target and next is
-// ignored. When hasPrev is false, found must be false.
+// If found is true, the record at pos is the target and next is ignored.
 //
-// When found is false, next must be within i. When hasPrev is true, next must
-// differ from prevPos; the algorithm's behavior is undefined otherwise.
+// When found is false, next must be within i and must differ from pos. If
+// either condition is violated, AdaptiveSearch returns a [ValueNotFoundError].
 type AdaptiveProbeFunc[T any] func(
 	ctx context.Context,
 	i Interval,
-	prevPos Position,
-	prevRec T,
-	hasPrev bool,
+	pos Position,
+	rec T,
 ) (next Position, found bool, err error)
 
-// AdaptiveSearch searches j within the interval i for a target record, using
-// fn to determine which position to probe at each iteration.
+// AdaptiveSearch searches j within the interval i for a target record, using fn
+// to determine which position to probe at each iteration.
 //
 // Unlike [Search], which always probes the midpoint of the remaining interval,
 // AdaptiveSearch allows the caller to choose the next probe position based on
@@ -78,46 +74,46 @@ type AdaptiveProbeFunc[T any] func(
 // implementing interpolation search and similar algorithms that use record
 // content to estimate where the target is likely to be.
 //
+// probe is the position of the first record to fetch. The caller is expected to
+// compute this using any out-of-band knowledge available, such as a previously
+// fetched record from the same journal.
+//
 // It returns a [ValueNotFoundError] if the target record is not found.
 func AdaptiveSearch[T any](
 	ctx context.Context,
 	j Journal[T],
 	i Interval,
+	probe Position,
 	fn AdaptiveProbeFunc[T],
 ) (Position, T, error) {
 	var zero T
 
-	if i.IsEmpty() {
-		return 0, zero, ValueNotFoundError{}
-	}
-
-	pos, _, err := fn(ctx, i, 0, zero, false)
-	if err != nil {
-		return 0, zero, err
-	}
-
 	for !i.IsEmpty() {
-		rec, err := j.Get(ctx, pos)
+		rec, err := j.Get(ctx, probe)
 		if err != nil {
 			return 0, zero, err
 		}
 
-		next, found, err := fn(ctx, i, pos, rec, true)
+		next, found, err := fn(ctx, i, probe, rec)
 		if err != nil {
 			return 0, zero, err
 		}
 
 		if found {
-			return pos, rec, nil
+			return probe, rec, nil
 		}
 
-		if next > pos {
-			i.Begin = pos + 1
+		if next == probe || !i.Contains(next) {
+			return 0, zero, ValueNotFoundError{}
+		}
+
+		if next > probe {
+			i.Begin = probe + 1
 		} else {
-			i.End = pos
+			i.End = probe
 		}
 
-		pos = next
+		probe = next
 	}
 
 	return 0, zero, ValueNotFoundError{}
