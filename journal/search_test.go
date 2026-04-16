@@ -111,6 +111,30 @@ func TestAdaptiveSearch(t *testing.T) {
 			t.Fatalf("unexpected error: got %q, want IsNotFound(err) == true", err)
 		}
 	})
+
+	t.Run("it returns a not found error if the probe func returns the same position", func(t *testing.T) {
+		fn := func(_ context.Context, _ Interval, pos Position, _ int) (Position, bool, error) {
+			return pos, false, nil
+		}
+		if _, _, err := AdaptiveSearch(t.Context(), j, Interval{0, 100}, firstPos, fn); !IsNotFound(err) {
+			t.Fatalf("unexpected error: got %q, want IsNotFound(err) == true", err)
+		}
+	})
+
+	t.Run("it returns a not found error if the probe func returns a position outside the interval", func(t *testing.T) {
+		fn := func(_ context.Context, i Interval, _ Position, _ int) (Position, bool, error) {
+			return i.End + 1, false, nil
+		}
+		if _, _, err := AdaptiveSearch(t.Context(), j, Interval{0, 100}, firstPos, fn); !IsNotFound(err) {
+			t.Fatalf("unexpected error: got %q, want IsNotFound(err) == true", err)
+		}
+	})
+
+	t.Run("it returns a not found error if the initial probe position is outside the interval", func(t *testing.T) {
+		if _, _, err := AdaptiveSearch(t.Context(), j, Interval{0, 100}, Position(100), probe); !IsNotFound(err) {
+			t.Fatalf("unexpected error: got %q, want IsNotFound(err) == true", err)
+		}
+	})
 }
 
 func TestRangeFromSearchResult(t *testing.T) {

@@ -88,6 +88,10 @@ func AdaptiveSearch[T any](
 ) (Position, T, error) {
 	var zero T
 
+	if !i.Contains(probe) {
+		return 0, zero, ValueNotFoundError{}
+	}
+
 	for !i.IsEmpty() {
 		rec, err := j.Get(ctx, probe)
 		if err != nil {
