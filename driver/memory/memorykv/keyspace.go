@@ -8,6 +8,7 @@ import (
 	"sync"
 
 	"github.com/dogmatiq/persistencekit/driver/memory/internal/clone"
+	"github.com/dogmatiq/persistencekit/internal/kvrevision"
 	"github.com/dogmatiq/persistencekit/kv"
 )
 
@@ -66,15 +67,16 @@ func (ks *keyspace[K, V, C]) Has(ctx context.Context, k K) (ok bool, err error) 
 	return ok, ctx.Err()
 }
 
-func (ks *keyspace[K, V, C]) Set(ctx context.Context, k K, v V, r kv.Revision) error {
+func (ks *keyspace[K, V, C]) Set(ctx context.Context, k K, v V, r kv.Revision) (kv.Revision, error) {
 	return ks.set(ctx, k, v, &r)
 }
 
 func (ks *keyspace[K, V, C]) SetUnconditional(ctx context.Context, k K, v V) error {
-	return ks.set(ctx, k, v, nil)
+	_, err := ks.set(ctx, k, v, nil)
+	return err
 }
 
-func (ks *keyspace[K, V, C]) set(ctx context.Context, k K, v V, r *kv.Revision) error {
+func (ks *keyspace[K, V, C]) set(ctx context.Context, k K, v V, r *kv.Revision) (kv.Revision, error) {
 	if ks.state == nil {
 		panic("keyspace is closed")
 	}
@@ -88,7 +90,7 @@ func (ks *keyspace[K, V, C]) set(ctx context.Context, k K, v V, r *kv.Revision) 
 	i := ks.state.Items[c]
 
 	if r != nil && *r != i.Revision {
-		return kv.ConflictError[K]{
+		return "", kv.ConflictError[K]{
 			Keyspace: ks.name,
 			Key:      k,
 			Revision: *r,
@@ -97,19 +99,20 @@ func (ks *keyspace[K, V, C]) set(ctx context.Context, k K, v V, r *kv.Revision) 
 
 	if reflect.ValueOf(v).IsZero() {
 		delete(ks.state.Items, c)
-		return ctx.Err()
+		return "", ctx.Err()
 	}
 
 	if ks.state.Items == nil {
 		ks.state.Items = map[C]item[V]{}
 	}
 
+	next := kvrevision.IncrementGeneration(i.Revision)
 	ks.state.Items[c] = item[V]{
 		Value:    v,
-		Revision: i.Revision + 1,
+		Revision: next,
 	}
 
-	return ctx.Err()
+	return next, ctx.Err()
 }
 
 func (ks *keyspace[K, V, C]) Range(ctx context.Context, fn kv.RangeFunc[K, V]) error {

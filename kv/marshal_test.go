@@ -32,10 +32,11 @@ func TestNewMarshalingStore(t *testing.T) {
 	}
 
 	for k, p := range pairs {
-		if err := ks.Set(t.Context(), k, p.Value, p.Revision); err != nil {
+		r, err := ks.Set(t.Context(), k, p.Value, p.Revision)
+		if err != nil {
 			t.Fatal(err)
 		}
-		p.Revision++
+		p.Revision = r
 	}
 
 	fn := func(_ context.Context, k string, actualValue int, actualRevision Revision) (bool, error) {
@@ -46,7 +47,7 @@ func TestNewMarshalingStore(t *testing.T) {
 		}
 
 		if actualRevision != expect.Revision {
-			t.Fatalf("unexpected revision for key %q: got %d, want %d", k, actualRevision, expect.Revision)
+			t.Fatalf("unexpected revision for key %q: got %q, want %q", k, actualRevision, expect.Revision)
 		}
 
 		return true, nil
@@ -71,7 +72,7 @@ func TestNewMarshalingStore(t *testing.T) {
 		}
 		fn(t.Context(), k, actualValue, actualRevision)
 
-		if err := ks.Set(t.Context(), k, 0, actualRevision); err != nil {
+		if _, err := ks.Set(t.Context(), k, 0, actualRevision); err != nil {
 			t.Fatal(err)
 		}
 

@@ -23,9 +23,9 @@ var (
 	// item.
 	valueAttr = "V"
 
-	// revisionAttr is the name of the attribute that stores the revision of
+	// generationAttr is the name of the attribute that stores the generation of
 	// each item.
-	revisionAttr = "R"
+	generationAttr = "G"
 
 	// nonExistentAttr is the name of an attribute that does not exist on any
 	// item. It is used to test for the existence of an item without fetching
@@ -66,10 +66,10 @@ func (ks *keyspace) prepareRequests(table string) {
 	ks.request.Get = dynamodb.GetItemInput{
 		TableName:            &table,
 		Key:                  key,
-		ProjectionExpression: aws.String(`#V, #R`),
+		ProjectionExpression: aws.String(`#V, #G`),
 		ExpressionAttributeNames: map[string]string{
 			"#V": valueAttr,
-			"#R": revisionAttr,
+			"#G": generationAttr,
 		},
 	}
 
@@ -85,12 +85,12 @@ func (ks *keyspace) prepareRequests(table string) {
 	ks.request.Range = dynamodb.QueryInput{
 		TableName:              &table,
 		KeyConditionExpression: aws.String(`#S = :S`),
-		ProjectionExpression:   aws.String(`#K, #V, #R`),
+		ProjectionExpression:   aws.String(`#K, #V, #G`),
 		ExpressionAttributeNames: map[string]string{
 			"#S": keyspaceAttr,
 			"#K": keyAttr,
 			"#V": valueAttr,
-			"#R": revisionAttr,
+			"#G": generationAttr,
 		},
 		ExpressionAttributeValues: map[string]types.AttributeValue{
 			":S": &ks.attr.Keyspace,
@@ -104,19 +104,19 @@ func (ks *keyspace) prepareRequests(table string) {
 		Key:       key,
 		ExpressionAttributeNames: map[string]string{
 			"#V": valueAttr,
-			"#R": revisionAttr,
+			"#G": generationAttr,
 		},
 		ExpressionAttributeValues: map[string]types.AttributeValue{
 			":V": &ks.attr.Value,
-			":R": &ks.attr.Revision,
+			":G": &ks.attr.Generation,
 			":0": zero,
 			":1": one,
 		},
-		UpdateExpression: aws.String(`SET #V = :V ADD #R :1`),
+		UpdateExpression: aws.String(`SET #V = :V ADD #G :1`),
 
 		// Fail if the revision does not match so we can return
 		// [kv.ConflictError].
-		ConditionExpression: aws.String(`(attribute_not_exists(#R) AND :R = :0) OR #R = :R`),
+		ConditionExpression: aws.String(`(attribute_not_exists(#G) AND :G = :0) OR #G = :G`),
 	}
 
 	// SetUnconditional sets the value associated with ks.attr.Key to
@@ -126,13 +126,13 @@ func (ks *keyspace) prepareRequests(table string) {
 		Key:       key,
 		ExpressionAttributeNames: map[string]string{
 			"#V": valueAttr,
-			"#R": revisionAttr,
+			"#G": generationAttr,
 		},
 		ExpressionAttributeValues: map[string]types.AttributeValue{
 			":V": &ks.attr.Value,
 			":1": one,
 		},
-		UpdateExpression: aws.String(`SET #V = :V ADD #R :1`),
+		UpdateExpression: aws.String(`SET #V = :V ADD #G :1`),
 	}
 
 	// Delete removes the ks.attr.Key key at revision ks.attr.CurrentRevision.
@@ -140,16 +140,16 @@ func (ks *keyspace) prepareRequests(table string) {
 		TableName: &table,
 		Key:       key,
 		ExpressionAttributeNames: map[string]string{
-			"#R": revisionAttr,
+			"#G": generationAttr,
 		},
 		ExpressionAttributeValues: map[string]types.AttributeValue{
-			":R": &ks.attr.Revision,
+			":G": &ks.attr.Generation,
 			":0": zero,
 		},
 
 		// Fail if the revision does not match so we can return
 		// [kv.ConflictError].
-		ConditionExpression: aws.String(`(attribute_not_exists(#R) AND :R = :0) OR #R = :R`),
+		ConditionExpression: aws.String(`(attribute_not_exists(#G) AND :G = :0) OR #G = :G`),
 	}
 
 	// DeleteUnconditional removes the ks.attr.Key key unconditionally.

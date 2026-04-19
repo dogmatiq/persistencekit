@@ -4,12 +4,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"strconv"
 
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 	"github.com/dogmatiq/persistencekit/driver/aws/internal/awsx"
 	"github.com/dogmatiq/persistencekit/driver/aws/internal/dynamox"
+	"github.com/dogmatiq/persistencekit/internal/kvrevision"
 	"github.com/dogmatiq/persistencekit/kv"
 )
 
@@ -18,10 +18,10 @@ type keyspace struct {
 	OnRequest func(any) []func(*dynamodb.Options)
 
 	attr struct {
-		Keyspace types.AttributeValueMemberS
-		Key      types.AttributeValueMemberB
-		Value    types.AttributeValueMemberB
-		Revision types.AttributeValueMemberN
+		Keyspace   types.AttributeValueMemberS
+		Key        types.AttributeValueMemberB
+		Value      types.AttributeValueMemberB
+		Generation types.AttributeValueMemberN
 	}
 
 	request struct {
@@ -49,23 +49,23 @@ func (ks *keyspace) Get(ctx context.Context, k []byte) ([]byte, kv.Revision, err
 		&ks.request.Get,
 	)
 	if err != nil {
-		return nil, 0, fmt.Errorf("unable to get keyspace pair: %w", err)
+		return nil, "", fmt.Errorf("unable to get keyspace pair: %w", err)
 	}
 	if out.Item == nil {
-		return nil, 0, err
+		return nil, "", err
 	}
 
 	v, err := dynamox.AsBytes(out.Item, valueAttr)
 	if err != nil {
-		return nil, 0, err
+		return nil, "", err
 	}
 
-	r, err := dynamox.AsUint[kv.Revision](out.Item, revisionAttr)
+	gen, err := dynamox.AsUint[uint64](out.Item, generationAttr)
 	if err != nil {
-		return nil, 0, err
+		return nil, "", err
 	}
 
-	return v, r, nil
+	return v, kvrevision.MarshalGeneration(gen), nil
 }
 
 func (ks *keyspace) Has(ctx context.Context, k []byte) (bool, error) {
@@ -84,10 +84,18 @@ func (ks *keyspace) Has(ctx context.Context, k []byte) (bool, error) {
 	return out.Item != nil, nil
 }
 
-func (ks *keyspace) Set(ctx context.Context, k, v []byte, r kv.Revision) error {
+func (ks *keyspace) Set(ctx context.Context, k, v []byte, r kv.Revision) (kv.Revision, error) {
 	ks.attr.Key.Value = k
 	ks.attr.Value.Value = v
-	ks.attr.Revision.Value = strconv.FormatUint(uint64(r), 10)
+	gen, ok := kvrevision.TryUnmarshalGeneration(r)
+	if !ok {
+		return "", kv.ConflictError[[]byte]{
+			Keyspace: ks.attr.Keyspace.Value,
+			Key:      k,
+			Revision: r,
+		}
+	}
+	ks.attr.Generation.Value = string(kvrevision.MarshalGeneration(gen))
 
 	convertConflictError := func(message string, err error) error {
 		var conflict *types.ConditionalCheckFailedException
@@ -109,10 +117,10 @@ func (ks *keyspace) Set(ctx context.Context, k, v []byte, r kv.Revision) error {
 			ks.OnRequest,
 			&ks.request.Delete,
 		); err != nil {
-			return convertConflictError("unable to delete keyspace pair", err)
+			return "", convertConflictError("unable to delete keyspace pair", err)
 		}
 
-		return nil
+		return "", nil
 	}
 
 	if _, err := awsx.Do(
@@ -121,10 +129,10 @@ func (ks *keyspace) Set(ctx context.Context, k, v []byte, r kv.Revision) error {
 		ks.OnRequest,
 		&ks.request.Update,
 	); err != nil {
-		return convertConflictError("unable to update keyspace pair", err)
+		return "", convertConflictError("unable to update keyspace pair", err)
 	}
 
-	return nil
+	return kvrevision.IncrementGeneration(r), nil
 }
 
 func (ks *keyspace) SetUnconditional(ctx context.Context, k, v []byte) error {
@@ -173,12 +181,12 @@ func (ks *keyspace) Range(ctx context.Context, fn kv.BinaryRangeFunc) error {
 				return false, err
 			}
 
-			r, err := dynamox.AsUint[kv.Revision](item, revisionAttr)
+			gen, err := dynamox.AsUint[uint64](item, generationAttr)
 			if err != nil {
 				return false, err
 			}
 
-			return fn(ctx, k, v, r)
+			return fn(ctx, k, v, kvrevision.MarshalGeneration(gen))
 		},
 	); err != nil {
 		return fmt.Errorf("unable to range over keyspace: %w", err)

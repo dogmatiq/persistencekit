@@ -104,7 +104,7 @@ func (ks *instrumentedKeyspace) Get(ctx context.Context, k []byte) ([]byte, Revi
 	v, r, err := ks.Next.Get(ctx, k)
 	if err != nil {
 		ks.Telemetry.Error(ctx, "keyspace.get.error", "unable to fetch value associated with key", err)
-		return nil, 0, err
+		return nil, "", err
 	}
 
 	valueSize := int64(len(v))
@@ -117,7 +117,7 @@ func (ks *instrumentedKeyspace) Get(ctx context.Context, k []byte) ([]byte, Revi
 			telemetry.Bool("key_present", true),
 			telemetry.Binary("value", v),
 			telemetry.Int("value_size", valueSize),
-			telemetry.Int("revision", r),
+			telemetry.String("revision", r),
 		)
 
 		ks.Telemetry.Info(ctx, "keyspace.get.ok", "fetched value associated with key")
@@ -167,7 +167,7 @@ func (ks *instrumentedKeyspace) Has(ctx context.Context, k []byte) (bool, error)
 	return ok, nil
 }
 
-func (ks *instrumentedKeyspace) Set(ctx context.Context, k, v []byte, r Revision) error {
+func (ks *instrumentedKeyspace) Set(ctx context.Context, k, v []byte, r Revision) (Revision, error) {
 	keySize := int64(len(k))
 	valueSize := int64(len(v))
 
@@ -181,7 +181,7 @@ func (ks *instrumentedKeyspace) Set(ctx context.Context, k, v []byte, r Revision
 		op,
 		telemetry.Binary("key", k),
 		telemetry.Int("key_size", keySize),
-		telemetry.Int("revision", r),
+		telemetry.String("revision", r),
 	)
 	defer span.End()
 
@@ -198,7 +198,8 @@ func (ks *instrumentedKeyspace) Set(ctx context.Context, k, v []byte, r Revision
 		ks.ValueSize(ctx, valueSize, telemetry.WriteDirection)
 	}
 
-	if err := ks.Next.Set(ctx, k, v, r); err != nil {
+	next, err := ks.Next.Set(ctx, k, v, r)
+	if err != nil {
 		if IsConflict(err) {
 			ks.Telemetry.Error(ctx, "keyspace.set.conflict", "optimistic concurrency conflict", err)
 			ks.Conflicts(ctx, 1)
@@ -209,7 +210,7 @@ func (ks *instrumentedKeyspace) Set(ctx context.Context, k, v []byte, r Revision
 			ks.Telemetry.Error(ctx, "keyspace.set.error", "unable to set key/value pair", err)
 		}
 
-		return err
+		return "", err
 	}
 
 	if valueSize == 0 {
@@ -218,7 +219,7 @@ func (ks *instrumentedKeyspace) Set(ctx context.Context, k, v []byte, r Revision
 		ks.Telemetry.Info(ctx, "keyspace.set.ok", "set key/value pair")
 	}
 
-	return nil
+	return next, nil
 }
 
 func (ks *instrumentedKeyspace) SetUnconditional(ctx context.Context, k, v []byte) error {
