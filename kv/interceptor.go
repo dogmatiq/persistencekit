@@ -83,26 +83,25 @@ func (ks *interceptedKeyspace[K, V]) Has(ctx context.Context, k K) (bool, error)
 	return ks.Next.Has(ctx, k)
 }
 
-func (ks *interceptedKeyspace[K, V]) Set(ctx context.Context, k K, v V, r Revision) error {
-	rClone := r
-
+func (ks *interceptedKeyspace[K, V]) Set(ctx context.Context, k K, v V, r Revision) (Revision, error) {
 	if fn := ks.Interceptor.beforeSet.Load(); fn != nil {
-		if err := fn(ks.keyspace, k, v, &rClone); err != nil {
-			return err
+		if err := fn(ks.keyspace, k, v, &r); err != nil {
+			return "", err
 		}
 	}
 
-	if err := ks.Next.Set(ctx, k, v, r); err != nil {
-		return err
+	next, err := ks.Next.Set(ctx, k, v, r)
+	if err != nil {
+		return "", err
 	}
 
 	if fn := ks.Interceptor.afterSet.Load(); fn != nil {
-		if err := fn(ks.keyspace, k, v, &rClone); err != nil {
-			return err
+		if err := fn(ks.keyspace, k, v, &next); err != nil {
+			return "", err
 		}
 	}
 
-	return nil
+	return next, nil
 }
 
 func (ks *interceptedKeyspace[K, V]) SetUnconditional(ctx context.Context, k K, v V) error {

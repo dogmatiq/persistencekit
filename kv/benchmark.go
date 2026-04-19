@@ -117,7 +117,8 @@ func RunBenchmarks(
 						if _, err := io.ReadFull(rand.Reader, key[:]); err != nil {
 							return err
 						}
-						return ks.Set(ctx, key[:], []byte("<value>"), 0)
+						_, err := ks.Set(ctx, key[:], []byte("<value>"), "")
+						return err
 					},
 					// BENCHMARKED CODE
 					func(ctx context.Context, ks BinaryKeyspace) error {
@@ -167,7 +168,8 @@ func RunBenchmarks(
 						if _, err := io.ReadFull(rand.Reader, key[:]); err != nil {
 							return err
 						}
-						return ks.Set(ctx, key[:], []byte("<value>"), 0)
+						_, err := ks.Set(ctx, key[:], []byte("<value>"), "")
+						return err
 					},
 					// BENCHMARKED CODE
 					func(ctx context.Context, ks BinaryKeyspace) error {
@@ -196,7 +198,8 @@ func RunBenchmarks(
 					},
 					// BENCHMARKED CODE
 					func(ctx context.Context, ks BinaryKeyspace) error {
-						return ks.Set(ctx, key[:], []byte("<value>"), 0)
+						_, err := ks.Set(ctx, key[:], []byte("<value>"), "")
+						return err
 					},
 					// AFTER EACH
 					nil,
@@ -216,11 +219,13 @@ func RunBenchmarks(
 						if _, err := io.ReadFull(rand.Reader, key[:]); err != nil {
 							return err
 						}
-						return ks.Set(ctx, key[:], []byte("<value-1>"), 0)
+						_, err := ks.Set(ctx, key[:], []byte("<value-1>"), "")
+						return err
 					},
 					// BENCHMARKED CODE
 					func(ctx context.Context, ks BinaryKeyspace) error {
-						return ks.Set(ctx, key[:], []byte("<value-2>"), 1)
+						_, err := ks.Set(ctx, key[:], []byte("<value-2>"), "1")
+						return err
 					},
 					// AFTER EACH
 					nil,
@@ -240,11 +245,13 @@ func RunBenchmarks(
 						if _, err := io.ReadFull(rand.Reader, key[:]); err != nil {
 							return err
 						}
-						return ks.Set(ctx, key[:], []byte("<value>"), 0)
+						_, err := ks.Set(ctx, key[:], []byte("<value>"), "")
+						return err
 					},
 					// BENCHMARKED CODE
 					func(ctx context.Context, ks BinaryKeyspace) error {
-						return ks.Set(ctx, key[:], nil, 1)
+						_, err := ks.Set(ctx, key[:], nil, "1")
+						return err
 					},
 					// AFTER EACH
 					nil,
@@ -261,7 +268,7 @@ func RunBenchmarks(
 					for i := 0; i < 3000; i++ {
 						k := []byte(fmt.Sprintf("<key-%d>", i))
 						v := []byte("<value>")
-						if err := ks.Set(ctx, k, v, 0); err != nil {
+						if _, err := ks.Set(ctx, k, v, ""); err != nil {
 							return err
 						}
 					}

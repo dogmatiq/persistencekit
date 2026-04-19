@@ -62,7 +62,7 @@ func RunTests(
 				defer ks2.Close()
 
 				expect := []byte("<value>")
-				if err := ks1.Set(t.Context(), []byte("<key>"), expect, 0); err != nil {
+				if _, err := ks1.Set(t.Context(), []byte("<key>"), expect, ""); err != nil {
 					t.Fatal(err)
 				}
 
@@ -100,8 +100,8 @@ func RunTests(
 				if len(v) != 0 {
 					t.Fatal("expected zero-length value")
 				}
-				if r != 0 {
-					t.Fatal("expected zero revision")
+				if r != "" {
+					t.Fatal("expected empty revision")
 				}
 			})
 
@@ -112,11 +112,12 @@ func RunTests(
 
 				k := []byte("<key>")
 
-				if err := ks.Set(t.Context(), k, []byte("<value>"), 0); err != nil {
+				r, err := ks.Set(t.Context(), k, []byte("<value>"), "")
+				if err != nil {
 					t.Fatal(err)
 				}
 
-				if err := ks.Set(t.Context(), k, nil, 1); err != nil {
+				if _, err := ks.Set(t.Context(), k, nil, r); err != nil {
 					t.Fatal(err)
 				}
 
@@ -127,8 +128,8 @@ func RunTests(
 				if len(v) != 0 {
 					t.Fatal("expected zero-length value")
 				}
-				if r != 0 {
-					t.Fatal("expected zero revision")
+				if r != "" {
+					t.Fatal("expected empty revision")
 				}
 			})
 
@@ -141,7 +142,7 @@ func RunTests(
 					k := []byte(fmt.Sprintf("<key-%d>", i))
 					v := []byte(fmt.Sprintf("<value-%d>", i))
 
-					if err := ks.Set(t.Context(), k, v, 0); err != nil {
+					if _, err := ks.Set(t.Context(), k, v, ""); err != nil {
 						t.Fatal(err)
 					}
 				}
@@ -172,7 +173,7 @@ func RunTests(
 
 				k := []byte("<key>")
 
-				if err := ks.Set(t.Context(), k, []byte("<value>"), 0); err != nil {
+				if _, err := ks.Set(t.Context(), k, []byte("<value>"), ""); err != nil {
 					t.Fatal(err)
 				}
 
@@ -207,8 +208,8 @@ func RunTests(
 						Name     string
 						Revision Revision
 					}{
-						{"too low", 0},
-						{"too high", 3},
+						{"empty", ""},
+						{"non-matching", "<wrong>"},
 					}
 
 					for _, c := range cases {
@@ -220,11 +221,11 @@ func RunTests(
 							k := []byte("<key>")
 							v := []byte("<value>")
 
-							if err := ks.Set(t.Context(), k, v, 0); err != nil {
+							if _, err := ks.Set(t.Context(), k, v, ""); err != nil {
 								t.Fatal(err)
 							}
 
-							err := ks.Set(t.Context(), k, v, c.Revision)
+							_, err := ks.Set(t.Context(), k, v, c.Revision)
 
 							expect := ConflictError[[]byte]{
 								Keyspace: ks.Name(),
@@ -244,7 +245,7 @@ func RunTests(
 			})
 
 			t.Run("when the key is not present in the keyspace", func(t *testing.T) {
-				t.Run("it returns a ConflictError if the given revision is not zero", func(t *testing.T) {
+				t.Run("it returns a ConflictError if the given revision is not empty", func(t *testing.T) {
 					t.Parallel()
 
 					ks := setup(t)
@@ -252,12 +253,12 @@ func RunTests(
 					k := []byte("<key>")
 					v := []byte("<value>")
 
-					err := ks.Set(t.Context(), k, v, 123)
+					_, err := ks.Set(t.Context(), k, v, "<wrong>")
 
 					expect := ConflictError[[]byte]{
 						Keyspace: ks.Name(),
 						Key:      k,
-						Revision: 123,
+						Revision: "<wrong>",
 					}
 					if !reflect.DeepEqual(err, expect) {
 						t.Fatalf("unexpected error: got %q, want %q", err, expect)
@@ -268,14 +269,14 @@ func RunTests(
 					}
 				})
 
-				t.Run("it allows deletion with a zero revision", func(t *testing.T) {
+				t.Run("it allows deletion with an empty revision", func(t *testing.T) {
 					t.Parallel()
 
 					ks := setup(t)
 
 					k := []byte("<key>")
 
-					if err := ks.Set(t.Context(), k, nil, 0); err != nil {
+					if _, err := ks.Set(t.Context(), k, nil, ""); err != nil {
 						t.Fatal(err)
 					}
 				})
@@ -289,7 +290,7 @@ func RunTests(
 				k := []byte("<key>")
 				v := []byte("<value>")
 
-				if err := ks.Set(t.Context(), k, v, 0); err != nil {
+				if _, err := ks.Set(t.Context(), k, v, ""); err != nil {
 					t.Fatal(err)
 				}
 
@@ -326,7 +327,7 @@ func RunTests(
 				k := []byte("<key>")
 				v := []byte("<value>")
 
-				if err := ks.Set(t.Context(), k, v, 0); err != nil {
+				if _, err := ks.Set(t.Context(), k, v, ""); err != nil {
 					t.Fatal(err)
 				}
 
@@ -361,15 +362,12 @@ func RunTests(
 					t.Fatal(err)
 				}
 
-				actualValue, actualRevision, err := ks.Get(t.Context(), k)
+				actualValue, firstRevision, err := ks.Get(t.Context(), k)
 				if err != nil {
 					t.Fatal(err)
 				}
 
-				var (
-					expectValue    = []byte("<value-1>")
-					expectRevision = Revision(1)
-				)
+				expectValue := []byte("<value-1>")
 
 				if !bytes.Equal(expectValue, actualValue) {
 					t.Fatalf(
@@ -379,25 +377,20 @@ func RunTests(
 					)
 				}
 
-				if expectRevision != actualRevision {
-					t.Fatalf(
-						"unexpected revision, want %d, got %d",
-						expectRevision,
-						actualRevision,
-					)
+				if firstRevision == "" {
+					t.Fatal("expected non-empty revision after SetUnconditional")
 				}
 
 				if err := ks.SetUnconditional(t.Context(), k, []byte("<value-2>")); err != nil {
 					t.Fatal(err)
 				}
 
-				actualValue, actualRevision, err = ks.Get(t.Context(), k)
+				actualValue, secondRevision, err := ks.Get(t.Context(), k)
 				if err != nil {
 					t.Fatal(err)
 				}
 
 				expectValue = []byte("<value-2>")
-				expectRevision = 2
 
 				if !bytes.Equal(expectValue, actualValue) {
 					t.Fatalf(
@@ -407,12 +400,12 @@ func RunTests(
 					)
 				}
 
-				if expectRevision != actualRevision {
-					t.Fatalf(
-						"unexpected revision, want %d, got %d",
-						expectRevision,
-						actualRevision,
-					)
+				if secondRevision == "" {
+					t.Fatal("expected non-empty revision after SetUnconditional")
+				}
+
+				if firstRevision == secondRevision {
+					t.Fatal("expected revision to change after SetUnconditional")
 				}
 
 				if err := ks.SetUnconditional(t.Context(), k, nil); err != nil {
@@ -454,7 +447,7 @@ func RunTests(
 
 				k := []byte("<key>")
 
-				if err := ks.Set(t.Context(), k, []byte("<value>"), 0); err != nil {
+				if _, err := ks.Set(t.Context(), k, []byte("<value>"), ""); err != nil {
 					t.Fatal(err)
 				}
 
@@ -474,11 +467,12 @@ func RunTests(
 
 				k := []byte("<key>")
 
-				if err := ks.Set(t.Context(), k, []byte("<value>"), 0); err != nil {
+				r, err := ks.Set(t.Context(), k, []byte("<value>"), "")
+				if err != nil {
 					t.Fatal(err)
 				}
 
-				if err := ks.Set(t.Context(), k, nil, 1); err != nil {
+				if _, err := ks.Set(t.Context(), k, nil, r); err != nil {
 					t.Fatal(err)
 				}
 
@@ -505,18 +499,19 @@ func RunTests(
 					Revision Revision
 				}{}
 
-				for n := uint64(0); n < 100; n++ {
+				for n := range uint64(100) {
 					k := fmt.Sprintf("<key-%d>", n)
 					v := fmt.Sprintf("<value-%d>", n)
 
-					if err := ks.Set(t.Context(), []byte(k), []byte(v), 0); err != nil {
+					rev, err := ks.Set(t.Context(), []byte(k), []byte(v), "")
+					if err != nil {
 						t.Fatal(err)
 					}
 
 					expect[k] = struct {
 						Value    string
 						Revision Revision
-					}{v, 1}
+					}{v, rev}
 				}
 
 				actual := map[string]struct {
@@ -552,7 +547,7 @@ func RunTests(
 					k := fmt.Sprintf("<key-%d>", n)
 					v := fmt.Sprintf("<value-%d>", n)
 
-					if err := ks.Set(t.Context(), []byte(k), []byte(v), 0); err != nil {
+					if _, err := ks.Set(t.Context(), []byte(k), []byte(v), ""); err != nil {
 						t.Fatal(err)
 					}
 				}
@@ -581,7 +576,7 @@ func RunTests(
 				expectKey := []byte("<key>")
 				expectValue := []byte("<value>")
 
-				if err := ks.Set(t.Context(), expectKey, expectValue, 0); err != nil {
+				if _, err := ks.Set(t.Context(), expectKey, expectValue, ""); err != nil {
 					t.Fatal(err)
 				}
 
@@ -626,11 +621,11 @@ func RunTests(
 
 				ks := setup(t)
 
-				if err := ks.Set(
+				if _, err := ks.Set(
 					t.Context(),
 					[]byte("<key>"),
 					[]byte("<value>"),
-					0,
+					"",
 				); err != nil {
 					t.Fatal(err)
 				}
@@ -653,7 +648,7 @@ func RunTests(
 
 						if actualRevision != expectRevision {
 							t.Fatalf(
-								"unexpected revision: got %d, want %d",
+								"unexpected revision: got %q, want %q",
 								actualRevision,
 								expectRevision,
 							)
@@ -671,11 +666,11 @@ func RunTests(
 
 				ks := setup(t)
 
-				if err := ks.Set(
+				if _, err := ks.Set(
 					t.Context(),
 					[]byte("<key>"),
 					[]byte("<value>"),
-					0,
+					"",
 				); err != nil {
 					t.Fatal(err)
 				}
@@ -704,11 +699,11 @@ func RunTests(
 
 				k := []byte("<key>")
 
-				if err := ks.Set(
+				if _, err := ks.Set(
 					t.Context(),
 					k,
 					[]byte("<value>"),
-					0,
+					"",
 				); err != nil {
 					t.Fatal(err)
 				}
@@ -718,7 +713,7 @@ func RunTests(
 				if err := ks.Range(
 					t.Context(),
 					func(ctx context.Context, k, _ []byte, r Revision) (bool, error) {
-						if err := ks.Set(ctx, k, expect, r); err != nil {
+						if _, err := ks.Set(ctx, k, expect, r); err != nil {
 							t.Fatal(err)
 						}
 						return false, nil
@@ -785,7 +780,7 @@ func RunTests(
 
 						if actualRevision != expect.Revision {
 							t.Fatalf(
-								"unexpected revision for key %q: got %d, want %d",
+								"unexpected revision for key %q: got %q, want %q",
 								string(key),
 								actualRevision,
 								expect.Revision,
@@ -817,7 +812,7 @@ func RunTests(
 
 						if actualRevision != expect.Revision {
 							t.Fatalf(
-								"unexpected revision for key %q: got %d, want %d",
+								"unexpected revision for key %q: got %q, want %q",
 								string(key),
 								actualRevision,
 								expect.Revision,
@@ -875,14 +870,15 @@ func RunTests(
 						)
 						value := []byte(nonEmptyValue.Draw(t, "value"))
 
-						if err := ks.Set(t.Context(), key, value, 0); err != nil {
+						r, err := ks.Set(t.Context(), key, value, "")
+						if err != nil {
 							t.Fatal(err)
 						}
 
 						pairs[string(key)] = struct {
 							Value    []byte
 							Revision Revision
-						}{value, 1}
+						}{value, r}
 
 						keys = append(keys, key)
 					},
@@ -902,12 +898,13 @@ func RunTests(
 								Draw(t, "value"),
 						)
 
-						if err := ks.Set(t.Context(), key, value, item.Revision); err != nil {
+						r, err := ks.Set(t.Context(), key, value, item.Revision)
+						if err != nil {
 							t.Fatal(err)
 						}
 
 						item.Value = value
-						item.Revision++
+						item.Revision = r
 
 						pairs[string(key)] = item
 					},
@@ -919,11 +916,12 @@ func RunTests(
 						key := rapid.SampledFrom(keys).Draw(t, "key")
 						item := pairs[string(key)]
 
-						if err := ks.Set(t.Context(), key, item.Value, item.Revision); err != nil {
+						r, err := ks.Set(t.Context(), key, item.Value, item.Revision)
+						if err != nil {
 							t.Fatal(err)
 						}
 
-						item.Revision++
+						item.Revision = r
 						pairs[string(key)] = item
 					},
 					"Set (delete)": func(t *rapid.T) {
@@ -934,7 +932,7 @@ func RunTests(
 						key := rapid.SampledFrom(keys).Draw(t, "key")
 						item := pairs[string(key)]
 
-						if err := ks.Set(t.Context(), key, nil, item.Revision); err != nil {
+						if _, err := ks.Set(t.Context(), key, nil, item.Revision); err != nil {
 							t.Fatal(err)
 						}
 
@@ -974,7 +972,7 @@ func RunTests(
 
 								if actualRevision != expect.Revision {
 									t.Fatalf(
-										"unexpected revision for key %q: got %d, want %d",
+										"unexpected revision for key %q: got %q, want %q",
 										string(k),
 										actualRevision,
 										expect.Revision,
