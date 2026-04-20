@@ -69,7 +69,7 @@ func TestWithInterceptor(t *testing.T) {
 		}
 		defer ks.Close()
 
-		if err := ks.Set(t.Context(), []byte("<key>"), []byte("<value>"), 0); err != want {
+		if _, err := ks.Set(t.Context(), []byte("<key>"), []byte("<value>"), ""); err != want {
 			t.Fatalf("unexpected error: got %v, want %v", err, want)
 		}
 
@@ -98,7 +98,7 @@ func TestWithInterceptor(t *testing.T) {
 		}
 		defer ks.Close()
 
-		if err := ks.Set(t.Context(), []byte("<key>"), []byte("<value>"), 0); err != want {
+		if _, err := ks.Set(t.Context(), []byte("<key>"), []byte("<value>"), ""); err != want {
 			t.Fatalf("unexpected error: got %v, want %v", err, want)
 		}
 
@@ -109,6 +109,44 @@ func TestWithInterceptor(t *testing.T) {
 
 		if !bytes.Equal(v, []byte("<value>")) {
 			t.Fatalf("unexpected value: got %q, want %q", string(v), "<value>")
+		}
+	})
+
+	t.Run("it allows BeforeSet to modify the revision and passes the result to AfterSet", func(t *testing.T) {
+		t.Parallel()
+
+		store, in := setup()
+
+		in.BeforeSet(func(_ string, _, _ []byte, r *Revision) error {
+			*r = "" // force an unconditional insert regardless of what the caller passes
+			return nil
+		})
+
+		var got Revision
+		in.AfterSet(func(_ string, _, _ []byte, r *Revision) error {
+			got = *r
+			return nil
+		})
+
+		ks, err := store.Open(t.Context(), "<keyspace>")
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer ks.Close()
+
+		// Seed one entry so we can observe whether the revision is actually used.
+		if _, err := ks.Set(t.Context(), []byte("<key>"), []byte("<value>"), ""); err != nil {
+			t.Fatal(err)
+		}
+
+		// Pass a bogus non-empty revision; BeforeSet will replace it with ""
+		// (insert), so the call should succeed rather than conflict.
+		if _, err := ks.Set(t.Context(), []byte("<key2>"), []byte("<value>"), "bogus"); err != nil {
+			t.Fatal(err)
+		}
+
+		if got == "" {
+			t.Fatal("expected AfterSet to receive a non-empty revision")
 		}
 	})
 
@@ -142,7 +180,7 @@ func TestWithInterceptor(t *testing.T) {
 		}
 		defer ks.Close()
 
-		if err := ks.Set(t.Context(), []byte("<key>"), []byte("<value>"), 0); err != nil {
+		if _, err := ks.Set(t.Context(), []byte("<key>"), []byte("<value>"), ""); err != nil {
 			t.Fatal(err)
 		}
 	})

@@ -47,7 +47,7 @@ func (ks *mkeyspace[K, V]) Get(ctx context.Context, k K) (v V, r Revision, err e
 	keyData, err := ks.km.Marshal(k)
 	if err != nil {
 		var zero V
-		return zero, 0, err
+		return zero, "", err
 	}
 
 	valueData, r, err := ks.BinaryKeyspace.Get(ctx, keyData)
@@ -68,32 +68,33 @@ func (ks *mkeyspace[K, V]) Has(ctx context.Context, k K) (bool, error) {
 	return ks.BinaryKeyspace.Has(ctx, keyData)
 }
 
-func (ks *mkeyspace[K, V]) Set(ctx context.Context, k K, v V, r Revision) error {
+func (ks *mkeyspace[K, V]) Set(ctx context.Context, k K, v V, r Revision) (Revision, error) {
 	keyData, err := ks.km.Marshal(k)
 	if err != nil {
-		return err
+		return "", err
 	}
 
 	valueData, err := ks.marshalValue(v)
 	if err != nil {
-		return err
+		return "", err
 	}
 
-	if err := ks.BinaryKeyspace.Set(ctx, keyData, valueData, r); err != nil {
+	r, err = ks.BinaryKeyspace.Set(ctx, keyData, valueData, r)
+	if err != nil {
 		// Re-package conflict errors to use a key of type K, instead of []byte.
 		var conflict ConflictError[[]byte]
 		if errors.As(err, &conflict) {
-			return ConflictError[K]{
+			return "", ConflictError[K]{
 				Keyspace: conflict.Keyspace,
 				Key:      k,
 				Revision: conflict.Revision,
 			}
 		}
 
-		return err
+		return "", err
 	}
 
-	return nil
+	return r, nil
 }
 
 func (ks *mkeyspace[K, V]) SetUnconditional(ctx context.Context, k K, v V) error {

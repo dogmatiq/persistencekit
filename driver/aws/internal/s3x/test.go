@@ -2,6 +2,7 @@ package s3x
 
 import (
 	"context"
+	"fmt"
 	"testing"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -9,20 +10,14 @@ import (
 	"github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/dogmatiq/persistencekit/internal/x/xtesting"
-	"github.com/google/uuid"
-	"github.com/testcontainers/testcontainers-go/modules/minio"
+	"github.com/testcontainers/testcontainers-go/modules/localstack"
 )
 
 // NewTestClient returns a new S3 client for use in a test.
 func NewTestClient(t testing.TB) *s3.Client {
-	username := "persistencekit"
-	password := uuid.NewString()
-
-	container, err := minio.Run(
+	container, err := localstack.Run(
 		t.Context(),
-		"minio/minio",
-		minio.WithUsername(username),
-		minio.WithPassword(password),
+		"localstack/localstack:4",
 	)
 	if err != nil {
 		t.Fatal(err)
@@ -35,18 +30,25 @@ func NewTestClient(t testing.TB) *s3.Client {
 		}
 	})
 
-	endpoint, err := container.ConnectionString(t.Context())
+	mappedPort, err := container.MappedPort(t.Context(), "4566/tcp")
 	if err != nil {
 		t.Fatal(err)
 	}
+
+	host, err := container.Host(t.Context())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	endpoint := fmt.Sprintf("http://%s:%s", host, mappedPort.Port())
 
 	cfg, err := config.LoadDefaultConfig(
 		context.Background(),
 		config.WithRegion("us-east-1"),
 		config.WithCredentialsProvider(
 			credentials.NewStaticCredentialsProvider(
-				username,
-				password,
+				"test",
+				"test",
 				"",
 			),
 		),
@@ -63,7 +65,7 @@ func NewTestClient(t testing.TB) *s3.Client {
 	return s3.NewFromConfig(
 		cfg,
 		func(opts *s3.Options) {
-			opts.BaseEndpoint = aws.String("http://" + endpoint)
+			opts.BaseEndpoint = aws.String(endpoint)
 			opts.UsePathStyle = true
 		},
 	)

@@ -2,9 +2,10 @@ package kv
 
 import "context"
 
-// Revision is the "version" or "generation" of a key/value pair within a
-// [Keyspace]. A non-existent key is always at revsion 0.
-type Revision uint64
+// Revision is an opaque token that identifies the "version" or "generation" of
+// a key/value pair within a [Keyspace]. A non-existent key always has an empty
+// revision.
+type Revision string
 
 // A RangeFunc is a function used to range over the key/value pairs in a
 // [Keyspace].
@@ -22,10 +23,10 @@ type Keyspace[K, V any] interface {
 
 	// Get returns the value associated with k.
 	//
-	// r is a monotonically increasing revision number that changes each time
-	// the value associated with k is modified.
+	// r is an opaque token that changes each time the value associated with k
+	// is modified.
 	//
-	// If the key does not exist v is the zero-value of V and r is zero.
+	// If the key does not exist v is the zero-value of V and r is empty.
 	Get(ctx context.Context, k K) (v V, r Revision, err error)
 
 	// Has returns true if k is present in the keyspace.
@@ -35,12 +36,12 @@ type Keyspace[K, V any] interface {
 	//
 	// If v is the zero-value of V (or equivalent), the key is deleted.
 	//
-	// r is the current revision number for k. If k is not present in the
-	// keyspace, its current revision is zero. If r does not match the current
+	// r is the current revision of k. If k is not present in the keyspace, its
+	// current revision is the empty string. If r does not match the current
 	// revision, a [ConflictError] occurs.
 	//
-	// On success, the new revision number is always r + 1.
-	Set(ctx context.Context, k K, v V, r Revision) error
+	// On success, the new revision is returned.
+	Set(ctx context.Context, k K, v V, r Revision) (Revision, error)
 
 	// SetUnconditional associates a value with k, regardless of its current
 	// revision.

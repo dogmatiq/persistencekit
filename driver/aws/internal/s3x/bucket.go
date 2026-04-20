@@ -79,7 +79,6 @@ func DeleteBucketIfExists(
 						Objects: objects,
 						Quiet:   aws.Bool(true),
 					},
-					BypassGovernanceRetention: aws.Bool(true),
 				},
 			); err != nil {
 				return err
