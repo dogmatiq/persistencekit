@@ -44,13 +44,13 @@ func (s *instrumentedStore) Open(ctx context.Context, name string) (BinaryKeyspa
 
 	ks := &instrumentedKeyspace{
 		Telemetry:     telem,
-		OpenKeyspaces: telem.UpDownCounter("open_keyspaces", "{keyspace}", "The number of keyspaces that are currently open."),
-		Conflicts:     telem.Counter("conflicts", "{error}", "The number of times setting a value has failed due to an optimistic-concurrency conflict."),
-		Misses:        telem.Counter("misses", "{operation}", "The number of times the value associated with a specific key was requested but not present in the keyspace."),
-		KeyIO:         telem.Counter("key.io", "By", "The cumulative size of the keys that have been operated upon."),
-		ValueIO:       telem.Counter("value.io", "By", "The cumulative size of the values that have been operated upon."),
-		KeySize:       telem.Histogram("key.size", "By", "The sizes of the keys that have been operated upon."),
-		ValueSize:     telem.Histogram("value.size", "By", "The sizes of the values that have been operated upon."),
+		OpenKeyspaces: telem.UpDownCounter("persistence.kv.open_keyspaces", "{keyspace}", "The number of keyspaces that are currently open."),
+		Conflicts:     telem.Counter("persistence.kv.conflicts", "{error}", "The number of times setting a value has failed due to an optimistic-concurrency conflict."),
+		Misses:        telem.Counter("persistence.kv.misses", "{operation}", "The number of times the value associated with a specific key was requested but not present in the keyspace."),
+		KeyIO:         telem.Counter("persistence.kv.key.io", "By", "The cumulative size of the keys that have been operated upon."),
+		ValueIO:       telem.Counter("persistence.kv.value.io", "By", "The cumulative size of the values that have been operated upon."),
+		KeySize:       telem.Histogram("persistence.kv.key.size", "By", "The sizes of the keys that have been operated upon."),
+		ValueSize:     telem.Histogram("persistence.kv.value.size", "By", "The sizes of the values that have been operated upon."),
 	}
 
 	ctx, span := telem.StartSpan(ctx, "keyspace.open")

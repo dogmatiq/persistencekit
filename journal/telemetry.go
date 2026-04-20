@@ -44,10 +44,10 @@ func (s *instrumentedStore) Open(ctx context.Context, name string) (BinaryJourna
 
 	j := &instrumentedJournal{
 		Telemetry:    telem,
-		OpenJournals: telem.UpDownCounter("open_journals", "{journal}", "The number of journal handles that are currently open."),
-		Conflicts:    telem.Counter("conflicts", "{error}", "The number of times appending a record to the journal has failed due to an optimistic-concurrency conflict."),
-		RecordIO:     telem.Counter("record.io", "By", "The cumulative size of the journal records that have been operated upon."),
-		RecordSize:   telem.Histogram("record.size", "By", "The sizes of the journal records that have been operated upon."),
+		OpenJournals: telem.UpDownCounter("persistence.journal.open_journals", "{journal}", "The number of journal handles that are currently open."),
+		Conflicts:    telem.Counter("persistence.journal.conflicts", "{error}", "The number of times appending a record to the journal has failed due to an optimistic-concurrency conflict."),
+		RecordIO:     telem.Counter("persistence.journal.record.io", "By", "The cumulative size of the journal records that have been operated upon."),
+		RecordSize:   telem.Histogram("persistence.journal.record.size", "By", "The sizes of the journal records that have been operated upon."),
 	}
 
 	ctx, span := j.Telemetry.StartSpan(ctx, "journal.open")
