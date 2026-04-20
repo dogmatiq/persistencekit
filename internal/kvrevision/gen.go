@@ -29,7 +29,10 @@ func TryUnmarshalGeneration(r kv.Revision) (uint64, bool) {
 		return 0, true
 	}
 	gen, err := strconv.ParseUint(string(r), 10, 64)
-	return gen, err == nil
+	if err != nil || gen == 0 {
+		return 0, false
+	}
+	return gen, string(r) == strconv.FormatUint(gen, 10)
 }
 
 // IncrementGeneration returns the next revision after r, assuming r encodes a
