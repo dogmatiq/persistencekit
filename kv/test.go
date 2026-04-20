@@ -280,6 +280,77 @@ func RunTests(
 						t.Fatal(err)
 					}
 				})
+
+				t.Run("it allows insertion after deletion", func(t *testing.T) {
+					t.Parallel()
+
+					ks := setup(t)
+
+					k := []byte("<key>")
+
+					r, err := ks.Set(t.Context(), k, []byte("<value-1>"), "")
+					if err != nil {
+						t.Fatal(err)
+					}
+
+					if _, err := ks.Set(t.Context(), k, nil, r); err != nil {
+						t.Fatal(err)
+					}
+
+					r2, err := ks.Set(t.Context(), k, []byte("<value-2>"), "")
+					if err != nil {
+						t.Fatal(err)
+					}
+
+					if r2 == "" {
+						t.Fatal("expected non-empty revision after re-insertion")
+					}
+
+					v, got, err := ks.Get(t.Context(), k)
+					if err != nil {
+						t.Fatal(err)
+					}
+
+					if !bytes.Equal(v, []byte("<value-2>")) {
+						t.Fatalf("unexpected value: got %q, want %q", v, "<value-2>")
+					}
+
+					if got != r2 {
+						t.Fatalf("unexpected revision: got %q, want %q", got, r2)
+					}
+				})
+
+				t.Run("it returns a ConflictError if the key has been deleted and a non-empty revision is given", func(t *testing.T) {
+					t.Parallel()
+
+					ks := setup(t)
+
+					k := []byte("<key>")
+
+					r, err := ks.Set(t.Context(), k, []byte("<value>"), "")
+					if err != nil {
+						t.Fatal(err)
+					}
+
+					if _, err := ks.Set(t.Context(), k, nil, r); err != nil {
+						t.Fatal(err)
+					}
+
+					_, err = ks.Set(t.Context(), k, []byte("<value>"), "<wrong>")
+
+					expect := ConflictError[[]byte]{
+						Keyspace: ks.Name(),
+						Key:      k,
+						Revision: "<wrong>",
+					}
+					if !reflect.DeepEqual(err, expect) {
+						t.Fatalf("unexpected error: got %q, want %q", err, expect)
+					}
+
+					if !IsConflict(err) {
+						t.Fatalf("expected IsConflict to return true")
+					}
+				})
 			})
 
 			t.Run("it does not keep a reference to the key slice", func(t *testing.T) {
@@ -488,6 +559,47 @@ func RunTests(
 
 		t.Run("Range", func(t *testing.T) {
 			t.Parallel()
+
+			t.Run("it does not visit deleted keys", func(t *testing.T) {
+				t.Parallel()
+
+				ks := setup(t)
+
+				for n := range 5 {
+					k := []byte(fmt.Sprintf("<key-%d>", n))
+					v := []byte(fmt.Sprintf("<value-%d>", n))
+
+					r, err := ks.Set(t.Context(), k, v, "")
+					if err != nil {
+						t.Fatal(err)
+					}
+
+					if n%2 != 0 {
+						if _, err := ks.Set(t.Context(), k, nil, r); err != nil {
+							t.Fatal(err)
+						}
+					}
+				}
+
+				var visited []string
+
+				if err := ks.Range(
+					t.Context(),
+					func(_ context.Context, k, _ []byte, _ Revision) (bool, error) {
+						visited = append(visited, string(k))
+						return true, nil
+					},
+				); err != nil {
+					t.Fatal(err)
+				}
+
+				expect := []string{"<key-0>", "<key-2>", "<key-4>"}
+				slices.Sort(visited)
+
+				if diff := cmp.Diff(expect, visited); diff != "" {
+					t.Fatalf("unexpected keys visited (-want +got):\n%s", diff)
+				}
+			})
 
 			t.Run("calls the function for each key in the keyspace", func(t *testing.T) {
 				t.Parallel()
