@@ -44,9 +44,9 @@ func (s *instrumentedStore) Open(ctx context.Context, name string) (BinarySet, e
 
 	set := &instrumentedSet{
 		Telemetry: telem,
-		OpenSets:  telem.UpDownCounter("set.open", "{set}", "The number of sets that are currently open."),
-		ValueIO:   telem.Counter("set.value.io", "By", "The cumulative size of the values that have been operated upon."),
-		ValueSize: telem.Histogram("set.value.size", "By", "The sizes of the values that have been operated upon."),
+		OpenSets:  telem.UpDownCounter("persistence.set.open_sets", "{set}", "The number of sets that are currently open."),
+		ValueIO:   telem.Counter("persistence.set.value.io", "By", "The cumulative size of the values that have been operated upon."),
+		ValueSize: telem.Histogram("persistence.set.value.size", "By", "The sizes of the values that have been operated upon."),
 	}
 
 	ctx, span := telem.StartSpan(ctx, "set.open")
