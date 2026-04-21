@@ -4,11 +4,8 @@ import (
 	"context"
 	"net/url"
 
-	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
-	"github.com/aws/aws-sdk-go-v2/service/s3/types"
 	"github.com/dogmatiq/enginekit/x/xsync"
-	"github.com/dogmatiq/persistencekit/driver/aws/internal/awsx"
 	"github.com/dogmatiq/persistencekit/driver/aws/internal/s3x"
 	"github.com/dogmatiq/persistencekit/kv"
 )
@@ -90,30 +87,5 @@ func (s *store) createBucket(ctx context.Context) error {
 		return err
 	}
 
-	_, err := awsx.Do(
-		ctx,
-		s.Client.PutBucketLifecycleConfiguration,
-		s.OnRequest,
-		&s3.PutBucketLifecycleConfigurationInput{
-			Bucket: aws.String(s.Bucket),
-			LifecycleConfiguration: &types.BucketLifecycleConfiguration{
-				Rules: []types.LifecycleRule{
-					{
-						ID:     aws.String("expire-tombstones"),
-						Status: types.ExpirationStatusEnabled,
-						Filter: &types.LifecycleRuleFilter{
-							Tag: &types.Tag{
-								Key:   aws.String("type"),
-								Value: aws.String("tombstone"),
-							},
-						},
-						Expiration: &types.LifecycleExpiration{
-							Days: aws.Int32(1),
-						},
-					},
-				},
-			},
-		},
-	)
-	return err
+	return ensureTombstoneLifecycleRule(ctx, s)
 }

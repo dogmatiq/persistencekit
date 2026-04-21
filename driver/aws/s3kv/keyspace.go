@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"io"
+	"strings"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
@@ -13,21 +14,6 @@ import (
 	"github.com/dogmatiq/persistencekit/internal/x/xerrors"
 	"github.com/dogmatiq/persistencekit/kv"
 )
-
-const (
-	// tombstoneTagging is the URL-encoded tag string applied to tombstone objects.
-	// It is used as a lifecycle rule filter to automatically expire tombstones.
-	tombstoneTagging = "type=tombstone"
-
-	// tombstoneMetaKey is the metadata key used to identify tombstone objects
-	// without requiring a separate GetObjectTagging call.
-	tombstoneMetaKey = "tombstone"
-)
-
-// isTombstone returns true if the given object metadata indicates a tombstone.
-func isTombstone(metadata map[string]string) bool {
-	return metadata[tombstoneMetaKey] == "1"
-}
 
 // keyspace is an implementation of [kv.BinaryKeyspace] that persists to an S3
 // bucket.
@@ -122,7 +108,7 @@ func (ks *keyspace) Set(ctx context.Context, k, v []byte, r kv.Revision) (_ kv.R
 	return ks.setWrite(ctx, k, v, r)
 }
 
-// setWrite handles Set when v is non-nil (an insert or update).
+// setWrite handles Set when v is non-empty (an insert or update).
 func (ks *keyspace) setWrite(ctx context.Context, k, v []byte, r kv.Revision) (kv.Revision, error) {
 	key := ks.objectKey(k)
 
@@ -206,7 +192,7 @@ func (ks *keyspace) setWrite(ctx context.Context, k, v []byte, r kv.Revision) (k
 	}
 }
 
-// setDelete handles Set when v is nil (a delete or tombstone write).
+// setDelete handles Set when v is empty (a delete or tombstone write).
 func (ks *keyspace) setDelete(ctx context.Context, k []byte, r kv.Revision) (kv.Revision, error) {
 	key := ks.objectKey(k)
 
@@ -222,8 +208,8 @@ func (ks *keyspace) setDelete(ctx context.Context, k []byte, r kv.Revision) (kv.
 				IfMatch:       aws.String(string(r)),
 				Body:          s3x.NewReadSeeker(nil),
 				ContentLength: aws.Int64(0),
-				Metadata:      map[string]string{tombstoneMetaKey: "1"},
-				Tagging:       aws.String(tombstoneTagging),
+				Metadata:      tombstoneMetadata,
+				Tagging:       tombstoneTagging,
 			},
 		)
 		if s3x.IsConflict(err) || s3x.IsNotExists(err) {
@@ -247,8 +233,8 @@ func (ks *keyspace) setDelete(ctx context.Context, k []byte, r kv.Revision) (kv.
 				IfNoneMatch:   aws.String("*"),
 				Body:          s3x.NewReadSeeker(nil),
 				ContentLength: aws.Int64(0),
-				Metadata:      map[string]string{tombstoneMetaKey: "1"},
-				Tagging:       aws.String(tombstoneTagging),
+				Metadata:      tombstoneMetadata,
+				Tagging:       tombstoneTagging,
 			},
 		)
 		if err == nil {
@@ -307,8 +293,8 @@ func (ks *keyspace) SetUnconditional(ctx context.Context, k, v []byte) (err erro
 				Key:           &key,
 				Body:          s3x.NewReadSeeker(nil),
 				ContentLength: aws.Int64(0),
-				Metadata:      map[string]string{tombstoneMetaKey: "1"},
-				Tagging:       aws.String(tombstoneTagging),
+				Metadata:      tombstoneMetadata,
+				Tagging:       tombstoneTagging,
 			},
 		)
 		if err != nil {
@@ -414,7 +400,12 @@ func (ks *keyspace) objectKey(k []byte) string {
 
 // decodeObjectKey extracts the KV key bytes from a full S3 object key.
 func (ks *keyspace) decodeObjectKey(s3Key string) ([]byte, error) {
-	k, err := hex.DecodeString(s3Key[len(ks.objectKeyPrefix):])
+	suffix, ok := strings.CutPrefix(s3Key, ks.objectKeyPrefix)
+	if !ok {
+		return nil, fmt.Errorf("malformed object key %q: expected prefix %q", s3Key, ks.objectKeyPrefix)
+	}
+
+	k, err := hex.DecodeString(suffix)
 	if err != nil {
 		return nil, fmt.Errorf("malformed object key %q: %w", s3Key, err)
 	}
