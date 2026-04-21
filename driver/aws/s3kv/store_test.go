@@ -1,4 +1,3 @@
-package s3kv
 package s3kv_test
 
 import (
