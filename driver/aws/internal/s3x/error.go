@@ -3,27 +3,17 @@ package s3x
 import (
 	"errors"
 
-	"github.com/aws/aws-sdk-go-v2/service/s3/types"
 	"github.com/aws/smithy-go"
 )
 
 // IsNotExists returns true if err is an error that indicates the requested
 // object was not found.
 func IsNotExists(err error) bool {
-	if err == nil {
-		return false
-	}
-
-	for err != nil {
-		switch err.(type) {
-		case *types.NotFound:
+	var e smithy.APIError
+	if errors.As(err, &e) {
+		switch e.ErrorCode() {
+		case "NotFound", "NoSuchKey", "NoSuchBucket":
 			return true
-		case *types.NoSuchKey:
-			return true
-		case *types.NoSuchBucket:
-			return true
-		default:
-			err = errors.Unwrap(err)
 		}
 	}
 
@@ -42,18 +32,11 @@ func IgnoreNotExists(err error) error {
 // IsAlreadyExists returns true if err is an error that indicates the requested
 // object already exists.
 func IsAlreadyExists(err error) bool {
-	if err == nil {
-		return false
-	}
-
-	for err != nil {
-		switch err.(type) {
-		case *types.BucketAlreadyExists:
+	var e smithy.APIError
+	if errors.As(err, &e) {
+		switch e.ErrorCode() {
+		case "BucketAlreadyExists", "BucketAlreadyOwnedByYou":
 			return true
-		case *types.BucketAlreadyOwnedByYou:
-			return true
-		default:
-			err = errors.Unwrap(err)
 		}
 	}
 
@@ -62,7 +45,7 @@ func IsAlreadyExists(err error) bool {
 
 // IsConflict returns true if err is an error that indicates an object conflict.
 func IsConflict(err error) bool {
-	var e *smithy.GenericAPIError
+	var e smithy.APIError
 	if errors.As(err, &e) {
 		return e.ErrorCode() == "PreconditionFailed"
 	}

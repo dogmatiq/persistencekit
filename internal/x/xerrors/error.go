@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/dogmatiq/persistencekit/journal"
+	"github.com/dogmatiq/persistencekit/kv"
 )
 
 // Wrap adds additional context to an error.
@@ -21,6 +22,10 @@ func Wrap(err *error, format string, args ...any) {
 	}
 
 	if journal.IsConflict(*err) {
+		return
+	}
+
+	if kv.IsConflict(*err) {
 		return
 	}
 
