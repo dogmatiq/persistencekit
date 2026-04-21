@@ -13,7 +13,7 @@ require (
 	github.com/dogmatiq/enginekit v0.22.0
 	github.com/google/go-cmp v0.7.0
 	github.com/google/uuid v1.6.0
-	github.com/jackc/pgx/v5 v5.9.1
+	github.com/jackc/pgx/v5 v5.9.2
 	github.com/testcontainers/testcontainers-go v0.42.0
 	github.com/testcontainers/testcontainers-go/modules/dynamodb v0.42.0
 	github.com/testcontainers/testcontainers-go/modules/localstack v0.42.0
