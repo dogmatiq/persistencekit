@@ -34,7 +34,7 @@ const (
 
 var (
 	// tombstoneTagging is the URL-encoded tag string applied to tombstone objects.
-	tombstoneTagging = aws.String(url.QueryEscape(tombstoneTagKey) + "=" + tombstoneTagValue)
+	tombstoneTagging = aws.String(url.Values{tombstoneTagKey: []string{tombstoneTagValue}}.Encode())
 
 	// tombstoneMetadata is the S3 object metadata applied to tombstone objects.
 	tombstoneMetadata = map[string]string{tombstoneMetaKey: tombstoneMetaValue}

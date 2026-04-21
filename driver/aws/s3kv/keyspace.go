@@ -185,10 +185,10 @@ func (ks *keyspace) setWrite(ctx context.Context, k, v []byte, r kv.Revision) (k
 		if err == nil {
 			return kv.Revision(aws.ToString(out.ETag)), nil
 		}
-		if !s3x.IsConflict(err) {
+		if !s3x.IsConflict(err) && !s3x.IsNotExists(err) {
 			return "", err
 		}
-		// Tombstone was replaced concurrently; retry from the top.
+		// Tombstone was replaced or removed concurrently; retry from the top.
 	}
 }
 
