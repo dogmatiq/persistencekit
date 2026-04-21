@@ -59,17 +59,17 @@ func (ks *keyspace) Get(ctx context.Context, k []byte) (v []byte, r kv.Revision,
 		return nil, "", err
 	}
 
-	isTomb := isTombstone(res.Metadata)
+	if isTombstone(res.Metadata) {
+		res.Body.Close()
+		return nil, "", nil
+	}
+
 	etag := aws.ToString(res.ETag)
 
 	v, err = io.ReadAll(res.Body)
 	res.Body.Close()
 	if err != nil {
 		return nil, "", err
-	}
-
-	if isTomb {
-		return nil, "", nil
 	}
 
 	return v, kv.Revision(etag), nil
@@ -363,17 +363,17 @@ func (ks *keyspace) Range(ctx context.Context, fn kv.BinaryRangeFunc) (err error
 				return err
 			}
 
-			isTomb := isTombstone(res.Metadata)
+			if isTombstone(res.Metadata) {
+				res.Body.Close()
+				continue
+			}
+
 			etag := aws.ToString(res.ETag)
 
 			v, err := io.ReadAll(res.Body)
 			res.Body.Close()
 			if err != nil {
 				return err
-			}
-
-			if isTomb {
-				continue
 			}
 
 			ok, err := fn(ctx, k, v, kv.Revision(etag))
