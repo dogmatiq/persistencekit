@@ -253,8 +253,8 @@ func (ks *keyspace) setDelete(ctx context.Context, k []byte, r kv.Revision) (kv.
 	return "", kv.ConflictError[[]byte]{Keyspace: ks.name, Key: k, Revision: r}
 }
 
-// headObject returns the ETag and tombstone status of the object at key.
-// If the object does not exist, etag is "" and isTomb is false.
+// headObject returns the ETag and content length of the object at key.
+// If the object does not exist, etag is "" and size is 0.
 func (ks *keyspace) headObject(ctx context.Context, key string) (etag string, size int64, err error) {
 	res, err := awsx.Do(
 		ctx,
