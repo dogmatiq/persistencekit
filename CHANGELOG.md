@@ -15,15 +15,7 @@ The format is based on [Keep a Changelog], and this project adheres to
 
 ### Added
 
-- Added `driver/aws/s3set` package, an S3-backed implementation of
-  `set.BinaryStore`.
-
-### Changed
-
-- Moved shared tombstone utilities (`TombstoneLifecycleRuleID`,
-  `TombstoneTagKey`, `TombstoneTagValue`, `TombstoneTagging`,
-  `EnsureTombstoneLifecycleRule`) from `driver/aws/s3kv` into the internal
-  `driver/aws/internal/s3x` package so they can be shared across S3 drivers.
+- Added `s3set` package, an S3-backed implementation of `set.BinaryStore`.
 
 ## [0.15.1] - 2026-02-07
 
