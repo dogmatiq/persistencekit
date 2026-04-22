@@ -11,11 +11,20 @@ The format is based on [Keep a Changelog], and this project adheres to
 [semantic versioning]: https://semver.org/spec/v2.0.0.html
 [bc]: https://github.com/dogmatiq/.github/blob/main/VERSIONING.md#changelogs
 
-## [Unreleased]
+## [0.16.0] - 2026-04-23
 
 ### Added
 
+- Added `s3kv` package, an S3-backed implementation of `kv.BinaryStore`.
 - Added `s3set` package, an S3-backed implementation of `set.BinaryStore`.
+- Added `journal.AdaptiveSearch()` and `journal.AdaptiveProbeFunc` for
+  probe-guided journal searches.
+
+### Changed
+
+- **[BC]** Changed `kv.Revision` from a `uint64` to an opaque `string` type.
+- **[BC]** Changed `kv.Keyspace.Set()` to return the new `Revision` on success.
+- Changed telemetry metric names to include a `persistence.<subsystem>.` prefix.
 
 ## [0.15.1] - 2026-02-07
 
@@ -378,6 +387,7 @@ This eliminates the need for duplicating all of the generic algorithms (such as
 [0.14.0]: https://github.com/dogmatiq/persistencekit/releases/tag/v0.14.0
 [0.15.0]: https://github.com/dogmatiq/persistencekit/releases/tag/v0.15.0
 [0.15.1]: https://github.com/dogmatiq/persistencekit/releases/tag/v0.15.1
+[0.16.0]: https://github.com/dogmatiq/persistencekit/releases/tag/v0.16.0
 
 <!-- version template
 ## [0.0.1] - YYYY-MM-DD
