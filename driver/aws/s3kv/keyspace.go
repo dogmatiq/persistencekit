@@ -59,7 +59,7 @@ func (ks *keyspace) Get(ctx context.Context, k []byte) (v []byte, r kv.Revision,
 		return nil, "", err
 	}
 
-	if isTombstone(res.Metadata) {
+	if aws.ToInt64(res.ContentLength) == 0 {
 		res.Body.Close()
 		return nil, "", nil
 	}
@@ -96,7 +96,7 @@ func (ks *keyspace) Has(ctx context.Context, k []byte) (_ bool, err error) {
 		return false, err
 	}
 
-	return !isTombstone(res.Metadata), nil
+	return aws.ToInt64(res.ContentLength) > 0, nil
 }
 
 func (ks *keyspace) Set(ctx context.Context, k, v []byte, r kv.Revision) (_ kv.Revision, err error) {
@@ -157,7 +157,7 @@ func (ks *keyspace) setWrite(ctx context.Context, k, v []byte, r kv.Revision) (k
 		}
 
 		// Something is occupying the slot. Check if it is a tombstone.
-		existingETag, isTomb, err := ks.headObject(ctx, key)
+		existingETag, size, err := ks.headObject(ctx, key)
 		if err != nil {
 			return "", err
 		}
@@ -165,7 +165,7 @@ func (ks *keyspace) setWrite(ctx context.Context, k, v []byte, r kv.Revision) (k
 			// Object vanished between PutObject and HeadObject; retry insert.
 			continue
 		}
-		if !isTomb {
+		if size > 0 {
 			return "", kv.ConflictError[[]byte]{Keyspace: ks.name, Key: k, Revision: r}
 		}
 
@@ -208,8 +208,7 @@ func (ks *keyspace) setDelete(ctx context.Context, k []byte, r kv.Revision) (kv.
 				IfMatch:       aws.String(string(r)),
 				Body:          s3x.NewReadSeeker(nil),
 				ContentLength: aws.Int64(0),
-				Metadata:      tombstoneMetadata,
-				Tagging:       tombstoneTagging,
+				Tagging:       s3x.TombstoneTagging,
 			},
 		)
 		if s3x.IsConflict(err) || s3x.IsNotExists(err) {
@@ -221,45 +220,42 @@ func (ks *keyspace) setDelete(ctx context.Context, k []byte, r kv.Revision) (kv.
 		return "", nil
 	}
 
-	// Delete with no revision: the key must not exist (or already be a tombstone).
-	for {
-		_, err := awsx.Do(
-			ctx,
-			ks.client.PutObject,
-			ks.onRequest,
-			&s3.PutObjectInput{
-				Bucket:        &ks.bucket,
-				Key:           &key,
-				IfNoneMatch:   aws.String("*"),
-				Body:          s3x.NewReadSeeker(nil),
-				ContentLength: aws.Int64(0),
-				Metadata:      tombstoneMetadata,
-				Tagging:       tombstoneTagging,
-			},
-		)
-		if err == nil {
-			return "", nil
-		}
-		if !s3x.IsConflict(err) {
-			return "", err
-		}
-
-		// Something is occupying the slot. Check what it is.
-		existingETag, isTomb, err := ks.headObject(ctx, key)
-		if err != nil {
-			return "", err
-		}
-		if existingETag == "" || isTomb {
-			// Key is absent or already a tombstone — intent satisfied.
-			return "", nil
-		}
-		return "", kv.ConflictError[[]byte]{Keyspace: ks.name, Key: k, Revision: r}
+	// Delete with no revision: write tombstone only if no object is present.
+	_, err := awsx.Do(
+		ctx,
+		ks.client.PutObject,
+		ks.onRequest,
+		&s3.PutObjectInput{
+			Bucket:        &ks.bucket,
+			Key:           &key,
+			IfNoneMatch:   aws.String("*"),
+			Body:          s3x.NewReadSeeker(nil),
+			ContentLength: aws.Int64(0),
+			Tagging:       s3x.TombstoneTagging,
+		},
+	)
+	if err == nil {
+		return "", nil
 	}
+	if !s3x.IsConflict(err) {
+		return "", err
+	}
+
+	// IfNoneMatch failed: something occupies the slot. Check what it is.
+	_, size, err := ks.headObject(ctx, key)
+	if err != nil {
+		return "", err
+	}
+	if size == 0 {
+		// Key is absent or already a tombstone — intent satisfied.
+		return "", nil
+	}
+	return "", kv.ConflictError[[]byte]{Keyspace: ks.name, Key: k, Revision: r}
 }
 
-// headObject returns the ETag and tombstone status of the object at key.
-// If the object does not exist, etag is "" and isTomb is false.
-func (ks *keyspace) headObject(ctx context.Context, key string) (etag string, isTomb bool, err error) {
+// headObject returns the ETag and content length of the object at key.
+// If the object does not exist, etag is "" and size is 0.
+func (ks *keyspace) headObject(ctx context.Context, key string) (etag string, size int64, err error) {
 	res, err := awsx.Do(
 		ctx,
 		ks.client.HeadObject,
@@ -270,12 +266,12 @@ func (ks *keyspace) headObject(ctx context.Context, key string) (etag string, is
 		},
 	)
 	if s3x.IsNotExists(err) {
-		return "", false, nil
+		return "", 0, nil
 	}
 	if err != nil {
-		return "", false, err
+		return "", 0, err
 	}
-	return aws.ToString(res.ETag), isTombstone(res.Metadata), nil
+	return aws.ToString(res.ETag), aws.ToInt64(res.ContentLength), nil
 }
 
 func (ks *keyspace) SetUnconditional(ctx context.Context, k, v []byte) (err error) {
@@ -293,8 +289,7 @@ func (ks *keyspace) SetUnconditional(ctx context.Context, k, v []byte) (err erro
 				Key:           &key,
 				Body:          s3x.NewReadSeeker(nil),
 				ContentLength: aws.Int64(0),
-				Metadata:      tombstoneMetadata,
-				Tagging:       tombstoneTagging,
+				Tagging:       s3x.TombstoneTagging,
 			},
 		)
 		if err != nil {
@@ -342,6 +337,10 @@ func (ks *keyspace) Range(ctx context.Context, fn kv.BinaryRangeFunc) (err error
 		for _, obj := range list.Contents {
 			s3Key := aws.ToString(obj.Key)
 
+			if aws.ToInt64(obj.Size) == 0 {
+				continue // tombstone
+			}
+
 			k, err := ks.decodeObjectKey(s3Key)
 			if err != nil {
 				return err
@@ -363,9 +362,9 @@ func (ks *keyspace) Range(ctx context.Context, fn kv.BinaryRangeFunc) (err error
 				return err
 			}
 
-			if isTombstone(res.Metadata) {
+			if aws.ToInt64(res.ContentLength) == 0 {
 				res.Body.Close()
-				continue
+				continue // Became a tombstone between list and get.
 			}
 
 			etag := aws.ToString(res.ETag)
