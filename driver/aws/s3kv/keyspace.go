@@ -242,11 +242,11 @@ func (ks *keyspace) setDelete(ctx context.Context, k []byte, r kv.Revision) (kv.
 	}
 
 	// IfNoneMatch failed: something occupies the slot. Check what it is.
-	existingETag, size, err := ks.headObject(ctx, key)
+	_, size, err := ks.headObject(ctx, key)
 	if err != nil {
 		return "", err
 	}
-	if existingETag == "" || size == 0 {
+	if size == 0 {
 		// Key is absent or already a tombstone — intent satisfied.
 		return "", nil
 	}

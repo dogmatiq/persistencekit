@@ -178,7 +178,7 @@ func (s *setimpl) TryRemove(ctx context.Context, member []byte) (_ bool, err err
 		if err != nil {
 			return false, err
 		}
-		if existingETag == "" || size == 0 {
+		if size == 0 {
 			// Absent or already a tombstone.
 			return false, nil
 		}
