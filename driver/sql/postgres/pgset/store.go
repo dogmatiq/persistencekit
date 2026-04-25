@@ -12,13 +12,8 @@ import (
 // BinaryStore is an implementation of [set.BinaryStore] that persists to a
 // PostgreSQL database.
 type BinaryStore struct {
+	// DB is the PostgreSQL database connection.
 	DB *sql.DB
-}
-
-// NewBinaryStore returns a new [set.BinaryStore] that persists to the given
-// PostgreSQL database.
-func NewBinaryStore(db *sql.DB) *BinaryStore {
-	return &BinaryStore{DB: db}
 }
 
 // Open returns the set with the given name.
