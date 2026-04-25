@@ -10,14 +10,13 @@ import (
 	"github.com/dogmatiq/persistencekit/journal"
 )
 
-// store is an implementation of [journal.BinaryStore] that persists to an S3
+// BinaryStore is an implementation of [journal.BinaryStore] that persists to an S3
 // bucket.
-type store struct {
-	Client    *s3.Client
-	Bucket    string
-	OnRequest func(any) []func(*s3.Options)
-
-	createBucketOnce xsync.SucceedOnce
+type BinaryStore struct {
+	client        *s3.Client
+	bucket        string
+	onRequest     func(any) []func(*s3.Options)
+	provisionOnce xsync.SucceedOnce
 }
 
 // NewBinaryStore returns a new [journal.BinaryStore] that uses the given
@@ -26,10 +25,10 @@ func NewBinaryStore(
 	client *s3.Client,
 	bucket string,
 	options ...Option,
-) journal.BinaryStore {
-	s := &store{
-		Client: client,
-		Bucket: bucket,
+) *BinaryStore {
+	s := &BinaryStore{
+		client: client,
+		bucket: bucket,
 	}
 
 	for _, opt := range options {
@@ -40,7 +39,7 @@ func NewBinaryStore(
 }
 
 // Option is a functional option that changes the behavior of [NewBinaryStore].
-type Option func(*store)
+type Option func(*BinaryStore)
 
 // WithRequestHook is an [Option] that configures fn as a pre-request hook.
 //
@@ -52,26 +51,40 @@ type Option func(*store)
 // Any functions returned by fn will be applied to the request's options before
 // the request is sent.
 func WithRequestHook(fn func(any) []func(*s3.Options)) Option {
-	return func(s *store) {
-		s.OnRequest = fn
+	return func(s *BinaryStore) {
+		s.onRequest = fn
 	}
 }
 
+// Provision creates the S3 bucket used by the store if it does not already
+// exist.
+//
+// The store also creates the bucket on first use if it does not exist.
+// Provision allows infrastructure to be created ahead of time, for example as
+// part of a deployment pipeline, so that the application itself does not need
+// broad IAM permissions.
+func (s *BinaryStore) Provision(ctx context.Context) error {
+	return s.provisionOnce.Do(ctx, func(ctx context.Context) error {
+		_, err := s3x.CreateBucketIfNotExists(ctx, s.client, s.bucket, s.onRequest)
+		return err
+	})
+}
+
 // Open returns the journal with the given name.
-func (s *store) Open(ctx context.Context, name string) (journal.BinaryJournal, error) {
-	if s.Bucket == "" {
+func (s *BinaryStore) Open(ctx context.Context, name string) (journal.BinaryJournal, error) {
+	if s.bucket == "" {
 		panic("bucket name must not be empty")
 	}
 
-	if err := s.createBucketOnce.Do(ctx, s.createBucket); err != nil {
+	if err := s.Provision(ctx); err != nil {
 		return nil, err
 	}
 
 	j := &journ{
-		client:          s.Client,
-		onRequest:       s.OnRequest,
+		client:          s.client,
+		onRequest:       s.onRequest,
 		name:            name,
-		bucket:          s.Bucket,
+		bucket:          s.bucket,
 		objectKeyPrefix: "journal/" + url.PathEscape(name) + "/",
 	}
 
@@ -84,13 +97,4 @@ func (s *store) Open(ctx context.Context, name string) (journal.BinaryJournal, e
 	}
 
 	return j, nil
-}
-
-func (s *store) createBucket(ctx context.Context) error {
-	return s3x.CreateBucketIfNotExists(
-		ctx,
-		s.Client,
-		s.Bucket,
-		s.OnRequest,
-	)
 }

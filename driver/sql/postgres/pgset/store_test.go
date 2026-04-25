@@ -12,9 +12,7 @@ func TestStore(t *testing.T) {
 	db := pgtest.Setup(t)
 	set.RunTests(
 		t,
-		&BinaryStore{
-			DB: db,
-		},
+		NewBinaryStore(db),
 	)
 }
 
@@ -22,8 +20,6 @@ func BenchmarkStore(b *testing.B) {
 	db := pgtest.Setup(b)
 	set.RunBenchmarks(
 		b,
-		&BinaryStore{
-			DB: db,
-		},
+		NewBinaryStore(db),
 	)
 }

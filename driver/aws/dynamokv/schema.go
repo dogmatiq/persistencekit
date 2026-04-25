@@ -1,12 +1,9 @@
 package dynamokv
 
 import (
-	"context"
-
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
-	"github.com/dogmatiq/persistencekit/driver/aws/internal/dynamox"
 )
 
 var (
@@ -32,26 +29,6 @@ var (
 	// unnecessary data.
 	nonExistentAttr = "X"
 )
-
-// createTable creates the DynamoDB table if it does not already exist.
-func (s *store) createTable(ctx context.Context) error {
-	return dynamox.CreateTableIfNotExists(
-		ctx,
-		s.Client,
-		s.Table,
-		s.OnRequest,
-		dynamox.KeyAttr{
-			Name:    &keyspaceAttr,
-			Type:    types.ScalarAttributeTypeS,
-			KeyType: types.KeyTypeHash,
-		},
-		dynamox.KeyAttr{
-			Name:    &keyAttr,
-			Type:    types.ScalarAttributeTypeB,
-			KeyType: types.KeyTypeRange,
-		},
-	)
-}
 
 func (ks *keyspace) prepareRequests(table string) {
 	key := map[string]types.AttributeValue{

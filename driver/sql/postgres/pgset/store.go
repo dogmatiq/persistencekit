@@ -12,7 +12,24 @@ import (
 // BinaryStore is an implementation of [set.BinaryStore] that persists to a
 // PostgreSQL database.
 type BinaryStore struct {
-	DB *sql.DB
+	db *sql.DB
+}
+
+// NewBinaryStore returns a new [set.BinaryStore] that persists to the given
+// PostgreSQL database.
+func NewBinaryStore(db *sql.DB) *BinaryStore {
+	return &BinaryStore{db: db}
+}
+
+// Provision creates the PostgreSQL schema and tables used by the store if they
+// do not already exist.
+//
+// The store also creates the schema on first use if it does not exist.
+// Provision allows infrastructure to be created ahead of time, for example as
+// part of a deployment pipeline, so that the application itself does not need
+// DDL permissions.
+func (s *BinaryStore) Provision(ctx context.Context) error {
+	return createSchema(ctx, s.db)
 }
 
 // Open returns the set with the given name.
@@ -21,12 +38,12 @@ func (s *BinaryStore) Open(ctx context.Context, name string) (set.BinarySet, err
 	if err != nil {
 		return nil, err
 	}
-	return &setimpl{s.DB, id, name}, nil
+	return &setimpl{s.db, id, name}, nil
 }
 
 func (s *BinaryStore) getID(ctx context.Context, name string) (uint64, error) {
 	for {
-		row := s.DB.QueryRowContext(
+		row := s.db.QueryRowContext(
 			ctx,
 			`INSERT INTO persistencekit.set (
 				name
@@ -49,7 +66,7 @@ func (s *BinaryStore) getID(ctx context.Context, name string) (uint64, error) {
 			return 0, fmt.Errorf("cannot scan set ID: %w", err)
 		}
 
-		if err := createSchema(ctx, s.DB); err != nil {
+		if err := createSchema(ctx, s.db); err != nil {
 			return 0, fmt.Errorf("cannot create set schema: %w", err)
 		}
 	}

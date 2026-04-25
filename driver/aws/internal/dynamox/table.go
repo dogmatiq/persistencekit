@@ -18,13 +18,51 @@ type KeyAttr struct {
 	KeyType types.KeyType
 }
 
-// CreateTableIfNotExists creates a DynamoDB table if it does not exist.
+// CreateTableIfNotExists creates a DynamoDB table if it does not exist. It
+// returns true if the table was created, or false if it already existed.
 func CreateTableIfNotExists(
 	ctx context.Context,
 	client *dynamodb.Client,
 	table string,
 	onRequest func(any) []func(*dynamodb.Options),
 	key ...KeyAttr,
+) (bool, error) {
+	var created bool
+
+	res, err := awsx.Do(
+		ctx,
+		client.DescribeTable,
+		onRequest,
+		&dynamodb.DescribeTableInput{
+			TableName: &table,
+		},
+	)
+	if errors.As(err, new(*types.ResourceNotFoundException)) {
+		if err := createTable(ctx, client, table, onRequest, key); err != nil {
+			return false, err
+		}
+		created = true
+	} else if err != nil {
+		return false, fmt.Errorf("unable to describe DynamoDB table: %w", err)
+	} else if res.Table.TableStatus == types.TableStatusActive {
+		return false, nil
+	}
+
+	if err := waitForTable(ctx, client, table, onRequest); err != nil {
+		return false, err
+	}
+
+	return created, nil
+}
+
+// createTable issues a CreateTable request, ignoring ResourceInUseException
+// (which indicates a concurrent creation).
+func createTable(
+	ctx context.Context,
+	client *dynamodb.Client,
+	table string,
+	onRequest func(any) []func(*dynamodb.Options),
+	key []KeyAttr,
 ) error {
 	req := &dynamodb.CreateTableInput{
 		TableName:   &table,
@@ -55,12 +93,21 @@ func CreateTableIfNotExists(
 		onRequest,
 		req,
 	); err != nil {
-		if errors.As(err, new(*types.ResourceInUseException)) {
-			return nil
+		if !errors.As(err, new(*types.ResourceInUseException)) {
+			return fmt.Errorf("unable to create DynamoDB table: %w", err)
 		}
-		return fmt.Errorf("unable to create DynamoDB table: %w", err)
 	}
 
+	return nil
+}
+
+// waitForTable waits for a DynamoDB table to become active.
+func waitForTable(
+	ctx context.Context,
+	client *dynamodb.Client,
+	table string,
+	onRequest func(any) []func(*dynamodb.Options),
+) error {
 	in := &dynamodb.DescribeTableInput{
 		TableName: &table,
 	}

@@ -10,13 +10,12 @@ import (
 	"github.com/dogmatiq/persistencekit/kv"
 )
 
-// store is an implementation of [kv.BinaryStore] that persists to an S3 bucket.
-type store struct {
-	Client    *s3.Client
-	Bucket    string
-	OnRequest func(any) []func(*s3.Options)
-
-	createBucketOnce xsync.SucceedOnce
+// BinaryStore is an implementation of [kv.BinaryStore] that persists to an S3 bucket.
+type BinaryStore struct {
+	client        *s3.Client
+	bucket        string
+	onRequest     func(any) []func(*s3.Options)
+	provisionOnce xsync.SucceedOnce
 }
 
 // NewBinaryStore returns a new [kv.BinaryStore] that uses the given S3 client
@@ -25,14 +24,14 @@ func NewBinaryStore(
 	client *s3.Client,
 	bucket string,
 	options ...Option,
-) kv.BinaryStore {
+) *BinaryStore {
 	if bucket == "" {
 		panic("bucket name must not be empty")
 	}
 
-	s := &store{
-		Client: client,
-		Bucket: bucket,
+	s := &BinaryStore{
+		client: client,
+		bucket: bucket,
 	}
 
 	for _, opt := range options {
@@ -43,7 +42,7 @@ func NewBinaryStore(
 }
 
 // Option is a functional option that changes the behavior of [NewBinaryStore].
-type Option func(*store)
+type Option func(*BinaryStore)
 
 // WithRequestHook is an [Option] that configures fn as a pre-request hook.
 //
@@ -55,37 +54,40 @@ type Option func(*store)
 // Any functions returned by fn will be applied to the request's options before
 // the request is sent.
 func WithRequestHook(fn func(any) []func(*s3.Options)) Option {
-	return func(s *store) {
-		s.OnRequest = fn
+	return func(s *BinaryStore) {
+		s.onRequest = fn
 	}
 }
 
+// Provision creates the S3 bucket and lifecycle rules used by the store if they
+// do not already exist.
+//
+// The store also creates the bucket on first use if it does not exist. Provision
+// allows infrastructure to be created ahead of time, for example as part of a
+// deployment pipeline, so that the application itself does not need broad IAM
+// permissions.
+func (s *BinaryStore) Provision(ctx context.Context) error {
+	return s.provisionOnce.Do(ctx, func(ctx context.Context) error {
+		if _, err := s3x.CreateBucketIfNotExists(ctx, s.client, s.bucket, s.onRequest); err != nil {
+			return err
+		}
+		return s3x.EnsureTombstoneLifecycleRule(ctx, s.client, s.bucket, s.onRequest)
+	})
+}
+
 // Open returns the keyspace with the given name.
-func (s *store) Open(ctx context.Context, name string) (kv.BinaryKeyspace, error) {
-	if err := s.createBucketOnce.Do(ctx, s.createBucket); err != nil {
+func (s *BinaryStore) Open(ctx context.Context, name string) (kv.BinaryKeyspace, error) {
+	if err := s.Provision(ctx); err != nil {
 		return nil, err
 	}
 
 	ks := &keyspace{
-		client:          s.Client,
-		onRequest:       s.OnRequest,
+		client:          s.client,
+		onRequest:       s.onRequest,
 		name:            name,
-		bucket:          s.Bucket,
+		bucket:          s.bucket,
 		objectKeyPrefix: "kv/" + url.PathEscape(name) + "/",
 	}
 
 	return ks, nil
-}
-
-func (s *store) createBucket(ctx context.Context) error {
-	if err := s3x.CreateBucketIfNotExists(
-		ctx,
-		s.Client,
-		s.Bucket,
-		s.OnRequest,
-	); err != nil {
-		return err
-	}
-
-	return s3x.EnsureTombstoneLifecycleRule(ctx, s.Client, s.Bucket, s.OnRequest)
 }

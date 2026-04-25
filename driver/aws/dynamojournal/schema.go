@@ -1,8 +1,6 @@
 package dynamojournal
 
 import (
-	"context"
-
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
@@ -53,26 +51,6 @@ var (
 		Value: marshalPositionBefore(0),
 	}
 )
-
-// createTable creates the DynamoDB table if it does not already exist.
-func (s *store) createTable(ctx context.Context) error {
-	return dynamox.CreateTableIfNotExists(
-		ctx,
-		s.Client,
-		s.Table,
-		s.OnRequest,
-		dynamox.KeyAttr{
-			Name:    &journalAttr,
-			Type:    types.ScalarAttributeTypeS,
-			KeyType: types.KeyTypeHash,
-		},
-		dynamox.KeyAttr{
-			Name:    &positionAttr,
-			Type:    types.ScalarAttributeTypeN,
-			KeyType: types.KeyTypeRange,
-		},
-	)
-}
 
 // prepareRequests prepares the DynamoDB API requests used by the journal.
 //
