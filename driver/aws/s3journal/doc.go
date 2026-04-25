@@ -13,5 +13,6 @@
 // automatically, which requires the following additional action:
 //   - s3:CreateBucket
 //
-// [BinaryStore.Provision] can be called to trigger provisioning ahead of time.
+// The store's Provision method can be called to trigger provisioning ahead of
+// time.
 package s3journal

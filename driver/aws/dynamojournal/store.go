@@ -10,12 +10,13 @@ import (
 	"github.com/dogmatiq/persistencekit/journal"
 )
 
-// BinaryStore is an implementation of [journal.BinaryStore] that persists to a
+// store is an implementation of [journal.BinaryStore] that persists to a
 // DynamoDB table.
-type BinaryStore struct {
-	client        *dynamodb.Client
-	table         string
-	onRequest     func(any) []func(*dynamodb.Options)
+type store struct {
+	Client    *dynamodb.Client
+	Table     string
+	OnRequest func(any) []func(*dynamodb.Options)
+
 	provisionOnce xsync.SucceedOnce
 }
 
@@ -25,10 +26,14 @@ func NewBinaryStore(
 	client *dynamodb.Client,
 	table string,
 	options ...Option,
-) *BinaryStore {
-	s := &BinaryStore{
-		client: client,
-		table:  table,
+) journal.BinaryStore {
+	if table == "" {
+		panic("table name must not be empty")
+	}
+
+	s := &store{
+		Client: client,
+		Table:  table,
 	}
 
 	for _, opt := range options {
@@ -39,7 +44,7 @@ func NewBinaryStore(
 }
 
 // Option is a functional option that changes the behavior of [NewBinaryStore].
-type Option func(*BinaryStore)
+type Option func(*store)
 
 // WithRequestHook is an [Option] that configures fn as a pre-request hook.
 //
@@ -51,8 +56,8 @@ type Option func(*BinaryStore)
 // Any functions returned by fn will be applied to the request's options before
 // the request is sent.
 func WithRequestHook(fn func(any) []func(*dynamodb.Options)) Option {
-	return func(s *BinaryStore) {
-		s.onRequest = fn
+	return func(s *store) {
+		s.OnRequest = fn
 	}
 }
 
@@ -63,13 +68,13 @@ func WithRequestHook(fn func(any) []func(*dynamodb.Options)) Option {
 // allows infrastructure to be created ahead of time, for example as part of a
 // deployment pipeline, so that the application itself does not need broad IAM
 // permissions.
-func (s *BinaryStore) Provision(ctx context.Context) error {
+func (s *store) Provision(ctx context.Context) error {
 	return s.provisionOnce.Do(ctx, func(ctx context.Context) error {
 		_, err := dynamox.CreateTableIfNotExists(
 			ctx,
-			s.client,
-			s.table,
-			s.onRequest,
+			s.Client,
+			s.Table,
+			s.OnRequest,
 			dynamox.KeyAttr{
 				Name:    &journalAttr,
 				Type:    types.ScalarAttributeTypeS,
@@ -86,17 +91,17 @@ func (s *BinaryStore) Provision(ctx context.Context) error {
 }
 
 // Open returns the journal with the given name.
-func (s *BinaryStore) Open(ctx context.Context, name string) (journal.BinaryJournal, error) {
+func (s *store) Open(ctx context.Context, name string) (journal.BinaryJournal, error) {
 	if err := s.Provision(ctx); err != nil {
 		return nil, err
 	}
 
 	j := &journ{
-		Client:    s.client,
-		OnRequest: s.onRequest,
+		Client:    s.Client,
+		OnRequest: s.OnRequest,
 	}
 
-	if err := j.init(ctx, s.table, name); err != nil {
+	if err := j.init(ctx, s.Table, name); err != nil {
 		return nil, err
 	}
 

@@ -14,5 +14,6 @@
 // automatically, which requires the following additional action:
 //   - dynamodb:CreateTable
 //
-// [BinaryStore.Provision] can be called to trigger provisioning ahead of time.
+// The store's Provision method can be called to trigger provisioning ahead of
+// time.
 package dynamokv
