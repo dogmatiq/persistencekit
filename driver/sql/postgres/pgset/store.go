@@ -12,6 +12,7 @@ import (
 // BinaryStore is an implementation of [set.BinaryStore] that persists to a
 // PostgreSQL database.
 type BinaryStore struct {
+	// DB is the PostgreSQL database connection.
 	DB *sql.DB
 }
 
@@ -49,7 +50,7 @@ func (s *BinaryStore) getID(ctx context.Context, name string) (uint64, error) {
 			return 0, fmt.Errorf("cannot scan set ID: %w", err)
 		}
 
-		if err := createSchema(ctx, s.DB); err != nil {
+		if err := s.Provision(ctx); err != nil {
 			return 0, fmt.Errorf("cannot create set schema: %w", err)
 		}
 	}

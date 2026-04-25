@@ -8,14 +8,14 @@ import (
 	"github.com/dogmatiq/persistencekit/kv"
 )
 
-// BinaryStore is an implementation of [kv.BinaryStore] that persists to a
-// DynamoDB table.
+// store is an implementation of [kv.BinaryStore] that persists to a DynamoDB
+// table.
 type store struct {
 	Client    *dynamodb.Client
 	Table     string
 	OnRequest func(any) []func(*dynamodb.Options)
 
-	createTableOnce xsync.SucceedOnce
+	provisionOnce xsync.SucceedOnce
 }
 
 // NewBinaryStore returns a new [kv.BinaryStore] that uses the given DynamoDB
@@ -61,7 +61,7 @@ func WithRequestHook(fn func(any) []func(*dynamodb.Options)) Option {
 
 // Open returns the keyspace with the given name.
 func (s *store) Open(ctx context.Context, name string) (kv.BinaryKeyspace, error) {
-	if err := s.createTableOnce.Do(ctx, s.createTable); err != nil {
+	if err := s.Provision(ctx); err != nil {
 		return nil, err
 	}
 

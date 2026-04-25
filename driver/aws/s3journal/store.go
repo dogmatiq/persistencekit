@@ -17,7 +17,7 @@ type store struct {
 	Bucket    string
 	OnRequest func(any) []func(*s3.Options)
 
-	createBucketOnce xsync.SucceedOnce
+	provisionOnce xsync.SucceedOnce
 }
 
 // NewBinaryStore returns a new [journal.BinaryStore] that uses the given
@@ -27,6 +27,10 @@ func NewBinaryStore(
 	bucket string,
 	options ...Option,
 ) journal.BinaryStore {
+	if bucket == "" {
+		panic("bucket name must not be empty")
+	}
+
 	s := &store{
 		Client: client,
 		Bucket: bucket,
@@ -57,13 +61,23 @@ func WithRequestHook(fn func(any) []func(*s3.Options)) Option {
 	}
 }
 
+// Provision creates the S3 bucket used by the store if it does not already
+// exist.
+//
+// The store also creates the bucket on first use if it does not exist.
+// Provision allows infrastructure to be created ahead of time, for example as
+// part of a deployment pipeline, so that the application itself does not need
+// broad IAM permissions.
+func (s *store) Provision(ctx context.Context) error {
+	return s.provisionOnce.Do(ctx, func(ctx context.Context) error {
+		_, err := s3x.CreateBucketIfNotExists(ctx, s.Client, s.Bucket, s.OnRequest)
+		return err
+	})
+}
+
 // Open returns the journal with the given name.
 func (s *store) Open(ctx context.Context, name string) (journal.BinaryJournal, error) {
-	if s.Bucket == "" {
-		panic("bucket name must not be empty")
-	}
-
-	if err := s.createBucketOnce.Do(ctx, s.createBucket); err != nil {
+	if err := s.Provision(ctx); err != nil {
 		return nil, err
 	}
 
@@ -84,13 +98,4 @@ func (s *store) Open(ctx context.Context, name string) (journal.BinaryJournal, e
 	}
 
 	return j, nil
-}
-
-func (s *store) createBucket(ctx context.Context) error {
-	return s3x.CreateBucketIfNotExists(
-		ctx,
-		s.Client,
-		s.Bucket,
-		s.OnRequest,
-	)
 }

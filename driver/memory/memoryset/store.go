@@ -12,6 +12,11 @@ type Store[T comparable] struct {
 	state sync.Map // map[string]*state[T]
 }
 
+// Provision is a no-op; memory stores do not require provisioning.
+func (s *Store[T]) Provision(ctx context.Context) error {
+	return ctx.Err()
+}
+
 // Open returns the set with the given name.
 func (s *Store[T]) Open(ctx context.Context, name string) (set.Set[T], error) {
 	st, ok := s.state.Load(name)
@@ -39,6 +44,11 @@ func identity[K any](k K) K {
 // sets in memory.
 type BinaryStore struct {
 	state sync.Map // map[string]*state[string]
+}
+
+// Provision is a no-op; memory stores do not require provisioning.
+func (s *BinaryStore) Provision(ctx context.Context) error {
+	return ctx.Err()
 }
 
 // Open returns the keyspace with the given name.

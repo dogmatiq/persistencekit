@@ -46,6 +46,10 @@ type interceptedStore[K, V any] struct {
 	Interceptor *Interceptor[K, V]
 }
 
+func (s *interceptedStore[K, V]) Provision(ctx context.Context) error {
+	return s.Next.Provision(ctx)
+}
+
 func (s *interceptedStore[K, V]) Open(ctx context.Context, name string) (Keyspace[K, V], error) {
 	if fn := s.Interceptor.beforeOpen.Load(); fn != nil {
 		if err := fn(name); err != nil {

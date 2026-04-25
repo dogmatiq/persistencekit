@@ -33,6 +33,10 @@ type instrumentedStore struct {
 	Telemetry telemetry.Provider
 }
 
+func (s *instrumentedStore) Provision(ctx context.Context) error {
+	return s.Next.Provision(ctx)
+}
+
 // Open returns the journal with the given name.
 func (s *instrumentedStore) Open(ctx context.Context, name string) (BinaryJournal, error) {
 	telem := s.Telemetry.Recorder(

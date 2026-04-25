@@ -9,4 +9,8 @@ import (
 type Store[K, V any] interface {
 	// Open returns the keyspace with the given name.
 	Open(ctx context.Context, name string) (Keyspace[K, V], error)
+
+	// Provision creates the infrastructure used by the store if it does not
+	// already exist.
+	Provision(ctx context.Context) error
 }

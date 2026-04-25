@@ -17,6 +17,11 @@ type Store[T any] struct {
 // in memory.
 type BinaryStore = Store[[]byte]
 
+// Provision is a no-op; memory stores do not require provisioning.
+func (s *Store[T]) Provision(ctx context.Context) error {
+	return ctx.Err()
+}
+
 // Open returns the journal with the given name.
 func (s *Store[T]) Open(ctx context.Context, name string) (journal.Journal[T], error) {
 	st, ok := s.journals.Load(name)

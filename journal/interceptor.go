@@ -48,6 +48,10 @@ type interceptedStore[T any] struct {
 	Interceptor *Interceptor[T]
 }
 
+func (s *interceptedStore[T]) Provision(ctx context.Context) error {
+	return s.Next.Provision(ctx)
+}
+
 func (s *interceptedStore[T]) Open(ctx context.Context, name string) (Journal[T], error) {
 	if fn := s.Interceptor.beforeOpen.Load(); fn != nil {
 		if err := fn(name); err != nil {

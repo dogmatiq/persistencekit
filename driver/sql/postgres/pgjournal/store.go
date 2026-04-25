@@ -50,7 +50,7 @@ func (s *BinaryStore) getID(ctx context.Context, name string) (uint64, error) {
 			return 0, fmt.Errorf("cannot scan journal ID: %w", err)
 		}
 
-		if err := createSchema(ctx, s.DB); err != nil {
+		if err := s.Provision(ctx); err != nil {
 			return 0, fmt.Errorf("cannot create journal schema: %w", err)
 		}
 	}

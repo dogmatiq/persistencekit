@@ -33,24 +33,33 @@ var (
 	nonExistentAttr = "X"
 )
 
-// createTable creates the DynamoDB table if it does not already exist.
-func (s *store) createTable(ctx context.Context) error {
-	return dynamox.CreateTableIfNotExists(
-		ctx,
-		s.Client,
-		s.Table,
-		s.OnRequest,
-		dynamox.KeyAttr{
-			Name:    &keyspaceAttr,
-			Type:    types.ScalarAttributeTypeS,
-			KeyType: types.KeyTypeHash,
-		},
-		dynamox.KeyAttr{
-			Name:    &keyAttr,
-			Type:    types.ScalarAttributeTypeB,
-			KeyType: types.KeyTypeRange,
-		},
-	)
+// Provision creates the DynamoDB table used by the store if it does not already
+// exist.
+//
+// The store also creates the table on first use if it does not exist. Provision
+// allows infrastructure to be created ahead of time, for example as part of a
+// deployment pipeline, so that the application itself does not need broad IAM
+// permissions.
+func (s *store) Provision(ctx context.Context) error {
+	return s.provisionOnce.Do(ctx, func(ctx context.Context) error {
+		_, err := dynamox.CreateTableIfNotExists(
+			ctx,
+			s.Client,
+			s.Table,
+			s.OnRequest,
+			dynamox.KeyAttr{
+				Name:    &keyspaceAttr,
+				Type:    types.ScalarAttributeTypeS,
+				KeyType: types.KeyTypeHash,
+			},
+			dynamox.KeyAttr{
+				Name:    &keyAttr,
+				Type:    types.ScalarAttributeTypeB,
+				KeyType: types.KeyTypeRange,
+			},
+		)
+		return err
+	})
 }
 
 func (ks *keyspace) prepareRequests(table string) {
