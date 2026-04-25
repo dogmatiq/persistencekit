@@ -11,6 +11,14 @@ The format is based on [Keep a Changelog], and this project adheres to
 [semantic versioning]: https://semver.org/spec/v2.0.0.html
 [bc]: https://github.com/dogmatiq/.github/blob/main/VERSIONING.md#changelogs
 
+## [0.17.0] - 2026-04-25
+
+### Added
+
+- **[BC]** Added `Provision()` method to `journal.Store`, `kv.Store`, and
+  `set.Store` interfaces, allowing callers to trigger infrastructure
+  provisioning ahead of time.
+
 ## [0.16.0] - 2026-04-23
 
 ### Added
@@ -388,6 +396,7 @@ This eliminates the need for duplicating all of the generic algorithms (such as
 [0.15.0]: https://github.com/dogmatiq/persistencekit/releases/tag/v0.15.0
 [0.15.1]: https://github.com/dogmatiq/persistencekit/releases/tag/v0.15.1
 [0.16.0]: https://github.com/dogmatiq/persistencekit/releases/tag/v0.16.0
+[0.17.0]: https://github.com/dogmatiq/persistencekit/releases/tag/v0.17.0
 
 <!-- version template
 ## [0.0.1] - YYYY-MM-DD
