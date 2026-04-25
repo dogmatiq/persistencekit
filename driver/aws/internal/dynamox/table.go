@@ -103,7 +103,7 @@ func createTable(
 	return true, nil
 }
 
-// waitForTable waits for a DynamoDB table to become active.
+// waitForTable blocks until the given DynamoDB table is created.
 func waitForTable(
 	ctx context.Context,
 	client *dynamodb.Client,
