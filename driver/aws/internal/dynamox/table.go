@@ -38,10 +38,11 @@ func CreateTableIfNotExists(
 		},
 	)
 	if errors.As(err, new(*types.ResourceNotFoundException)) {
-		if err := createTable(ctx, client, table, onRequest, key); err != nil {
+		var err error
+		created, err = createTable(ctx, client, table, onRequest, key)
+		if err != nil {
 			return false, err
 		}
-		created = true
 	} else if err != nil {
 		return false, fmt.Errorf("unable to describe DynamoDB table: %w", err)
 	} else if res.Table.TableStatus == types.TableStatusActive {
@@ -55,15 +56,15 @@ func CreateTableIfNotExists(
 	return created, nil
 }
 
-// createTable issues a CreateTable request, ignoring ResourceInUseException
-// (which indicates a concurrent creation).
+// createTable issues a CreateTable request. It returns true if the table was
+// created, or false if it already existed due to a concurrent creation.
 func createTable(
 	ctx context.Context,
 	client *dynamodb.Client,
 	table string,
 	onRequest func(any) []func(*dynamodb.Options),
 	key []KeyAttr,
-) error {
+) (bool, error) {
 	req := &dynamodb.CreateTableInput{
 		TableName:   &table,
 		BillingMode: types.BillingModePayPerRequest,
@@ -93,12 +94,13 @@ func createTable(
 		onRequest,
 		req,
 	); err != nil {
-		if !errors.As(err, new(*types.ResourceInUseException)) {
-			return fmt.Errorf("unable to create DynamoDB table: %w", err)
+		if errors.As(err, new(*types.ResourceInUseException)) {
+			return false, nil
 		}
+		return false, fmt.Errorf("unable to create DynamoDB table: %w", err)
 	}
 
-	return nil
+	return true, nil
 }
 
 // waitForTable waits for a DynamoDB table to become active.
