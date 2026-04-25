@@ -1,9 +1,12 @@
 package dynamokv
 
 import (
+	"context"
+
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
+	"github.com/dogmatiq/persistencekit/driver/aws/internal/dynamox"
 )
 
 var (
@@ -29,6 +32,35 @@ var (
 	// unnecessary data.
 	nonExistentAttr = "X"
 )
+
+// Provision creates the DynamoDB table used by the store if it does not already
+// exist.
+//
+// The store also creates the table on first use if it does not exist. Provision
+// allows infrastructure to be created ahead of time, for example as part of a
+// deployment pipeline, so that the application itself does not need broad IAM
+// permissions.
+func (s *store) Provision(ctx context.Context) error {
+	return s.provisionOnce.Do(ctx, func(ctx context.Context) error {
+		_, err := dynamox.CreateTableIfNotExists(
+			ctx,
+			s.Client,
+			s.Table,
+			s.OnRequest,
+			dynamox.KeyAttr{
+				Name:    &keyspaceAttr,
+				Type:    types.ScalarAttributeTypeS,
+				KeyType: types.KeyTypeHash,
+			},
+			dynamox.KeyAttr{
+				Name:    &keyAttr,
+				Type:    types.ScalarAttributeTypeB,
+				KeyType: types.KeyTypeRange,
+			},
+		)
+		return err
+	})
+}
 
 func (ks *keyspace) prepareRequests(table string) {
 	key := map[string]types.AttributeValue{

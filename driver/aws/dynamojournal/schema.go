@@ -1,6 +1,8 @@
 package dynamojournal
 
 import (
+	"context"
+
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
@@ -51,6 +53,35 @@ var (
 		Value: marshalPositionBefore(0),
 	}
 )
+
+// Provision creates the DynamoDB table used by the store if it does not already
+// exist.
+//
+// The store also creates the table on first use if it does not exist. Provision
+// allows infrastructure to be created ahead of time, for example as part of a
+// deployment pipeline, so that the application itself does not need broad IAM
+// permissions.
+func (s *store) Provision(ctx context.Context) error {
+	return s.provisionOnce.Do(ctx, func(ctx context.Context) error {
+		_, err := dynamox.CreateTableIfNotExists(
+			ctx,
+			s.Client,
+			s.Table,
+			s.OnRequest,
+			dynamox.KeyAttr{
+				Name:    &journalAttr,
+				Type:    types.ScalarAttributeTypeS,
+				KeyType: types.KeyTypeHash,
+			},
+			dynamox.KeyAttr{
+				Name:    &positionAttr,
+				Type:    types.ScalarAttributeTypeN,
+				KeyType: types.KeyTypeRange,
+			},
+		)
+		return err
+	})
+}
 
 // prepareRequests prepares the DynamoDB API requests used by the journal.
 //

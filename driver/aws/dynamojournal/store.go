@@ -4,9 +4,7 @@ import (
 	"context"
 
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
-	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 	"github.com/dogmatiq/enginekit/x/xsync"
-	"github.com/dogmatiq/persistencekit/driver/aws/internal/dynamox"
 	"github.com/dogmatiq/persistencekit/journal"
 )
 
@@ -59,35 +57,6 @@ func WithRequestHook(fn func(any) []func(*dynamodb.Options)) Option {
 	return func(s *store) {
 		s.OnRequest = fn
 	}
-}
-
-// Provision creates the DynamoDB table used by the store if it does not already
-// exist.
-//
-// The store also creates the table on first use if it does not exist. Provision
-// allows infrastructure to be created ahead of time, for example as part of a
-// deployment pipeline, so that the application itself does not need broad IAM
-// permissions.
-func (s *store) Provision(ctx context.Context) error {
-	return s.provisionOnce.Do(ctx, func(ctx context.Context) error {
-		_, err := dynamox.CreateTableIfNotExists(
-			ctx,
-			s.Client,
-			s.Table,
-			s.OnRequest,
-			dynamox.KeyAttr{
-				Name:    &journalAttr,
-				Type:    types.ScalarAttributeTypeS,
-				KeyType: types.KeyTypeHash,
-			},
-			dynamox.KeyAttr{
-				Name:    &positionAttr,
-				Type:    types.ScalarAttributeTypeN,
-				KeyType: types.KeyTypeRange,
-			},
-		)
-		return err
-	})
 }
 
 // Open returns the journal with the given name.
