@@ -12,13 +12,13 @@ import (
 // BinaryStore is an implementation of [journal.BinaryStore] that persists to a
 // PostgreSQL database.
 type BinaryStore struct {
-	db *sql.DB
+	DB *sql.DB
 }
 
 // NewBinaryStore returns a new [journal.BinaryStore] that persists to the given
 // PostgreSQL database.
 func NewBinaryStore(db *sql.DB) *BinaryStore {
-	return &BinaryStore{db: db}
+	return &BinaryStore{DB: db}
 }
 
 // Provision creates the PostgreSQL schema and tables used by the store if they
@@ -29,7 +29,7 @@ func NewBinaryStore(db *sql.DB) *BinaryStore {
 // part of a deployment pipeline, so that the application itself does not need
 // DDL permissions.
 func (s *BinaryStore) Provision(ctx context.Context) error {
-	return createSchema(ctx, s.db)
+	return createSchema(ctx, s.DB)
 }
 
 // Open returns the journal with the given name.
@@ -38,12 +38,12 @@ func (s *BinaryStore) Open(ctx context.Context, name string) (journal.BinaryJour
 	if err != nil {
 		return nil, err
 	}
-	return &journ{s.db, id, name}, nil
+	return &journ{s.DB, id, name}, nil
 }
 
 func (s *BinaryStore) getID(ctx context.Context, name string) (uint64, error) {
 	for {
-		row := s.db.QueryRowContext(
+		row := s.DB.QueryRowContext(
 			ctx,
 			`INSERT INTO persistencekit.journal (
 				name
@@ -66,7 +66,7 @@ func (s *BinaryStore) getID(ctx context.Context, name string) (uint64, error) {
 			return 0, fmt.Errorf("cannot scan journal ID: %w", err)
 		}
 
-		if err := createSchema(ctx, s.db); err != nil {
+		if err := createSchema(ctx, s.DB); err != nil {
 			return 0, fmt.Errorf("cannot create journal schema: %w", err)
 		}
 	}
