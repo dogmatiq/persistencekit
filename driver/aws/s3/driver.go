@@ -33,8 +33,10 @@ type Driver struct {
 //	s3:///<bucket>
 //	s3://<endpoint>/<bucket>
 //
-// Supported query parameters: region, role_arn, insecure. See [awsx.ParseConfig]
-// for details.
+// Supported query parameters:
+//   - region: AWS region (e.g. "us-east-1"); if omitted, resolved from the environment
+//   - role_arn: ARN of an IAM role to assume via STS
+//   - insecure: use HTTP instead of HTTPS for a custom endpoint (requires a host)
 func NewDriver(u *url.URL) (*Driver, error) {
 	bucket := strings.TrimPrefix(u.Path, "/")
 	if bucket == "" {

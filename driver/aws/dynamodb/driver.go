@@ -33,8 +33,10 @@ type Driver struct {
 //	dynamodb:///<table-prefix>
 //	dynamodb://<host>:<port>/<table-prefix>
 //
-// Supported query parameters: region, role_arn, insecure. See [awsx.ParseConfig]
-// for details.
+// Supported query parameters:
+//   - region: AWS region (e.g. "us-east-1"); if omitted, resolved from the environment
+//   - role_arn: ARN of an IAM role to assume via STS
+//   - insecure: use HTTP instead of HTTPS for a custom endpoint (requires a host)
 func NewDriver(u *url.URL) (*Driver, error) {
 	tablePrefix := strings.TrimPrefix(u.Path, "/")
 	if tablePrefix == "" {

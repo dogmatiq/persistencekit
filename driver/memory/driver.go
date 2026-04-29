@@ -18,9 +18,9 @@ import (
 var silos sync.Map
 
 type silo struct {
-	KV      memorykv.BinaryStore
-	Journal memoryjournal.BinaryStore
-	Set     memoryset.BinaryStore
+	kv      memorykv.BinaryStore
+	journal memoryjournal.BinaryStore
+	set     memoryset.BinaryStore
 }
 
 // Driver is a persistence driver backed by a named silo of in-memory stores.
@@ -49,17 +49,17 @@ func NewDriver(u *url.URL) (*Driver, error) {
 
 // JournalStore returns the silo's in-memory journal store.
 func (d *Driver) JournalStore(context.Context) (journal.BinaryStore, error) {
-	return &d.load().Journal, nil
+	return &d.load().journal, nil
 }
 
 // KVStore returns the silo's in-memory key/value store.
 func (d *Driver) KVStore(context.Context) (kv.BinaryStore, error) {
-	return &d.load().KV, nil
+	return &d.load().kv, nil
 }
 
 // SetStore returns the silo's in-memory set store.
 func (d *Driver) SetStore(context.Context) (set.BinaryStore, error) {
-	return &d.load().Set, nil
+	return &d.load().set, nil
 }
 
 // Close is a no-op. The silo's state persists for the lifetime of the process.
