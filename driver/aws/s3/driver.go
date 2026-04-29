@@ -23,6 +23,14 @@ type Driver struct {
 	client *awss3.Client
 }
 
+// New returns a [Driver] that uses the given S3 client and bucket.
+func New(client *awss3.Client, bucket string) *Driver {
+	return &Driver{
+		client: client,
+		bucket: bucket,
+	}
+}
+
 // ParseURL returns a function that opens a [Driver] configured by the given
 // s3:// URL string.
 //

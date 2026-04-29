@@ -13,8 +13,9 @@ import (
 	"github.com/testcontainers/testcontainers-go/modules/localstack"
 )
 
-// NewTestClient returns a new S3 client for use in a test.
-func NewTestClient(t testing.TB) *s3.Client {
+// NewTestClient returns a new S3 client for use in a test. It also returns the
+// endpoint as a host:port string.
+func NewTestClient(t testing.TB) (*s3.Client, string) {
 	container, err := localstack.Run(
 		t.Context(),
 		"localstack/localstack:4",
@@ -40,7 +41,8 @@ func NewTestClient(t testing.TB) *s3.Client {
 		t.Fatal(err)
 	}
 
-	endpoint := fmt.Sprintf("http://%s:%s", host, mappedPort.Port())
+	hostPort := fmt.Sprintf("%s:%s", host, mappedPort.Port())
+	endpoint := fmt.Sprintf("http://%s", hostPort)
 
 	cfg, err := config.LoadDefaultConfig(
 		context.Background(),
@@ -68,5 +70,5 @@ func NewTestClient(t testing.TB) *s3.Client {
 			opts.BaseEndpoint = aws.String(endpoint)
 			opts.UsePathStyle = true
 		},
-	)
+	), hostPort
 }

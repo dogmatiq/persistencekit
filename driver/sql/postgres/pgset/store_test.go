@@ -9,7 +9,7 @@ import (
 )
 
 func TestStore(t *testing.T) {
-	db := pgtest.Setup(t)
+	db, _ := pgtest.Setup(t)
 	set.RunTests(
 		t,
 		&BinaryStore{
@@ -19,7 +19,7 @@ func TestStore(t *testing.T) {
 }
 
 func BenchmarkStore(b *testing.B) {
-	db := pgtest.Setup(b)
+	db, _ := pgtest.Setup(b)
 	set.RunBenchmarks(
 		b,
 		&BinaryStore{

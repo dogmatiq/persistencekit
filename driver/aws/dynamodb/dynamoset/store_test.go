@@ -27,7 +27,7 @@ func BenchmarkStore(b *testing.B) {
 }
 
 func setup(t testing.TB) (*dynamodb.Client, string) {
-	client := dynamox.NewTestClient(t)
+	client, _ := dynamox.NewTestClient(t)
 	table := xtesting.UniqueName("table")
 
 	t.Cleanup(func() {

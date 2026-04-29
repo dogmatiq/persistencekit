@@ -23,6 +23,14 @@ type Driver struct {
 	client      *awsdynamodb.Client
 }
 
+// New returns a [Driver] that uses the given DynamoDB client and table prefix.
+func New(client *awsdynamodb.Client, tablePrefix string) *Driver {
+	return &Driver{
+		client:      client,
+		tablePrefix: tablePrefix,
+	}
+}
+
 // ParseURL returns a function that opens a [Driver] configured by the given
 // dynamodb:// URL string.
 //

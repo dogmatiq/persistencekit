@@ -11,8 +11,9 @@ import (
 )
 
 // Setup creates and returns a new PostgreSQL database connection for use in a
-// test. The database is automatically cleaned up when the test ends.
-func Setup(t testing.TB) *sql.DB {
+// test. It also returns the DSN used to connect. The database is automatically
+// cleaned up when the test ends.
+func Setup(t testing.TB) (*sql.DB, string) {
 	username := "persistencekit"
 	password := uuid.NewString()
 
@@ -50,5 +51,5 @@ func Setup(t testing.TB) *sql.DB {
 		}
 	})
 
-	return db
+	return db, dsn
 }

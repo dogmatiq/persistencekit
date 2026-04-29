@@ -27,7 +27,7 @@ func BenchmarkStore(b *testing.B) {
 }
 
 func setup(t testing.TB) (*s3.Client, string) {
-	client := s3x.NewTestClient(t)
+	client, _ := s3x.NewTestClient(t)
 	bucket := xtesting.UniqueName("bucket")
 
 	t.Cleanup(func() {
