@@ -5,7 +5,7 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/dogmatiq/persistencekit/driver/aws/internal/s3x"
-	. "github.com/dogmatiq/persistencekit/driver/aws/s3journal"
+	. "github.com/dogmatiq/persistencekit/driver/aws/s3/s3journal"
 	"github.com/dogmatiq/persistencekit/internal/x/xtesting"
 	"github.com/dogmatiq/persistencekit/journal"
 )

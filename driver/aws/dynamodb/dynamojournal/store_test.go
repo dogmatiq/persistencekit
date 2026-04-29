@@ -4,7 +4,7 @@ import (
 	"testing"
 
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
-	. "github.com/dogmatiq/persistencekit/driver/aws/dynamojournal"
+	. "github.com/dogmatiq/persistencekit/driver/aws/dynamodb/dynamojournal"
 	"github.com/dogmatiq/persistencekit/driver/aws/internal/dynamox"
 	"github.com/dogmatiq/persistencekit/internal/x/xtesting"
 	"github.com/dogmatiq/persistencekit/journal"
