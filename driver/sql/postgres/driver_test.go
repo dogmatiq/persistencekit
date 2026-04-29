@@ -52,4 +52,3 @@ func TestParseURL(t *testing.T) {
 		&pgset.BinaryStore{DB: db},
 	)
 }
-}
