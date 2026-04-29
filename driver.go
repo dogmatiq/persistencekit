@@ -17,19 +17,20 @@ import (
 // Driver provides access to persistence stores backed by a specific backend.
 type Driver interface {
 	// JournalStore returns the journal store provided by this driver.
-	JournalStore(ctx context.Context) (journal.BinaryStore, error)
+	JournalStore() journal.BinaryStore
 
 	// KVStore returns the key/value store provided by this driver.
-	KVStore(ctx context.Context) (kv.BinaryStore, error)
+	KVStore() kv.BinaryStore
 
 	// SetStore returns the set store provided by this driver.
-	SetStore(ctx context.Context) (set.BinaryStore, error)
+	SetStore() set.BinaryStore
 
 	// Close closes the driver, releasing any resources.
 	Close() error
 }
 
-// NewDriver returns a new [Driver] for the backend identified by the given URL.
+// ParseURL parses a driver URL string and returns a function that opens a
+// [Driver] for the backend identified by the URL scheme.
 //
 // The URL scheme selects the backend driver:
 //
@@ -69,24 +70,45 @@ type Driver interface {
 //   - region: AWS region (e.g. "us-east-1"); if omitted, resolved from the environment
 //   - role_arn: ARN of an IAM role to assume via STS
 //   - insecure: use HTTP instead of HTTPS for a custom endpoint (requires a host)
-func NewDriver(u string) (Driver, error) {
+func ParseURL(u string) (func(context.Context) (Driver, error), error) {
 	parsed, err := url.Parse(u)
 	if err != nil {
 		return nil, fmt.Errorf("cannot parse persistence driver URL: %w", err)
 	}
+	return FromURL(parsed)
+}
 
-	switch parsed.Scheme {
+// FromURL returns a function that opens a [Driver] for the backend identified
+// by the URL scheme. See [ParseURL] for supported URL formats.
+func FromURL(u *url.URL) (func(context.Context) (Driver, error), error) {
+	switch u.Scheme {
 	case "memory":
-		return memory.NewDriver(parsed)
+		return fromURL(memory.FromURL, u)
 	case "postgres", "postgresql":
-		return postgres.NewDriver(parsed)
+		return fromURL(postgres.FromURL, u)
 	case "dynamodb":
-		return dynamodb.NewDriver(parsed)
+		return fromURL(dynamodb.FromURL, u)
 	case "s3":
-		return s3.NewDriver(parsed)
+		return fromURL(s3.FromURL, u)
 	case "":
 		return nil, fmt.Errorf("persistence driver URL has no scheme: %q", u)
 	default:
-		return nil, fmt.Errorf("unsupported persistence driver scheme %q", parsed.Scheme)
+		return nil, fmt.Errorf("unsupported persistence driver scheme %q", u.Scheme)
 	}
+}
+
+// fromURL adapts a per-driver [FromURL] function to return the [Driver]
+// interface.
+func fromURL[T Driver](
+	fromURL func(*url.URL) (func(context.Context) (T, error), error),
+	u *url.URL,
+) (func(context.Context) (Driver, error), error) {
+	open, err := fromURL(u)
+	if err != nil {
+		return nil, err
+	}
+
+	return func(ctx context.Context) (Driver, error) {
+		return open(ctx)
+	}, nil
 }
