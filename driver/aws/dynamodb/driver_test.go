@@ -52,12 +52,12 @@ func TestParseURL(t *testing.T) {
 	t.Setenv("AWS_ACCESS_KEY_ID", "id")
 	t.Setenv("AWS_SECRET_ACCESS_KEY", "secret")
 
-	open, err := dynamodb.ParseURL("dynamodb://" + endpoint + "/" + tablePrefix + "?region=us-east-1&insecure")
+	cfg, err := dynamodb.ParseURL(t.Context(), "dynamodb://"+endpoint+"/"+tablePrefix+"?region=us-east-1&insecure")
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	d, err := open(t.Context())
+	d, err := cfg.NewDriver(t.Context())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -90,12 +90,12 @@ func TestFromURL(t *testing.T) {
 		t.Setenv("AWS_SECRET_ACCESS_KEY", "secret")
 
 		u := &url.URL{Scheme: "dynamodb", Host: endpoint, Path: "/" + tablePrefix, RawQuery: "region=us-east-1&insecure"}
-		open, err := dynamodb.FromURL(u)
+		cfg, err := dynamodb.FromURL(t.Context(), u)
 		if err != nil {
 			t.Fatal(err)
 		}
 
-		d, err := open(t.Context())
+		d, err := cfg.NewDriver(t.Context())
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -124,7 +124,7 @@ func TestFromURL(t *testing.T) {
 		}
 		for _, tc := range cases {
 			t.Run(tc.Name, func(t *testing.T) {
-				_, err := dynamodb.FromURL(tc.URL)
+				_, err := dynamodb.FromURL(t.Context(), tc.URL)
 				if err == nil {
 					t.Fatal("expected an error")
 				}

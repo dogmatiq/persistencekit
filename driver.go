@@ -14,7 +14,7 @@ import (
 	"github.com/dogmatiq/persistencekit/set"
 )
 
-// Driver provides access to persistence stores backed by a specific backend.
+// Driver provides access to the persistence stores of a specific driver.
 type Driver interface {
 	// JournalStore returns the journal store provided by this driver.
 	JournalStore() journal.BinaryStore
@@ -29,8 +29,14 @@ type Driver interface {
 	Close() error
 }
 
-// ParseURL parses a driver URL string and returns a function that opens a
-// [Driver] for the backend identified by the URL scheme.
+// Config describes the connection parameters for a persistence driver.
+type Config interface {
+	// NewDriver creates a new [Driver] using this configuration.
+	NewDriver(context.Context) (Driver, error)
+}
+
+// ParseURL parses a driver URL string and returns a [Config] for the backend
+// identified by the URL scheme.
 //
 // The URL scheme selects the backend driver:
 //
@@ -70,26 +76,26 @@ type Driver interface {
 //   - region: AWS region (e.g. "us-east-1"); if omitted, resolved from the environment
 //   - role_arn: ARN of an IAM role to assume via STS
 //   - insecure: use HTTP instead of HTTPS for a custom endpoint (requires a host)
-func ParseURL(u string) (func(context.Context) (Driver, error), error) {
+func ParseURL(ctx context.Context, u string) (Config, error) {
 	parsed, err := url.Parse(u)
 	if err != nil {
 		return nil, fmt.Errorf("cannot parse persistence driver URL: %w", err)
 	}
-	return FromURL(parsed)
+	return FromURL(ctx, parsed)
 }
 
-// FromURL returns a function that opens a [Driver] for the backend identified
-// by the URL scheme. See [ParseURL] for supported URL formats.
-func FromURL(u *url.URL) (func(context.Context) (Driver, error), error) {
+// FromURL returns a [Config] for the backend identified by the URL scheme. See
+// [ParseURL] for supported URL formats.
+func FromURL(ctx context.Context, u *url.URL) (Config, error) {
 	switch u.Scheme {
 	case "memory":
-		return fromURL(memory.FromURL, u)
+		return asInterface(memory.FromURL(ctx, u))
 	case "postgres", "postgresql":
-		return fromURL(postgres.FromURL, u)
+		return asInterface(postgres.FromURL(ctx, u))
 	case "dynamodb":
-		return fromURL(dynamodb.FromURL, u)
+		return asInterface(dynamodb.FromURL(ctx, u))
 	case "s3":
-		return fromURL(s3.FromURL, u)
+		return asInterface(s3.FromURL(ctx, u))
 	case "":
 		return nil, fmt.Errorf("persistence driver URL has no scheme: %q", u)
 	default:
@@ -97,18 +103,27 @@ func FromURL(u *url.URL) (func(context.Context) (Driver, error), error) {
 	}
 }
 
-// fromURL adapts a per-driver [FromURL] function to return the [Driver]
+// config is the constraint satisfied by per-driver *Config types whose
+// NewDriver method returns a concrete *Driver rather than the [Driver]
 // interface.
-func fromURL[T Driver](
-	fromURL func(*url.URL) (func(context.Context) (T, error), error),
-	u *url.URL,
-) (func(context.Context) (Driver, error), error) {
-	open, err := fromURL(u)
+type config[T Driver] interface {
+	NewDriver(context.Context) (T, error)
+}
+
+// asInterface adapts a driver-specific [config] to the generic [Config]
+// interface.
+func asInterface[T Driver](cfg config[T], err error) (Config, error) {
 	if err != nil {
 		return nil, err
 	}
 
-	return func(ctx context.Context) (Driver, error) {
-		return open(ctx)
-	}, nil
+	return &configAdapter[T]{cfg}, nil
+}
+
+type configAdapter[T Driver] struct {
+	cfg config[T]
+}
+
+func (a *configAdapter[T]) NewDriver(ctx context.Context) (Driver, error) {
+	return a.cfg.NewDriver(ctx)
 }

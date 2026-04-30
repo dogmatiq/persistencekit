@@ -32,12 +32,12 @@ func TestNew(t *testing.T) {
 func TestParseURL(t *testing.T) {
 	db, dsn := pgtest.Setup(t)
 
-	open, err := postgres.ParseURL(dsn)
+	cfg, err := postgres.ParseURL(t.Context(), dsn)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	d, err := open(t.Context())
+	d, err := cfg.NewDriver(t.Context())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -63,12 +63,12 @@ func TestFromURL(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		open, err := postgres.FromURL(parsed)
+		cfg, err := postgres.FromURL(t.Context(), parsed)
 		if err != nil {
 			t.Fatal(err)
 		}
 
-		d, err := open(t.Context())
+		d, err := cfg.NewDriver(t.Context())
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -95,7 +95,7 @@ func TestFromURL(t *testing.T) {
 		}
 		for _, tc := range cases {
 			t.Run(tc.Name, func(t *testing.T) {
-				_, err := postgres.FromURL(tc.URL)
+				_, err := postgres.FromURL(t.Context(), tc.URL)
 				if err == nil {
 					t.Fatal("expected an error")
 				}

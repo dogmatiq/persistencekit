@@ -34,12 +34,12 @@ func TestParseURL(t *testing.T) {
 		ref.Close()
 	})
 
-	open, err := ParseURL("memory:///test-parse-url")
+	cfg, err := ParseURL(t.Context(), "memory:///test-parse-url")
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	d, err := open(t.Context())
+	d, err := cfg.NewDriver(t.Context())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -64,12 +64,12 @@ func TestFromURL(t *testing.T) {
 		})
 
 		u := &url.URL{Scheme: "memory", Path: "/test-from-url"}
-		open, err := FromURL(u)
+		cfg, err := FromURL(t.Context(), u)
 		if err != nil {
 			t.Fatal(err)
 		}
 
-		d, err := open(t.Context())
+		d, err := cfg.NewDriver(t.Context())
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -98,7 +98,7 @@ func TestFromURL(t *testing.T) {
 		}
 		for _, tc := range cases {
 			t.Run(tc.Name, func(t *testing.T) {
-				_, err := FromURL(tc.URL)
+				_, err := FromURL(t.Context(), tc.URL)
 				if err == nil {
 					t.Fatal("expected an error")
 				}

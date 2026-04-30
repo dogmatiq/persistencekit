@@ -34,23 +34,34 @@ func New(name string) *Driver {
 	return &Driver{silo: v.(*silo)}
 }
 
-// ParseURL returns a function that opens a [Driver] configured by the given
-// memory:// URL string.
+// Config holds the configuration for an in-memory persistence driver.
+type Config struct {
+	// Silo is the name of the shared in-memory silo. Drivers with the same
+	// silo name share state for the lifetime of the process.
+	Silo string
+}
+
+// NewDriver returns a [Driver] backed by the configured silo.
+func (c *Config) NewDriver(context.Context) (*Driver, error) {
+	return New(c.Silo), nil
+}
+
+// ParseURL returns a [*Config] for the given memory:// URL string.
 //
 // URL format:
 //
 //	memory:///<silo>
-func ParseURL(u string) (func(context.Context) (*Driver, error), error) {
+func ParseURL(ctx context.Context, u string) (*Config, error) {
 	parsed, err := url.Parse(u)
 	if err != nil {
 		return nil, fmt.Errorf("invalid memory URL: %w", err)
 	}
-	return FromURL(parsed)
+	return FromURL(ctx, parsed)
 }
 
-// FromURL returns a function that opens a [Driver] configured by the given
-// memory:// [*url.URL]. See [ParseURL] for the URL format.
-func FromURL(u *url.URL) (func(context.Context) (*Driver, error), error) {
+// FromURL returns a [*Config] for the given memory:// [*url.URL]. See
+// [ParseURL] for the URL format.
+func FromURL(_ context.Context, u *url.URL) (*Config, error) {
 	if u.Scheme != "memory" {
 		return nil, fmt.Errorf("invalid memory URL: unexpected scheme %q", u.Scheme)
 	}
@@ -68,9 +79,7 @@ func FromURL(u *url.URL) (func(context.Context) (*Driver, error), error) {
 		return nil, fmt.Errorf("invalid memory URL: silo name is required in the URL path: memory:///<silo>")
 	}
 
-	return func(context.Context) (*Driver, error) {
-		return New(name), nil
-	}, nil
+	return &Config{Silo: name}, nil
 }
 
 // JournalStore returns the silo's in-memory journal store.

@@ -28,8 +28,27 @@ func New(db *sql.DB) *Driver {
 	return &Driver{db: db}
 }
 
-// ParseURL returns a function that opens a [Driver] configured by the given
-// postgres:// or postgresql:// URL string.
+// Config holds the configuration for a PostgreSQL persistence driver.
+type Config struct {
+	// Pool is the pgxpool configuration used to establish connections.
+	Pool *pgxpool.Config
+}
+
+// NewDriver creates a [Driver] backed by a new connection pool.
+func (c *Config) NewDriver(ctx context.Context) (*Driver, error) {
+	pool, err := pgxpool.NewWithConfig(ctx, c.Pool)
+	if err != nil {
+		return nil, err
+	}
+
+	return &Driver{
+		pool: pool,
+		db:   stdlib.OpenDBFromPool(pool),
+	}, nil
+}
+
+// ParseURL returns a [*Config] for the given postgres:// or postgresql:// URL
+// string.
 //
 // URL format:
 //
@@ -37,17 +56,17 @@ func New(db *sql.DB) *Driver {
 //
 // Pool and connection settings can be configured via URL parameters. See
 // [pgxpool.ParseConfig] for the full list of supported parameters.
-func ParseURL(u string) (func(context.Context) (*Driver, error), error) {
+func ParseURL(ctx context.Context, u string) (*Config, error) {
 	parsed, err := url.Parse(u)
 	if err != nil {
 		return nil, fmt.Errorf("invalid postgres URL: %w", err)
 	}
-	return FromURL(parsed)
+	return FromURL(ctx, parsed)
 }
 
-// FromURL returns a function that opens a [Driver] configured by the given
-// postgres:// or postgresql:// [*url.URL]. See [ParseURL] for the URL format.
-func FromURL(u *url.URL) (func(context.Context) (*Driver, error), error) {
+// FromURL returns a [*Config] for the given postgres:// or postgresql://
+// [*url.URL]. See [ParseURL] for the URL format.
+func FromURL(_ context.Context, u *url.URL) (*Config, error) {
 	if u.Scheme != "postgres" && u.Scheme != "postgresql" {
 		return nil, fmt.Errorf("invalid postgres URL: unexpected scheme %q", u.Scheme)
 	}
@@ -57,17 +76,7 @@ func FromURL(u *url.URL) (func(context.Context) (*Driver, error), error) {
 		return nil, fmt.Errorf("invalid postgres URL: %w", err)
 	}
 
-	return func(ctx context.Context) (*Driver, error) {
-		pool, err := pgxpool.NewWithConfig(ctx, cfg)
-		if err != nil {
-			return nil, err
-		}
-
-		return &Driver{
-			pool: pool,
-			db:   stdlib.OpenDBFromPool(pool),
-		}, nil
-	}, nil
+	return &Config{Pool: cfg}, nil
 }
 
 // JournalStore returns a journal store backed by PostgreSQL.

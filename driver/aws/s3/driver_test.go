@@ -40,12 +40,12 @@ func TestParseURL(t *testing.T) {
 	t.Setenv("AWS_ACCESS_KEY_ID", "test")
 	t.Setenv("AWS_SECRET_ACCESS_KEY", "test")
 
-	open, err := s3.ParseURL("s3://" + endpoint + "/" + bucket + "?region=us-east-1&insecure")
+	cfg, err := s3.ParseURL(t.Context(), "s3://"+endpoint+"/"+bucket+"?region=us-east-1&insecure")
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	d, err := open(t.Context())
+	d, err := cfg.NewDriver(t.Context())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -72,12 +72,12 @@ func TestFromURL(t *testing.T) {
 		t.Setenv("AWS_SECRET_ACCESS_KEY", "test")
 
 		u := &url.URL{Scheme: "s3", Host: endpoint, Path: "/" + bucket, RawQuery: "region=us-east-1&insecure"}
-		open, err := s3.FromURL(u)
+		cfg, err := s3.FromURL(t.Context(), u)
 		if err != nil {
 			t.Fatal(err)
 		}
 
-		d, err := open(t.Context())
+		d, err := cfg.NewDriver(t.Context())
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -107,7 +107,7 @@ func TestFromURL(t *testing.T) {
 		}
 		for _, tc := range cases {
 			t.Run(tc.Name, func(t *testing.T) {
-				_, err := s3.FromURL(tc.URL)
+				_, err := s3.FromURL(t.Context(), tc.URL)
 				if err == nil {
 					t.Fatal("expected an error")
 				}

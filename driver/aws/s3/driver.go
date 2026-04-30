@@ -7,6 +7,7 @@ import (
 	"net/url"
 	"strings"
 
+	"github.com/aws/aws-sdk-go-v2/aws"
 	awss3 "github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/dogmatiq/persistencekit/driver/aws/internal/awsx"
 	"github.com/dogmatiq/persistencekit/driver/aws/s3/s3journal"
@@ -31,8 +32,27 @@ func New(client *awss3.Client, bucket string) *Driver {
 	}
 }
 
-// ParseURL returns a function that opens a [Driver] configured by the given
-// s3:// URL string.
+// Config holds the configuration for an S3 persistence driver.
+type Config struct {
+	// AWS is the AWS configuration used to create the S3 client.
+	AWS aws.Config
+
+	// ClientOptions are additional options applied to the S3 client.
+	ClientOptions []func(*awss3.Options)
+
+	// Bucket is the S3 bucket name.
+	Bucket string
+}
+
+// NewDriver creates a [Driver] using the configured AWS settings.
+func (c *Config) NewDriver(context.Context) (*Driver, error) {
+	return &Driver{
+		bucket: c.Bucket,
+		client: awss3.NewFromConfig(c.AWS, c.ClientOptions...),
+	}, nil
+}
+
+// ParseURL returns a [*Config] for the given s3:// URL string.
 //
 // URL format:
 //
@@ -43,17 +63,17 @@ func New(client *awss3.Client, bucket string) *Driver {
 //   - region: AWS region (e.g. "us-east-1"); if omitted, resolved from the environment
 //   - role_arn: ARN of an IAM role to assume via STS
 //   - insecure: use HTTP instead of HTTPS for a custom endpoint (requires a host)
-func ParseURL(u string) (func(context.Context) (*Driver, error), error) {
+func ParseURL(ctx context.Context, u string) (*Config, error) {
 	parsed, err := url.Parse(u)
 	if err != nil {
 		return nil, fmt.Errorf("invalid s3 URL: %w", err)
 	}
-	return FromURL(parsed)
+	return FromURL(ctx, parsed)
 }
 
-// FromURL returns a function that opens a [Driver] configured by the given
-// s3:// [*url.URL]. See [ParseURL] for the URL format.
-func FromURL(u *url.URL) (func(context.Context) (*Driver, error), error) {
+// FromURL returns a [*Config] for the given s3:// [*url.URL]. See [ParseURL]
+// for the URL format.
+func FromURL(ctx context.Context, u *url.URL) (*Config, error) {
 	if u.Scheme != "s3" {
 		return nil, fmt.Errorf("invalid s3 URL: unexpected scheme %q", u.Scheme)
 	}
@@ -68,27 +88,25 @@ func FromURL(u *url.URL) (func(context.Context) (*Driver, error), error) {
 
 	usePathStyle := u.Host != ""
 
-	loadConfig, err := awsx.ParseConfig(u)
+	cfg, err := awsx.LoadConfig(ctx, u)
 	if err != nil {
 		return nil, err
 	}
 
-	return func(ctx context.Context) (*Driver, error) {
-		cfg, err := loadConfig(ctx)
-		if err != nil {
-			return nil, err
-		}
-
-		client := awss3.NewFromConfig(cfg, func(opts *awss3.Options) {
-			if usePathStyle {
+	var clientOpts []func(*awss3.Options)
+	if usePathStyle {
+		clientOpts = append(
+			clientOpts,
+			func(opts *awss3.Options) {
 				opts.UsePathStyle = true
-			}
-		})
+			},
+		)
+	}
 
-		return &Driver{
-			bucket: bucket,
-			client: client,
-		}, nil
+	return &Config{
+		AWS:           cfg,
+		ClientOptions: clientOpts,
+		Bucket:        bucket,
 	}, nil
 }
 
