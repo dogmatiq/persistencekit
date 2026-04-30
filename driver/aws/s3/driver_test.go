@@ -1,9 +1,9 @@
 package s3_test
 
 import (
+	"net/url"
 	"testing"
 
-	awss3 "github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/dogmatiq/persistencekit/driver/aws/internal/s3x"
 	"github.com/dogmatiq/persistencekit/driver/aws/s3"
 	"github.com/dogmatiq/persistencekit/driver/aws/s3/s3journal"
@@ -16,7 +16,7 @@ import (
 func TestNew(t *testing.T) {
 	client, _ := s3x.NewTestClient(t)
 	bucket := xtesting.UniqueName("new")
-	cleanupBucket(t, client, bucket)
+	s3x.CleanupBucket(t, client, bucket)
 
 	d := s3.New(client, bucket)
 	t.Cleanup(func() {
@@ -35,7 +35,7 @@ func TestNew(t *testing.T) {
 func TestParseURL(t *testing.T) {
 	client, endpoint := s3x.NewTestClient(t)
 	bucket := xtesting.UniqueName("url")
-	cleanupBucket(t, client, bucket)
+	s3x.CleanupBucket(t, client, bucket)
 
 	t.Setenv("AWS_ACCESS_KEY_ID", "test")
 	t.Setenv("AWS_SECRET_ACCESS_KEY", "test")
@@ -62,11 +62,56 @@ func TestParseURL(t *testing.T) {
 	)
 }
 
-func cleanupBucket(t testing.TB, client *awss3.Client, bucket string) {
-	t.Cleanup(func() {
-		ctx := xtesting.ContextForCleanup(t)
-		if err := s3x.DeleteBucketIfExists(ctx, client, bucket, nil); err != nil {
-			t.Error(err)
+func TestFromURL(t *testing.T) {
+	t.Run("it returns a working driver", func(t *testing.T) {
+		client, endpoint := s3x.NewTestClient(t)
+		bucket := xtesting.UniqueName("fromurl")
+		s3x.CleanupBucket(t, client, bucket)
+
+		t.Setenv("AWS_ACCESS_KEY_ID", "test")
+		t.Setenv("AWS_SECRET_ACCESS_KEY", "test")
+
+		u := &url.URL{Scheme: "s3", Host: endpoint, Path: "/" + bucket, RawQuery: "region=us-east-1&insecure"}
+		open, err := s3.FromURL(u)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		d, err := open(t.Context())
+		if err != nil {
+			t.Fatal(err)
+		}
+		t.Cleanup(func() {
+			d.Close()
+		})
+
+		drivertest.RunTests(
+			t,
+			d,
+			s3journal.NewBinaryStore(client, bucket),
+			s3kv.NewBinaryStore(client, bucket),
+			s3set.NewBinaryStore(client, bucket),
+		)
+	})
+
+	t.Run("when the URL is invalid", func(t *testing.T) {
+		cases := []struct {
+			Name string
+			URL  *url.URL
+		}{
+			{"wrong scheme", &url.URL{Scheme: "other", Path: "/bucket"}},
+			{"empty bucket", &url.URL{Scheme: "s3"}},
+			{"bucket with slash", &url.URL{Scheme: "s3", Path: "/bucket/subpath"}},
+			{"insecure without host", &url.URL{Scheme: "s3", Path: "/bucket", RawQuery: "insecure"}},
+			{"unknown parameter", &url.URL{Scheme: "s3", Path: "/bucket", RawQuery: "unknown=value"}},
+		}
+		for _, tc := range cases {
+			t.Run(tc.Name, func(t *testing.T) {
+				_, err := s3.FromURL(tc.URL)
+				if err == nil {
+					t.Fatal("expected an error")
+				}
+			})
 		}
 	})
 }

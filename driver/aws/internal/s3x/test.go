@@ -72,3 +72,17 @@ func NewTestClient(t testing.TB) (*s3.Client, string) {
 		},
 	), hostPort
 }
+
+// CleanupBucket registers a t.Cleanup that deletes the given buckets and all
+// of their objects at the end of the test.
+func CleanupBucket(t testing.TB, client *s3.Client, buckets ...string) {
+	t.Helper()
+	t.Cleanup(func() {
+		ctx := xtesting.ContextForCleanup(t)
+		for _, bucket := range buckets {
+			if err := DeleteBucketIfExists(ctx, client, bucket, nil); err != nil {
+				t.Error(err)
+			}
+		}
+	})
+}

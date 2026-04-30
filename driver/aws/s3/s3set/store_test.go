@@ -29,17 +29,6 @@ func BenchmarkStore(b *testing.B) {
 func setup(t testing.TB) (*s3.Client, string) {
 	client, _ := s3x.NewTestClient(t)
 	bucket := xtesting.UniqueName("bucket")
-
-	t.Cleanup(func() {
-		if err := s3x.DeleteBucketIfExists(
-			xtesting.ContextForCleanup(t),
-			client,
-			bucket,
-			nil,
-		); err != nil {
-			t.Error(err)
-		}
-	})
-
+	s3x.CleanupBucket(t, client, bucket)
 	return client, bucket
 }

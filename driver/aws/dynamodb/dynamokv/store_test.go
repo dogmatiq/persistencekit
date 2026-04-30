@@ -29,17 +29,6 @@ func BenchmarkStore(b *testing.B) {
 func setup(t testing.TB) (*dynamodb.Client, string) {
 	client, _ := dynamox.NewTestClient(t)
 	table := xtesting.UniqueName("table")
-
-	t.Cleanup(func() {
-		if err := dynamox.DeleteTableIfExists(
-			xtesting.ContextForCleanup(t),
-			client,
-			table,
-			nil,
-		); err != nil {
-			t.Error(err)
-		}
-	})
-
+	dynamox.CleanupTable(t, client, table)
 	return client, table
 }

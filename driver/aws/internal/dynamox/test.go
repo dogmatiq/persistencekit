@@ -70,3 +70,17 @@ func NewTestClient(t testing.TB) (*dynamodb.Client, string) {
 		},
 	), endpoint
 }
+
+// CleanupTable registers a t.Cleanup that deletes the given tables at the end
+// of the test.
+func CleanupTable(t testing.TB, client *dynamodb.Client, tables ...string) {
+	t.Helper()
+	t.Cleanup(func() {
+		ctx := xtesting.ContextForCleanup(t)
+		for _, table := range tables {
+			if err := DeleteTableIfExists(ctx, client, table, nil); err != nil {
+				t.Error(err)
+			}
+		}
+	})
+}
