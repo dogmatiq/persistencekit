@@ -1,6 +1,7 @@
 package persistencekit_test
 
 import (
+	"strings"
 	"testing"
 
 	. "github.com/dogmatiq/persistencekit"
@@ -36,18 +37,23 @@ func TestParseURL(t *testing.T) {
 
 	t.Run("when the URL is invalid", func(t *testing.T) {
 		cases := []struct {
-			Name string
-			URL  string
+			Name    string
+			URL     string
+			WantErr string
 		}{
-			{"no scheme", "no-scheme"},
-			{"unsupported scheme", "redis://localhost"},
-			{"malformed", "://"},
+			{"no scheme", "no-scheme", `persistence driver URL has no scheme: "no-scheme"`},
+			{"unsupported scheme", "redis://localhost", `unsupported persistence driver scheme "redis"`},
+			{"malformed", "://", "cannot parse persistence driver URL:"},
 		}
 		for _, tc := range cases {
 			t.Run(tc.Name, func(t *testing.T) {
 				_, err := ParseURL(t.Context(), tc.URL)
 				if err == nil {
 					t.Fatal("expected an error")
+				}
+
+				if !strings.Contains(err.Error(), tc.WantErr) {
+					t.Fatalf("unexpected error: got %q, want substring %q", err.Error(), tc.WantErr)
 				}
 			})
 		}
