@@ -16,11 +16,14 @@ The format is based on [Keep a Changelog], and this project adheres to
 ### Added
 
 - Added `Driver` interface providing access to `journal.BinaryStore`,
-  `kv.BinaryStore`, and `set.BinaryStore` from a single backend.
-- Added `ParseURL()` and `FromURL()` for constructing a `Driver` from a URL
+  `kv.BinaryStore`, and `set.BinaryStore` from a single driver.
+- Added `Config` interface with a `NewDriver(context.Context) (Driver, error)`
+  method for constructing drivers from configuration.
+- Added `ParseURL()` and `FromURL()` for constructing a `Config` from a URL
   string or `*url.URL`.
 - Added `memory`, `postgres`/`postgresql`, `dynamodb`, and `s3` driver
-  packages with `New()`, `ParseURL()`, and `FromURL()` constructors.
+  packages, each with a `Config` struct, `New()`, `ParseURL()`, and `FromURL()`
+  constructors.
 
 ### Changed
 
