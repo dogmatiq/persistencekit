@@ -1,4 +1,4 @@
-package s3x
+package xs3
 
 import (
 	"context"

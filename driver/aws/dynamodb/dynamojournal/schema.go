@@ -6,7 +6,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
-	"github.com/dogmatiq/persistencekit/driver/aws/internal/dynamox"
+	"github.com/dogmatiq/persistencekit/driver/aws/internal/x/xdynamodb"
 )
 
 var (
@@ -63,17 +63,17 @@ var (
 // permissions.
 func (s *store) Provision(ctx context.Context) error {
 	return s.provisionOnce.Do(ctx, func(ctx context.Context) error {
-		_, err := dynamox.CreateTableIfNotExists(
+		_, err := xdynamodb.CreateTableIfNotExists(
 			ctx,
 			s.Client,
 			s.Table,
 			s.OnRequest,
-			dynamox.KeyAttr{
+			xdynamodb.KeyAttr{
 				Name:    &journalAttr,
 				Type:    types.ScalarAttributeTypeS,
 				KeyType: types.KeyTypeHash,
 			},
-			dynamox.KeyAttr{
+			xdynamodb.KeyAttr{
 				Name:    &positionAttr,
 				Type:    types.ScalarAttributeTypeN,
 				KeyType: types.KeyTypeRange,
@@ -215,7 +215,7 @@ func (j *journ) prepareRequests(table string) {
 			"#R": recordAttr,
 		},
 		ExpressionAttributeValues: map[string]types.AttributeValue{
-			":C": dynamox.True,
+			":C": xdynamodb.True,
 		},
 		UpdateExpression: aws.String(`SET #C = :C REMOVE #R`),
 	}

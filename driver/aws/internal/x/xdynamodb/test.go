@@ -1,4 +1,4 @@
-package dynamox
+package xdynamodb
 
 import (
 	"context"

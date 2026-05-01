@@ -6,7 +6,7 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/dogmatiq/enginekit/x/xsync"
-	"github.com/dogmatiq/persistencekit/driver/aws/internal/s3x"
+	"github.com/dogmatiq/persistencekit/driver/aws/internal/x/xs3"
 	"github.com/dogmatiq/persistencekit/set"
 )
 
@@ -69,10 +69,10 @@ func WithRequestHook(fn func(any) []func(*s3.Options)) Option {
 // permissions.
 func (s *store) Provision(ctx context.Context) error {
 	return s.provisionOnce.Do(ctx, func(ctx context.Context) error {
-		if _, err := s3x.CreateBucketIfNotExists(ctx, s.Client, s.Bucket, s.OnRequest); err != nil {
+		if _, err := xs3.CreateBucketIfNotExists(ctx, s.Client, s.Bucket, s.OnRequest); err != nil {
 			return err
 		}
-		return s3x.EnsureTombstoneLifecycleRule(ctx, s.Client, s.Bucket, s.OnRequest)
+		return xs3.EnsureTombstoneLifecycleRule(ctx, s.Client, s.Bucket, s.OnRequest)
 	})
 }
 

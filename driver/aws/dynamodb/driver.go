@@ -12,7 +12,7 @@ import (
 	"github.com/dogmatiq/persistencekit/driver/aws/dynamodb/dynamojournal"
 	"github.com/dogmatiq/persistencekit/driver/aws/dynamodb/dynamokv"
 	"github.com/dogmatiq/persistencekit/driver/aws/dynamodb/dynamoset"
-	"github.com/dogmatiq/persistencekit/driver/aws/internal/awsx"
+	"github.com/dogmatiq/persistencekit/driver/aws/internal/x/xaws"
 	"github.com/dogmatiq/persistencekit/journal"
 	"github.com/dogmatiq/persistencekit/kv"
 	"github.com/dogmatiq/persistencekit/set"
@@ -84,7 +84,7 @@ func FromURL(ctx context.Context, u *url.URL) (*Config, error) {
 		return nil, errors.New("invalid dynamodb URL: table prefix is required in the path (e.g. dynamodb:///<table-prefix>)")
 	}
 
-	cfg, err := awsx.LoadConfig(ctx, u)
+	cfg, err := xaws.LoadConfig(ctx, u)
 	if err != nil {
 		return nil, err
 	}

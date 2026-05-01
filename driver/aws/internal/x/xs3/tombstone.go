@@ -1,4 +1,4 @@
-package s3x
+package xs3
 
 import (
 	"context"
@@ -9,7 +9,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/aws/aws-sdk-go-v2/service/s3/types"
 	"github.com/aws/smithy-go"
-	"github.com/dogmatiq/persistencekit/driver/aws/internal/awsx"
+	"github.com/dogmatiq/persistencekit/driver/aws/internal/x/xaws"
 )
 
 const (
@@ -36,7 +36,7 @@ func EnsureTombstoneLifecycleRule(
 	bucket string,
 	onRequest func(any) []func(*s3.Options),
 ) error {
-	res, err := awsx.Do(
+	res, err := xaws.Do(
 		ctx,
 		client.GetBucketLifecycleConfiguration,
 		onRequest,
@@ -74,7 +74,7 @@ func EnsureTombstoneLifecycleRule(
 		},
 	})
 
-	_, err = awsx.Do(
+	_, err = xaws.Do(
 		ctx,
 		client.PutBucketLifecycleConfiguration,
 		onRequest,

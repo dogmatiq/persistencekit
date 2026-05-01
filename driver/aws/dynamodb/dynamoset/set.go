@@ -8,8 +8,8 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
-	"github.com/dogmatiq/persistencekit/driver/aws/internal/awsx"
-	"github.com/dogmatiq/persistencekit/driver/aws/internal/dynamox"
+	"github.com/dogmatiq/persistencekit/driver/aws/internal/x/xaws"
+	"github.com/dogmatiq/persistencekit/driver/aws/internal/x/xdynamodb"
 	"github.com/dogmatiq/persistencekit/set"
 )
 
@@ -37,7 +37,7 @@ func (s *setimpl) Name() string {
 func (s *setimpl) Has(ctx context.Context, v []byte) (bool, error) {
 	s.attr.Member.Value = v
 
-	out, err := awsx.Do(
+	out, err := xaws.Do(
 		ctx,
 		s.Client.GetItem,
 		s.OnRequest,
@@ -90,13 +90,13 @@ func (s *setimpl) TryRemove(ctx context.Context, v []byte) (bool, error) {
 }
 
 func (s *setimpl) Range(ctx context.Context, fn set.BinaryRangeFunc) error {
-	if err := dynamox.QueryRange(
+	if err := xdynamodb.QueryRange(
 		ctx,
 		s.Client,
 		s.OnRequest,
 		&s.request.Range,
 		func(ctx context.Context, item map[string]types.AttributeValue) (bool, error) {
-			value, err := dynamox.AsBytes(item, memberAttr)
+			value, err := xdynamodb.AsBytes(item, memberAttr)
 			if err != nil {
 				return false, err
 			}
@@ -113,7 +113,7 @@ func (s *setimpl) Range(ctx context.Context, fn set.BinaryRangeFunc) error {
 func (s *setimpl) add(ctx context.Context, v []byte) error {
 	s.attr.Member.Value = v
 
-	if _, err := awsx.Do(
+	if _, err := xaws.Do(
 		ctx,
 		s.Client.PutItem,
 		s.OnRequest,
@@ -128,7 +128,7 @@ func (s *setimpl) add(ctx context.Context, v []byte) error {
 func (s *setimpl) delete(ctx context.Context, v []byte) error {
 	s.attr.Member.Value = v
 
-	if _, err := awsx.Do(
+	if _, err := xaws.Do(
 		ctx,
 		s.Client.DeleteItem,
 		s.OnRequest,

@@ -9,8 +9,8 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
-	"github.com/dogmatiq/persistencekit/driver/aws/internal/awsx"
-	"github.com/dogmatiq/persistencekit/driver/aws/internal/dynamox"
+	"github.com/dogmatiq/persistencekit/driver/aws/internal/x/xaws"
+	"github.com/dogmatiq/persistencekit/driver/aws/internal/x/xdynamodb"
 	"github.com/dogmatiq/persistencekit/internal/x/xerrors"
 	"github.com/dogmatiq/persistencekit/journal"
 )
@@ -69,7 +69,7 @@ func (j *journ) initMetaData(ctx context.Context, table string) (journal.Interva
 	j.attr.BeginPos.Value = marshalPosition(0)
 	j.attr.UncompactedPos.Value = marshalPosition(0)
 
-	_, err := awsx.Do(
+	_, err := xaws.Do(
 		ctx,
 		j.Client.PutItem,
 		j.OnRequest,
@@ -128,7 +128,7 @@ func (j *journ) Bounds(ctx context.Context) (journal.Interval, error) {
 func (j *journ) loadBegin(ctx context.Context) (_ journal.Position, err error) {
 	defer xerrors.Wrap(&err, "unable to load lower bound of the %q journal", j.Name())
 
-	out, err := awsx.Do(
+	out, err := xaws.Do(
 		ctx,
 		j.Client.GetItem,
 		j.OnRequest,
@@ -148,7 +148,7 @@ func (j *journ) loadBegin(ctx context.Context) (_ journal.Position, err error) {
 func (j *journ) loadEnd(ctx context.Context) (end journal.Position, empty bool, err error) {
 	defer xerrors.Wrap(&err, "unable to load upper bound of the %q journal", j.Name())
 
-	ok, err := dynamox.QueryOne(
+	ok, err := xdynamodb.QueryOne(
 		ctx,
 		j.Client,
 		j.OnRequest,
@@ -192,7 +192,7 @@ func (j *journ) Get(ctx context.Context, pos journal.Position) (_ []byte, err er
 
 	j.attr.Pos.Value = marshalPosition(pos)
 
-	out, err := awsx.Do(
+	out, err := xaws.Do(
 		ctx,
 		j.Client.GetItem,
 		j.OnRequest,
@@ -221,7 +221,7 @@ func (j *journ) Get(ctx context.Context, pos journal.Position) (_ []byte, err er
 		}
 	}
 
-	rec, err := dynamox.AsBytes(out.Item, recordAttr)
+	rec, err := xdynamodb.AsBytes(out.Item, recordAttr)
 	if err != nil {
 		return nil, err
 	}
@@ -239,7 +239,7 @@ func (j *journ) Range(
 	j.attr.Pos.Value = marshalPositionBefore(pos)
 	expectPos := pos
 
-	if err := dynamox.QueryRange(
+	if err := xdynamodb.QueryRange(
 		ctx,
 		j.Client,
 		j.OnRequest,
@@ -259,7 +259,7 @@ func (j *journ) Range(
 
 			expectPos++
 
-			rec, err := dynamox.AsBytes(item, recordAttr)
+			rec, err := xdynamodb.AsBytes(item, recordAttr)
 			if err != nil {
 				return false, err
 			}
@@ -286,7 +286,7 @@ func (j *journ) Append(ctx context.Context, pos journal.Position, rec []byte) (e
 	j.attr.Pos.Value = marshalPosition(pos)
 	j.attr.Record.Value = rec
 
-	_, err = awsx.Do(
+	_, err = xaws.Do(
 		ctx,
 		j.Client.PutItem,
 		j.OnRequest,
@@ -309,7 +309,7 @@ func (j *journ) Truncate(ctx context.Context, pos journal.Position) (err error) 
 
 	j.attr.BeginPos.Value = marshalPosition(pos)
 
-	res, err := awsx.Do(
+	res, err := xaws.Do(
 		ctx,
 		j.Client.UpdateItem,
 		j.OnRequest,
@@ -341,7 +341,7 @@ func (j *journ) compact(ctx context.Context, uncompacted journal.Interval) (err 
 	for _, pos := range uncompacted.Positions() {
 		j.attr.Pos.Value = marshalPosition(pos)
 
-		if _, err := awsx.Do(
+		if _, err := xaws.Do(
 			ctx,
 			j.Client.UpdateItem,
 			j.OnRequest,
@@ -353,7 +353,7 @@ func (j *journ) compact(ctx context.Context, uncompacted journal.Interval) (err 
 
 	j.attr.UncompactedPos.Value = marshalPosition(uncompacted.End)
 
-	if _, err = awsx.Do(
+	if _, err = xaws.Do(
 		ctx,
 		j.Client.UpdateItem,
 		j.OnRequest,
@@ -371,13 +371,13 @@ func (j *journ) Close() error {
 
 // isMetaData returns true if the item is the meta-data item.
 func isMetaData(item map[string]types.AttributeValue) (bool, error) {
-	pos, err := dynamox.AsNumericString(item, positionAttr)
+	pos, err := xdynamodb.AsNumericString(item, positionAttr)
 	return pos == "-1", err
 }
 
 // isCompacted returns true if the item is a compacted record.
 func isCompacted(item map[string]types.AttributeValue) (bool, error) {
-	return dynamox.AsBool(item, recordIsCompactedAttr)
+	return xdynamodb.AsBool(item, recordIsCompactedAttr)
 }
 
 // marshalPosition returns the string representation of pos.
@@ -396,7 +396,7 @@ func marshalPositionBefore(pos journal.Position) string {
 // unmarshalPosition returns the journal position represented by a number
 // attribute with the given key.
 func unmarshalPosition(item map[string]types.AttributeValue, key string) (journal.Position, error) {
-	return dynamox.AsUint[journal.Position](item, key)
+	return xdynamodb.AsUint[journal.Position](item, key)
 }
 
 // unmarshalUncompactedInterval returns the interval of records that have been

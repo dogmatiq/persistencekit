@@ -6,7 +6,7 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/dogmatiq/enginekit/x/xsync"
-	"github.com/dogmatiq/persistencekit/driver/aws/internal/s3x"
+	"github.com/dogmatiq/persistencekit/driver/aws/internal/x/xs3"
 	"github.com/dogmatiq/persistencekit/journal"
 )
 
@@ -70,7 +70,7 @@ func WithRequestHook(fn func(any) []func(*s3.Options)) Option {
 // broad IAM permissions.
 func (s *store) Provision(ctx context.Context) error {
 	return s.provisionOnce.Do(ctx, func(ctx context.Context) error {
-		_, err := s3x.CreateBucketIfNotExists(ctx, s.Client, s.Bucket, s.OnRequest)
+		_, err := xs3.CreateBucketIfNotExists(ctx, s.Client, s.Bucket, s.OnRequest)
 		return err
 	})
 }

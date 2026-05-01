@@ -7,7 +7,7 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
-	"github.com/dogmatiq/persistencekit/driver/aws/internal/awsx"
+	"github.com/dogmatiq/persistencekit/driver/aws/internal/x/xaws"
 	"github.com/dogmatiq/persistencekit/internal/x/xerrors"
 	"github.com/dogmatiq/persistencekit/journal"
 )
@@ -75,7 +75,7 @@ func (j *journ) refresh(ctx context.Context) (err error) {
 	}
 
 	for {
-		list, err := awsx.Do(
+		list, err := xaws.Do(
 			ctx,
 			j.client.ListObjectsV2,
 			j.onRequest,

@@ -1,4 +1,4 @@
-package awsx
+package xaws
 
 import (
 	"context"

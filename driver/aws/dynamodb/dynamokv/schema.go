@@ -6,7 +6,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
-	"github.com/dogmatiq/persistencekit/driver/aws/internal/dynamox"
+	"github.com/dogmatiq/persistencekit/driver/aws/internal/x/xdynamodb"
 )
 
 var (
@@ -42,17 +42,17 @@ var (
 // permissions.
 func (s *store) Provision(ctx context.Context) error {
 	return s.provisionOnce.Do(ctx, func(ctx context.Context) error {
-		_, err := dynamox.CreateTableIfNotExists(
+		_, err := xdynamodb.CreateTableIfNotExists(
 			ctx,
 			s.Client,
 			s.Table,
 			s.OnRequest,
-			dynamox.KeyAttr{
+			xdynamodb.KeyAttr{
 				Name:    &keyspaceAttr,
 				Type:    types.ScalarAttributeTypeS,
 				KeyType: types.KeyTypeHash,
 			},
-			dynamox.KeyAttr{
+			xdynamodb.KeyAttr{
 				Name:    &keyAttr,
 				Type:    types.ScalarAttributeTypeB,
 				KeyType: types.KeyTypeRange,

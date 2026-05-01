@@ -9,7 +9,7 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	awss3 "github.com/aws/aws-sdk-go-v2/service/s3"
-	"github.com/dogmatiq/persistencekit/driver/aws/internal/awsx"
+	"github.com/dogmatiq/persistencekit/driver/aws/internal/x/xaws"
 	"github.com/dogmatiq/persistencekit/driver/aws/s3/s3journal"
 	"github.com/dogmatiq/persistencekit/driver/aws/s3/s3kv"
 	"github.com/dogmatiq/persistencekit/driver/aws/s3/s3set"
@@ -88,7 +88,7 @@ func FromURL(ctx context.Context, u *url.URL) (*Config, error) {
 
 	usePathStyle := u.Host != ""
 
-	cfg, err := awsx.LoadConfig(ctx, u)
+	cfg, err := xaws.LoadConfig(ctx, u)
 	if err != nil {
 		return nil, err
 	}

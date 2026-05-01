@@ -9,8 +9,8 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
-	"github.com/dogmatiq/persistencekit/driver/aws/internal/awsx"
-	"github.com/dogmatiq/persistencekit/driver/aws/internal/s3x"
+	"github.com/dogmatiq/persistencekit/driver/aws/internal/x/xaws"
+	"github.com/dogmatiq/persistencekit/driver/aws/internal/x/xs3"
 	"github.com/dogmatiq/persistencekit/internal/x/xerrors"
 	"github.com/dogmatiq/persistencekit/journal"
 )
@@ -125,10 +125,10 @@ func (j *journ) doOperation(
 		if op.ContentType != "" {
 			req.ContentType = aws.String(op.ContentType)
 			req.ContentLength = aws.Int64(int64(len(op.Content)))
-			req.Body = s3x.NewReadSeeker(op.Content)
+			req.Body = xs3.NewReadSeeker(op.Content)
 		}
 
-		_, err = awsx.Do(
+		_, err = xaws.Do(
 			ctx,
 			j.client.PutObject,
 			j.onRequest,
@@ -144,7 +144,7 @@ func (j *journ) doOperation(
 
 		fmt.Println(req.Key)
 
-		if !s3x.IsConflict(err) {
+		if !xs3.IsConflict(err) {
 			return err
 		}
 	}
@@ -154,7 +154,7 @@ func (j *journ) doOperation(
 func (j *journ) loadOperation(ctx context.Context, id operationID) (op operation, ok bool, err error) {
 	defer xerrors.Wrap(&err, "unable to load operation %d of the %q journal", id, j.Name())
 
-	res, err := awsx.Do(
+	res, err := xaws.Do(
 		ctx,
 		j.client.GetObject,
 		j.onRequest,
@@ -164,7 +164,7 @@ func (j *journ) loadOperation(ctx context.Context, id operationID) (op operation
 		},
 	)
 	if err != nil {
-		return operation{}, false, s3x.IgnoreNotExists(err)
+		return operation{}, false, xs3.IgnoreNotExists(err)
 	}
 	defer res.Body.Close()
 
@@ -179,7 +179,7 @@ func (j *journ) loadOperation(ctx context.Context, id operationID) (op operation
 }
 
 func (j *journ) loadOperationHead(ctx context.Context, id operationID) (operation, bool, error) {
-	res, err := awsx.Do(
+	res, err := xaws.Do(
 		ctx,
 		j.client.HeadObject,
 		j.onRequest,
@@ -189,7 +189,7 @@ func (j *journ) loadOperationHead(ctx context.Context, id operationID) (operatio
 		},
 	)
 	if err != nil {
-		return operation{}, false, s3x.IgnoreNotExists(err)
+		return operation{}, false, xs3.IgnoreNotExists(err)
 	}
 
 	op, err := unmarshalOperationHead(res)

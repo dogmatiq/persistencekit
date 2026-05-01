@@ -8,8 +8,8 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
-	"github.com/dogmatiq/persistencekit/driver/aws/internal/awsx"
-	"github.com/dogmatiq/persistencekit/driver/aws/internal/s3x"
+	"github.com/dogmatiq/persistencekit/driver/aws/internal/x/xaws"
+	"github.com/dogmatiq/persistencekit/driver/aws/internal/x/xs3"
 	"github.com/dogmatiq/persistencekit/internal/x/xerrors"
 	"github.com/dogmatiq/persistencekit/set"
 )
@@ -48,7 +48,7 @@ func (s *setimpl) Has(ctx context.Context, member []byte) (_ bool, err error) {
 
 	key := s.objectKey(member)
 
-	res, err := awsx.Do(
+	res, err := xaws.Do(
 		ctx,
 		s.client.HeadObject,
 		s.onRequest,
@@ -57,7 +57,7 @@ func (s *setimpl) Has(ctx context.Context, member []byte) (_ bool, err error) {
 			Key:    &key,
 		},
 	)
-	if s3x.IsNotExists(err) {
+	if xs3.IsNotExists(err) {
 		return false, nil
 	}
 	if err != nil {
@@ -72,14 +72,14 @@ func (s *setimpl) Add(ctx context.Context, member []byte) (err error) {
 
 	key := s.objectKey(member)
 
-	_, err = awsx.Do(
+	_, err = xaws.Do(
 		ctx,
 		s.client.PutObject,
 		s.onRequest,
 		&s3.PutObjectInput{
 			Bucket:        &s.bucket,
 			Key:           &key,
-			Body:          s3x.NewReadSeeker(memberBody),
+			Body:          xs3.NewReadSeeker(memberBody),
 			ContentLength: aws.Int64(int64(len(memberBody))),
 		},
 	)
@@ -92,7 +92,7 @@ func (s *setimpl) TryAdd(ctx context.Context, member []byte) (_ bool, err error)
 	key := s.objectKey(member)
 
 	for {
-		_, err := awsx.Do(
+		_, err := xaws.Do(
 			ctx,
 			s.client.PutObject,
 			s.onRequest,
@@ -100,14 +100,14 @@ func (s *setimpl) TryAdd(ctx context.Context, member []byte) (_ bool, err error)
 				Bucket:        &s.bucket,
 				Key:           &key,
 				IfNoneMatch:   aws.String("*"),
-				Body:          s3x.NewReadSeeker(memberBody),
+				Body:          xs3.NewReadSeeker(memberBody),
 				ContentLength: aws.Int64(int64(len(memberBody))),
 			},
 		)
 		if err == nil {
 			return true, nil
 		}
-		if !s3x.IsConflict(err) {
+		if !xs3.IsConflict(err) {
 			return false, err
 		}
 
@@ -126,7 +126,7 @@ func (s *setimpl) TryAdd(ctx context.Context, member []byte) (_ bool, err error)
 		}
 
 		// Replace the tombstone with a live member.
-		_, err = awsx.Do(
+		_, err = xaws.Do(
 			ctx,
 			s.client.PutObject,
 			s.onRequest,
@@ -134,14 +134,14 @@ func (s *setimpl) TryAdd(ctx context.Context, member []byte) (_ bool, err error)
 				Bucket:        &s.bucket,
 				Key:           &key,
 				IfMatch:       aws.String(existingETag),
-				Body:          s3x.NewReadSeeker(memberBody),
+				Body:          xs3.NewReadSeeker(memberBody),
 				ContentLength: aws.Int64(int64(len(memberBody))),
 			},
 		)
 		if err == nil {
 			return true, nil
 		}
-		if !s3x.IsConflict(err) && !s3x.IsNotExists(err) {
+		if !xs3.IsConflict(err) && !xs3.IsNotExists(err) {
 			return false, err
 		}
 		// Tombstone was replaced or removed concurrently; retry from the top.
@@ -153,16 +153,16 @@ func (s *setimpl) Remove(ctx context.Context, member []byte) (err error) {
 
 	key := s.objectKey(member)
 
-	_, err = awsx.Do(
+	_, err = xaws.Do(
 		ctx,
 		s.client.PutObject,
 		s.onRequest,
 		&s3.PutObjectInput{
 			Bucket:        &s.bucket,
 			Key:           &key,
-			Body:          s3x.NewReadSeeker(nil),
+			Body:          xs3.NewReadSeeker(nil),
 			ContentLength: aws.Int64(0),
-			Tagging:       s3x.TombstoneTagging,
+			Tagging:       xs3.TombstoneTagging,
 		},
 	)
 	return err
@@ -184,7 +184,7 @@ func (s *setimpl) TryRemove(ctx context.Context, member []byte) (_ bool, err err
 		}
 
 		// Live member found; replace with a tombstone.
-		_, err = awsx.Do(
+		_, err = xaws.Do(
 			ctx,
 			s.client.PutObject,
 			s.onRequest,
@@ -192,15 +192,15 @@ func (s *setimpl) TryRemove(ctx context.Context, member []byte) (_ bool, err err
 				Bucket:        &s.bucket,
 				Key:           &key,
 				IfMatch:       aws.String(existingETag),
-				Body:          s3x.NewReadSeeker(nil),
+				Body:          xs3.NewReadSeeker(nil),
 				ContentLength: aws.Int64(0),
-				Tagging:       s3x.TombstoneTagging,
+				Tagging:       xs3.TombstoneTagging,
 			},
 		)
 		if err == nil {
 			return true, nil
 		}
-		if !s3x.IsConflict(err) && !s3x.IsNotExists(err) {
+		if !xs3.IsConflict(err) && !xs3.IsNotExists(err) {
 			return false, err
 		}
 		// Member was modified concurrently; retry.
@@ -216,7 +216,7 @@ func (s *setimpl) Range(ctx context.Context, fn set.BinaryRangeFunc) (err error)
 	}
 
 	for {
-		list, err := awsx.Do(
+		list, err := xaws.Do(
 			ctx,
 			s.client.ListObjectsV2,
 			s.onRequest,
@@ -275,7 +275,7 @@ func (s *setimpl) decodeMember(s3Key string) ([]byte, error) {
 // headObject returns the ETag and size of the object at key.
 // If the object does not exist, etag is "".
 func (s *setimpl) headObject(ctx context.Context, key string) (etag string, size int64, err error) {
-	res, err := awsx.Do(
+	res, err := xaws.Do(
 		ctx,
 		s.client.HeadObject,
 		s.onRequest,
@@ -284,7 +284,7 @@ func (s *setimpl) headObject(ctx context.Context, key string) (etag string, size
 			Key:    &key,
 		},
 	)
-	if s3x.IsNotExists(err) {
+	if xs3.IsNotExists(err) {
 		return "", 0, nil
 	}
 	if err != nil {

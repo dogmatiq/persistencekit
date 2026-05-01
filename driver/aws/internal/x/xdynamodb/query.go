@@ -1,11 +1,11 @@
-package dynamox
+package xdynamodb
 
 import (
 	"context"
 
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
-	"github.com/dogmatiq/persistencekit/driver/aws/internal/awsx"
+	"github.com/dogmatiq/persistencekit/driver/aws/internal/x/xaws"
 )
 
 // QueryRange executes a query and calls fn for each item in the result set.
@@ -33,7 +33,7 @@ func query(
 	defer func() { in.ExclusiveStartKey = snapshot }()
 
 	for {
-		out, err := awsx.Do(ctx, client.Query, m, in)
+		out, err := xaws.Do(ctx, client.Query, m, in)
 		if err != nil {
 			return err
 		}

@@ -1,4 +1,4 @@
-package s3x
+package xs3
 
 import (
 	"context"
@@ -6,7 +6,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/aws/aws-sdk-go-v2/service/s3/types"
-	"github.com/dogmatiq/persistencekit/driver/aws/internal/awsx"
+	"github.com/dogmatiq/persistencekit/driver/aws/internal/x/xaws"
 )
 
 // CreateBucketIfNotExists creates an S3 bucket if it does not already exist. It
@@ -17,7 +17,7 @@ func CreateBucketIfNotExists(
 	bucket string,
 	onRequest func(any) []func(*s3.Options),
 ) (bool, error) {
-	if _, err := awsx.Do(
+	if _, err := xaws.Do(
 		ctx,
 		client.HeadBucket,
 		onRequest,
@@ -28,7 +28,7 @@ func CreateBucketIfNotExists(
 		return false, err
 	}
 
-	if _, err := awsx.Do(
+	if _, err := xaws.Do(
 		ctx,
 		client.CreateBucket,
 		onRequest,
@@ -50,7 +50,7 @@ func DeleteBucketIfExists(
 	onRequest func(any) []func(*s3.Options),
 ) (err error) {
 	for {
-		if _, err := awsx.Do(
+		if _, err := xaws.Do(
 			ctx,
 			client.DeleteBucket,
 			onRequest,
@@ -62,7 +62,7 @@ func DeleteBucketIfExists(
 		}
 
 		for {
-			res, err := awsx.Do(
+			res, err := xaws.Do(
 				ctx,
 				client.ListObjectsV2,
 				onRequest,
@@ -84,7 +84,7 @@ func DeleteBucketIfExists(
 				)
 			}
 
-			if _, err := awsx.Do(
+			if _, err := xaws.Do(
 				ctx,
 				client.DeleteObjects,
 				onRequest,

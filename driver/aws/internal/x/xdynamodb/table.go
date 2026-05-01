@@ -1,4 +1,4 @@
-package dynamox
+package xdynamodb
 
 import (
 	"context"
@@ -8,7 +8,7 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
-	"github.com/dogmatiq/persistencekit/driver/aws/internal/awsx"
+	"github.com/dogmatiq/persistencekit/driver/aws/internal/x/xaws"
 )
 
 // KeyAttr describes a key attribute of a DynamoDB table.
@@ -29,7 +29,7 @@ func CreateTableIfNotExists(
 ) (bool, error) {
 	var created bool
 
-	res, err := awsx.Do(
+	res, err := xaws.Do(
 		ctx,
 		client.DescribeTable,
 		onRequest,
@@ -88,7 +88,7 @@ func createTable(
 		)
 	}
 
-	if _, err := awsx.Do(
+	if _, err := xaws.Do(
 		ctx,
 		client.CreateTable,
 		onRequest,
@@ -138,7 +138,7 @@ func DeleteTableIfExists(
 	table string,
 	onRequest func(any) []func(*dynamodb.Options),
 ) error {
-	if _, err := awsx.Do(
+	if _, err := xaws.Do(
 		ctx,
 		client.DeleteTable,
 		onRequest,

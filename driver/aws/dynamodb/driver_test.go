@@ -8,7 +8,7 @@ import (
 	"github.com/dogmatiq/persistencekit/driver/aws/dynamodb/dynamojournal"
 	"github.com/dogmatiq/persistencekit/driver/aws/dynamodb/dynamokv"
 	"github.com/dogmatiq/persistencekit/driver/aws/dynamodb/dynamoset"
-	"github.com/dogmatiq/persistencekit/driver/aws/internal/dynamox"
+	"github.com/dogmatiq/persistencekit/driver/aws/internal/x/xdynamodb"
 	"github.com/dogmatiq/persistencekit/internal/drivertest"
 	"github.com/dogmatiq/persistencekit/internal/x/xtesting"
 )
@@ -21,8 +21,8 @@ func TestNew(t *testing.T) {
 		setTable     = tablePrefix + "-set"
 	)
 
-	client, _ := dynamox.NewTestClient(t)
-	dynamox.CleanupTable(t, client, journalTable, kvTable, setTable)
+	client, _ := xdynamodb.NewTestClient(t)
+	xdynamodb.CleanupTable(t, client, journalTable, kvTable, setTable)
 
 	d := dynamodb.New(client, tablePrefix)
 	t.Cleanup(func() {
@@ -46,8 +46,8 @@ func TestParseURL(t *testing.T) {
 		setTable     = tablePrefix + "-set"
 	)
 
-	client, endpoint := dynamox.NewTestClient(t)
-	dynamox.CleanupTable(t, client, journalTable, kvTable, setTable)
+	client, endpoint := xdynamodb.NewTestClient(t)
+	xdynamodb.CleanupTable(t, client, journalTable, kvTable, setTable)
 
 	t.Setenv("AWS_ACCESS_KEY_ID", "id")
 	t.Setenv("AWS_SECRET_ACCESS_KEY", "secret")
@@ -83,8 +83,8 @@ func TestFromURL(t *testing.T) {
 			setTable     = tablePrefix + "-set"
 		)
 
-		client, endpoint := dynamox.NewTestClient(t)
-		dynamox.CleanupTable(t, client, journalTable, kvTable, setTable)
+		client, endpoint := xdynamodb.NewTestClient(t)
+		xdynamodb.CleanupTable(t, client, journalTable, kvTable, setTable)
 
 		t.Setenv("AWS_ACCESS_KEY_ID", "id")
 		t.Setenv("AWS_SECRET_ACCESS_KEY", "secret")

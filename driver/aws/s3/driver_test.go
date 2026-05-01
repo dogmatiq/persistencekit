@@ -4,7 +4,7 @@ import (
 	"net/url"
 	"testing"
 
-	"github.com/dogmatiq/persistencekit/driver/aws/internal/s3x"
+	"github.com/dogmatiq/persistencekit/driver/aws/internal/x/xs3"
 	"github.com/dogmatiq/persistencekit/driver/aws/s3"
 	"github.com/dogmatiq/persistencekit/driver/aws/s3/s3journal"
 	"github.com/dogmatiq/persistencekit/driver/aws/s3/s3kv"
@@ -14,9 +14,9 @@ import (
 )
 
 func TestNew(t *testing.T) {
-	client, _ := s3x.NewTestClient(t)
+	client, _ := xs3.NewTestClient(t)
 	bucket := xtesting.UniqueName("new")
-	s3x.CleanupBucket(t, client, bucket)
+	xs3.CleanupBucket(t, client, bucket)
 
 	d := s3.New(client, bucket)
 	t.Cleanup(func() {
@@ -33,9 +33,9 @@ func TestNew(t *testing.T) {
 }
 
 func TestParseURL(t *testing.T) {
-	client, endpoint := s3x.NewTestClient(t)
+	client, endpoint := xs3.NewTestClient(t)
 	bucket := xtesting.UniqueName("url")
-	s3x.CleanupBucket(t, client, bucket)
+	xs3.CleanupBucket(t, client, bucket)
 
 	t.Setenv("AWS_ACCESS_KEY_ID", "test")
 	t.Setenv("AWS_SECRET_ACCESS_KEY", "test")
@@ -64,9 +64,9 @@ func TestParseURL(t *testing.T) {
 
 func TestFromURL(t *testing.T) {
 	t.Run("it returns a working driver", func(t *testing.T) {
-		client, endpoint := s3x.NewTestClient(t)
+		client, endpoint := xs3.NewTestClient(t)
 		bucket := xtesting.UniqueName("fromurl")
-		s3x.CleanupBucket(t, client, bucket)
+		xs3.CleanupBucket(t, client, bucket)
 
 		t.Setenv("AWS_ACCESS_KEY_ID", "test")
 		t.Setenv("AWS_SECRET_ACCESS_KEY", "test")

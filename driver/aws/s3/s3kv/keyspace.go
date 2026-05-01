@@ -9,8 +9,8 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
-	"github.com/dogmatiq/persistencekit/driver/aws/internal/awsx"
-	"github.com/dogmatiq/persistencekit/driver/aws/internal/s3x"
+	"github.com/dogmatiq/persistencekit/driver/aws/internal/x/xaws"
+	"github.com/dogmatiq/persistencekit/driver/aws/internal/x/xs3"
 	"github.com/dogmatiq/persistencekit/internal/x/xerrors"
 	"github.com/dogmatiq/persistencekit/kv"
 )
@@ -43,7 +43,7 @@ func (ks *keyspace) Get(ctx context.Context, k []byte) (v []byte, r kv.Revision,
 
 	key := ks.objectKey(k)
 
-	res, err := awsx.Do(
+	res, err := xaws.Do(
 		ctx,
 		ks.client.GetObject,
 		ks.onRequest,
@@ -52,7 +52,7 @@ func (ks *keyspace) Get(ctx context.Context, k []byte) (v []byte, r kv.Revision,
 			Key:    &key,
 		},
 	)
-	if s3x.IsNotExists(err) {
+	if xs3.IsNotExists(err) {
 		return nil, "", nil
 	}
 	if err != nil {
@@ -80,7 +80,7 @@ func (ks *keyspace) Has(ctx context.Context, k []byte) (_ bool, err error) {
 
 	key := ks.objectKey(k)
 
-	res, err := awsx.Do(
+	res, err := xaws.Do(
 		ctx,
 		ks.client.HeadObject,
 		ks.onRequest,
@@ -89,7 +89,7 @@ func (ks *keyspace) Has(ctx context.Context, k []byte) (_ bool, err error) {
 			Key:    &key,
 		},
 	)
-	if s3x.IsNotExists(err) {
+	if xs3.IsNotExists(err) {
 		return false, nil
 	}
 	if err != nil {
@@ -114,7 +114,7 @@ func (ks *keyspace) setWrite(ctx context.Context, k, v []byte, r kv.Revision) (k
 
 	if r != "" {
 		// Conditional update: replace only if the current ETag matches r.
-		out, err := awsx.Do(
+		out, err := xaws.Do(
 			ctx,
 			ks.client.PutObject,
 			ks.onRequest,
@@ -122,11 +122,11 @@ func (ks *keyspace) setWrite(ctx context.Context, k, v []byte, r kv.Revision) (k
 				Bucket:        &ks.bucket,
 				Key:           &key,
 				IfMatch:       aws.String(string(r)),
-				Body:          s3x.NewReadSeeker(v),
+				Body:          xs3.NewReadSeeker(v),
 				ContentLength: aws.Int64(int64(len(v))),
 			},
 		)
-		if s3x.IsConflict(err) || s3x.IsNotExists(err) {
+		if xs3.IsConflict(err) || xs3.IsNotExists(err) {
 			return "", kv.ConflictError[[]byte]{Keyspace: ks.name, Key: k, Revision: r}
 		}
 		if err != nil {
@@ -137,7 +137,7 @@ func (ks *keyspace) setWrite(ctx context.Context, k, v []byte, r kv.Revision) (k
 
 	// Insert: the key must not exist or must currently be a tombstone.
 	for {
-		out, err := awsx.Do(
+		out, err := xaws.Do(
 			ctx,
 			ks.client.PutObject,
 			ks.onRequest,
@@ -145,14 +145,14 @@ func (ks *keyspace) setWrite(ctx context.Context, k, v []byte, r kv.Revision) (k
 				Bucket:        &ks.bucket,
 				Key:           &key,
 				IfNoneMatch:   aws.String("*"),
-				Body:          s3x.NewReadSeeker(v),
+				Body:          xs3.NewReadSeeker(v),
 				ContentLength: aws.Int64(int64(len(v))),
 			},
 		)
 		if err == nil {
 			return kv.Revision(aws.ToString(out.ETag)), nil
 		}
-		if !s3x.IsConflict(err) {
+		if !xs3.IsConflict(err) {
 			return "", err
 		}
 
@@ -170,7 +170,7 @@ func (ks *keyspace) setWrite(ctx context.Context, k, v []byte, r kv.Revision) (k
 		}
 
 		// Replace the tombstone with the real value.
-		out, err = awsx.Do(
+		out, err = xaws.Do(
 			ctx,
 			ks.client.PutObject,
 			ks.onRequest,
@@ -178,14 +178,14 @@ func (ks *keyspace) setWrite(ctx context.Context, k, v []byte, r kv.Revision) (k
 				Bucket:        &ks.bucket,
 				Key:           &key,
 				IfMatch:       aws.String(existingETag),
-				Body:          s3x.NewReadSeeker(v),
+				Body:          xs3.NewReadSeeker(v),
 				ContentLength: aws.Int64(int64(len(v))),
 			},
 		)
 		if err == nil {
 			return kv.Revision(aws.ToString(out.ETag)), nil
 		}
-		if !s3x.IsConflict(err) && !s3x.IsNotExists(err) {
+		if !xs3.IsConflict(err) && !xs3.IsNotExists(err) {
 			return "", err
 		}
 		// Tombstone was replaced or removed concurrently; retry from the top.
@@ -198,7 +198,7 @@ func (ks *keyspace) setDelete(ctx context.Context, k []byte, r kv.Revision) (kv.
 
 	if r != "" {
 		// Conditional delete: write tombstone only if the current ETag matches r.
-		_, err := awsx.Do(
+		_, err := xaws.Do(
 			ctx,
 			ks.client.PutObject,
 			ks.onRequest,
@@ -206,12 +206,12 @@ func (ks *keyspace) setDelete(ctx context.Context, k []byte, r kv.Revision) (kv.
 				Bucket:        &ks.bucket,
 				Key:           &key,
 				IfMatch:       aws.String(string(r)),
-				Body:          s3x.NewReadSeeker(nil),
+				Body:          xs3.NewReadSeeker(nil),
 				ContentLength: aws.Int64(0),
-				Tagging:       s3x.TombstoneTagging,
+				Tagging:       xs3.TombstoneTagging,
 			},
 		)
-		if s3x.IsConflict(err) || s3x.IsNotExists(err) {
+		if xs3.IsConflict(err) || xs3.IsNotExists(err) {
 			return "", kv.ConflictError[[]byte]{Keyspace: ks.name, Key: k, Revision: r}
 		}
 		if err != nil {
@@ -221,7 +221,7 @@ func (ks *keyspace) setDelete(ctx context.Context, k []byte, r kv.Revision) (kv.
 	}
 
 	// Delete with no revision: write tombstone only if no object is present.
-	_, err := awsx.Do(
+	_, err := xaws.Do(
 		ctx,
 		ks.client.PutObject,
 		ks.onRequest,
@@ -229,15 +229,15 @@ func (ks *keyspace) setDelete(ctx context.Context, k []byte, r kv.Revision) (kv.
 			Bucket:        &ks.bucket,
 			Key:           &key,
 			IfNoneMatch:   aws.String("*"),
-			Body:          s3x.NewReadSeeker(nil),
+			Body:          xs3.NewReadSeeker(nil),
 			ContentLength: aws.Int64(0),
-			Tagging:       s3x.TombstoneTagging,
+			Tagging:       xs3.TombstoneTagging,
 		},
 	)
 	if err == nil {
 		return "", nil
 	}
-	if !s3x.IsConflict(err) {
+	if !xs3.IsConflict(err) {
 		return "", err
 	}
 
@@ -256,7 +256,7 @@ func (ks *keyspace) setDelete(ctx context.Context, k []byte, r kv.Revision) (kv.
 // headObject returns the ETag and content length of the object at key.
 // If the object does not exist, etag is "" and size is 0.
 func (ks *keyspace) headObject(ctx context.Context, key string) (etag string, size int64, err error) {
-	res, err := awsx.Do(
+	res, err := xaws.Do(
 		ctx,
 		ks.client.HeadObject,
 		ks.onRequest,
@@ -265,7 +265,7 @@ func (ks *keyspace) headObject(ctx context.Context, key string) (etag string, si
 			Key:    &key,
 		},
 	)
-	if s3x.IsNotExists(err) {
+	if xs3.IsNotExists(err) {
 		return "", 0, nil
 	}
 	if err != nil {
@@ -280,16 +280,16 @@ func (ks *keyspace) SetUnconditional(ctx context.Context, k, v []byte) (err erro
 	key := ks.objectKey(k)
 
 	if len(v) == 0 {
-		_, err := awsx.Do(
+		_, err := xaws.Do(
 			ctx,
 			ks.client.PutObject,
 			ks.onRequest,
 			&s3.PutObjectInput{
 				Bucket:        &ks.bucket,
 				Key:           &key,
-				Body:          s3x.NewReadSeeker(nil),
+				Body:          xs3.NewReadSeeker(nil),
 				ContentLength: aws.Int64(0),
-				Tagging:       s3x.TombstoneTagging,
+				Tagging:       xs3.TombstoneTagging,
 			},
 		)
 		if err != nil {
@@ -298,14 +298,14 @@ func (ks *keyspace) SetUnconditional(ctx context.Context, k, v []byte) (err erro
 		return nil
 	}
 
-	_, err = awsx.Do(
+	_, err = xaws.Do(
 		ctx,
 		ks.client.PutObject,
 		ks.onRequest,
 		&s3.PutObjectInput{
 			Bucket:        &ks.bucket,
 			Key:           &key,
-			Body:          s3x.NewReadSeeker(v),
+			Body:          xs3.NewReadSeeker(v),
 			ContentLength: aws.Int64(int64(len(v))),
 		},
 	)
@@ -324,7 +324,7 @@ func (ks *keyspace) Range(ctx context.Context, fn kv.BinaryRangeFunc) (err error
 	}
 
 	for {
-		list, err := awsx.Do(
+		list, err := xaws.Do(
 			ctx,
 			ks.client.ListObjectsV2,
 			ks.onRequest,
@@ -346,7 +346,7 @@ func (ks *keyspace) Range(ctx context.Context, fn kv.BinaryRangeFunc) (err error
 				return err
 			}
 
-			res, err := awsx.Do(
+			res, err := xaws.Do(
 				ctx,
 				ks.client.GetObject,
 				ks.onRequest,
@@ -355,7 +355,7 @@ func (ks *keyspace) Range(ctx context.Context, fn kv.BinaryRangeFunc) (err error
 					Key:    &s3Key,
 				},
 			)
-			if s3x.IsNotExists(err) {
+			if xs3.IsNotExists(err) {
 				continue // Deleted between list and get.
 			}
 			if err != nil {

@@ -6,7 +6,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/aws/aws-sdk-go-v2/service/s3/types"
-	"github.com/dogmatiq/persistencekit/driver/aws/internal/awsx"
+	"github.com/dogmatiq/persistencekit/driver/aws/internal/x/xaws"
 	"github.com/dogmatiq/persistencekit/internal/x/xerrors"
 )
 
@@ -94,7 +94,7 @@ func (j *journ) compact(ctx context.Context) (err error) {
 		}
 
 		// Delete the objects in the batch.
-		res, err := awsx.Do(
+		res, err := xaws.Do(
 			ctx,
 			j.client.DeleteObjects,
 			j.onRequest,

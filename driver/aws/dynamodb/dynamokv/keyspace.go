@@ -7,8 +7,8 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
-	"github.com/dogmatiq/persistencekit/driver/aws/internal/awsx"
-	"github.com/dogmatiq/persistencekit/driver/aws/internal/dynamox"
+	"github.com/dogmatiq/persistencekit/driver/aws/internal/x/xaws"
+	"github.com/dogmatiq/persistencekit/driver/aws/internal/x/xdynamodb"
 	"github.com/dogmatiq/persistencekit/internal/kvrevision"
 	"github.com/dogmatiq/persistencekit/kv"
 )
@@ -42,7 +42,7 @@ func (ks *keyspace) Name() string {
 func (ks *keyspace) Get(ctx context.Context, k []byte) ([]byte, kv.Revision, error) {
 	ks.attr.Key.Value = k
 
-	out, err := awsx.Do(
+	out, err := xaws.Do(
 		ctx,
 		ks.Client.GetItem,
 		ks.OnRequest,
@@ -55,12 +55,12 @@ func (ks *keyspace) Get(ctx context.Context, k []byte) ([]byte, kv.Revision, err
 		return nil, "", err
 	}
 
-	v, err := dynamox.AsBytes(out.Item, valueAttr)
+	v, err := xdynamodb.AsBytes(out.Item, valueAttr)
 	if err != nil {
 		return nil, "", err
 	}
 
-	gen, err := dynamox.AsUint[uint64](out.Item, generationAttr)
+	gen, err := xdynamodb.AsUint[uint64](out.Item, generationAttr)
 	if err != nil {
 		return nil, "", err
 	}
@@ -71,7 +71,7 @@ func (ks *keyspace) Get(ctx context.Context, k []byte) ([]byte, kv.Revision, err
 func (ks *keyspace) Has(ctx context.Context, k []byte) (bool, error) {
 	ks.attr.Key.Value = k
 
-	out, err := awsx.Do(
+	out, err := xaws.Do(
 		ctx,
 		ks.Client.GetItem,
 		ks.OnRequest,
@@ -111,7 +111,7 @@ func (ks *keyspace) Set(ctx context.Context, k, v []byte, r kv.Revision) (kv.Rev
 	}
 
 	if len(v) == 0 {
-		if _, err := awsx.Do(
+		if _, err := xaws.Do(
 			ctx,
 			ks.Client.DeleteItem,
 			ks.OnRequest,
@@ -123,7 +123,7 @@ func (ks *keyspace) Set(ctx context.Context, k, v []byte, r kv.Revision) (kv.Rev
 		return "", nil
 	}
 
-	if _, err := awsx.Do(
+	if _, err := xaws.Do(
 		ctx,
 		ks.Client.UpdateItem,
 		ks.OnRequest,
@@ -140,7 +140,7 @@ func (ks *keyspace) SetUnconditional(ctx context.Context, k, v []byte) error {
 	ks.attr.Value.Value = v
 
 	if len(v) == 0 {
-		if _, err := awsx.Do(
+		if _, err := xaws.Do(
 			ctx,
 			ks.Client.DeleteItem,
 			ks.OnRequest,
@@ -152,7 +152,7 @@ func (ks *keyspace) SetUnconditional(ctx context.Context, k, v []byte) error {
 		return nil
 	}
 
-	if _, err := awsx.Do(
+	if _, err := xaws.Do(
 		ctx,
 		ks.Client.UpdateItem,
 		ks.OnRequest,
@@ -165,23 +165,23 @@ func (ks *keyspace) SetUnconditional(ctx context.Context, k, v []byte) error {
 }
 
 func (ks *keyspace) Range(ctx context.Context, fn kv.BinaryRangeFunc) error {
-	if err := dynamox.QueryRange(
+	if err := xdynamodb.QueryRange(
 		ctx,
 		ks.Client,
 		ks.OnRequest,
 		&ks.request.Range,
 		func(ctx context.Context, item map[string]types.AttributeValue) (bool, error) {
-			k, err := dynamox.AsBytes(item, keyAttr)
+			k, err := xdynamodb.AsBytes(item, keyAttr)
 			if err != nil {
 				return false, err
 			}
 
-			v, err := dynamox.AsBytes(item, valueAttr)
+			v, err := xdynamodb.AsBytes(item, valueAttr)
 			if err != nil {
 				return false, err
 			}
 
-			gen, err := dynamox.AsUint[uint64](item, generationAttr)
+			gen, err := xdynamodb.AsUint[uint64](item, generationAttr)
 			if err != nil {
 				return false, err
 			}
