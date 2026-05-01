@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/url"
 
+	"github.com/dogmatiq/persistencekit/driver"
 	"github.com/dogmatiq/persistencekit/driver/sql/postgres/pgjournal"
 	"github.com/dogmatiq/persistencekit/driver/sql/postgres/pgkv"
 	"github.com/dogmatiq/persistencekit/driver/sql/postgres/pgset"
@@ -22,21 +23,9 @@ type Driver struct {
 	db   *sql.DB
 }
 
-// New returns a [Driver] that uses the given [*sql.DB]. The caller retains
-// ownership of db; [Driver.Close] does not close it.
-func New(db *sql.DB) *Driver {
-	return &Driver{db: db}
-}
-
-// Config holds the configuration for a PostgreSQL persistence driver.
-type Config struct {
-	// Pool is the pgxpool configuration used to establish connections.
-	Pool *pgxpool.Config
-}
-
-// NewDriver creates a [Driver] backed by a new connection pool.
-func (c *Config) NewDriver(ctx context.Context) (*Driver, error) {
-	pool, err := pgxpool.NewWithConfig(ctx, c.Pool)
+// New returns a [Driver] described by the given configuration.
+func New(cfg *Config) (*Driver, error) {
+	pool, err := pgxpool.NewWithConfig(context.Background(), cfg.Pool)
 	if err != nil {
 		return nil, err
 	}
@@ -47,8 +36,24 @@ func (c *Config) NewDriver(ctx context.Context) (*Driver, error) {
 	}, nil
 }
 
-// ParseURL returns a [*Config] for the given postgres:// or postgresql:// URL
-// string.
+// NewFromDB returns a [Driver] that uses the given [*sql.DB]. The caller
+// retains ownership of db; [Driver.Close] does not close it.
+func NewFromDB(db *sql.DB) *Driver {
+	return &Driver{db: db}
+}
+
+// Config holds the configuration for a PostgreSQL persistence driver.
+type Config struct {
+	// Pool is the pgxpool configuration used to establish connections.
+	Pool *pgxpool.Config
+}
+
+// NewDriver returns a [Driver] described by the given configuration.
+func (c *Config) NewDriver(context.Context) (driver.Driver, error) {
+	return New(c)
+}
+
+// ParseURL returns a [Config] for the given URL string.
 //
 // URL format:
 //
@@ -64,8 +69,9 @@ func ParseURL(ctx context.Context, u string) (*Config, error) {
 	return FromURL(ctx, parsed)
 }
 
-// FromURL returns a [*Config] for the given postgres:// or postgresql://
-// [*url.URL]. See [ParseURL] for the URL format.
+// FromURL returns a [Config] for the given URL.
+//
+// See [ParseURL] for the URL format.
 func FromURL(_ context.Context, u *url.URL) (*Config, error) {
 	if u.Scheme != "postgres" && u.Scheme != "postgresql" {
 		return nil, fmt.Errorf("invalid postgres URL: unexpected scheme %q", u.Scheme)

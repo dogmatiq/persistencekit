@@ -24,7 +24,7 @@ func TestNew(t *testing.T) {
 	client, _ := xdynamodb.NewTestClient(t)
 	xdynamodb.CleanupTable(t, client, journalTable, kvTable, setTable)
 
-	d := dynamodb.New(client, tablePrefix)
+	d := dynamodb.NewFromClient(client, tablePrefix)
 	t.Cleanup(func() {
 		d.Close()
 	})

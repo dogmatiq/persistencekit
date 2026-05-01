@@ -9,6 +9,7 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	awsdynamodb "github.com/aws/aws-sdk-go-v2/service/dynamodb"
+	"github.com/dogmatiq/persistencekit/driver"
 	"github.com/dogmatiq/persistencekit/driver/aws/dynamodb/dynamojournal"
 	"github.com/dogmatiq/persistencekit/driver/aws/dynamodb/dynamokv"
 	"github.com/dogmatiq/persistencekit/driver/aws/dynamodb/dynamoset"
@@ -24,8 +25,17 @@ type Driver struct {
 	client      *awsdynamodb.Client
 }
 
-// New returns a [Driver] that uses the given DynamoDB client and table prefix.
-func New(client *awsdynamodb.Client, tablePrefix string) *Driver {
+// New returns a [Driver] described by the given configuration.
+func New(cfg *Config) *Driver {
+	return NewFromClient(
+		awsdynamodb.NewFromConfig(cfg.AWS, cfg.ClientOptions...),
+		cfg.TablePrefix,
+	)
+}
+
+// NewFromClient returns a [Driver] that uses a pre-built DynamoDB client and
+// table prefix. The caller retains ownership of the client.
+func NewFromClient(client *awsdynamodb.Client, tablePrefix string) *Driver {
 	return &Driver{
 		client:      client,
 		tablePrefix: tablePrefix,
@@ -45,20 +55,21 @@ type Config struct {
 	TablePrefix string
 }
 
-// NewDriver creates a [Driver] using the configured AWS settings.
-func (c *Config) NewDriver(context.Context) (*Driver, error) {
-	return &Driver{
-		tablePrefix: c.TablePrefix,
-		client:      awsdynamodb.NewFromConfig(c.AWS, c.ClientOptions...),
-	}, nil
+// NewDriver returns a [Driver] described by the given configuration.
+func (c *Config) NewDriver(context.Context) (driver.Driver, error) {
+	return New(c), nil
 }
 
-// ParseURL returns a [*Config] for the given dynamodb:// URL string.
+// ParseURL returns a [Config] for the given URL string.
 //
 // URL format:
 //
 //	dynamodb:///<table-prefix>
 //	dynamodb://<host>:<port>/<table-prefix>
+//
+// The table prefix is prepended to the names of each DynamoDB table. Each
+// primitive uses a separate table ("<prefix>-journal", "<prefix>-kv",
+// "<prefix>-set"). If a host is specified, it is used as a custom endpoint.
 //
 // Supported query parameters:
 //   - region: AWS region (e.g. "us-east-1"); if omitted, resolved from the environment
@@ -72,8 +83,9 @@ func ParseURL(ctx context.Context, u string) (*Config, error) {
 	return FromURL(ctx, parsed)
 }
 
-// FromURL returns a [*Config] for the given dynamodb:// [*url.URL]. See
-// [ParseURL] for the URL format.
+// FromURL returns a [Config] for the given URL.
+//
+// See [ParseURL] for the URL format.
 func FromURL(ctx context.Context, u *url.URL) (*Config, error) {
 	if u.Scheme != "dynamodb" {
 		return nil, fmt.Errorf("invalid dynamodb URL: unexpected scheme %q", u.Scheme)
