@@ -7,6 +7,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/dogmatiq/persistencekit/driver"
 	"github.com/dogmatiq/persistencekit/driver/memory/memoryjournal"
 	"github.com/dogmatiq/persistencekit/driver/memory/memorykv"
 	"github.com/dogmatiq/persistencekit/driver/memory/memoryset"
@@ -28,9 +29,9 @@ type Driver struct {
 	silo *silo
 }
 
-// New returns a [Driver] backed by the named silo.
-func New(name string) *Driver {
-	v, _ := silos.LoadOrStore(name, &silo{})
+// New returns a [Driver] described by the given configuration.
+func New(cfg *Config) *Driver {
+	v, _ := silos.LoadOrStore(cfg.Silo, &silo{})
 	return &Driver{silo: v.(*silo)}
 }
 
@@ -41,16 +42,19 @@ type Config struct {
 	Silo string
 }
 
-// NewDriver returns a [Driver] backed by the configured silo.
-func (c *Config) NewDriver(context.Context) (*Driver, error) {
-	return New(c.Silo), nil
+// NewDriver returns a [Driver] described by the given configuration.
+func (c *Config) NewDriver(context.Context) (driver.Driver, error) {
+	return New(c), nil
 }
 
-// ParseURL returns a [*Config] for the given memory:// URL string.
+// ParseURL returns a [Config] for the given URL string.
 //
 // URL format:
 //
 //	memory:///<silo>
+//
+// The silo name identifies a shared in-memory store. Drivers with the same silo
+// name share state for the lifetime of the process.
 func ParseURL(ctx context.Context, u string) (*Config, error) {
 	parsed, err := url.Parse(u)
 	if err != nil {
@@ -59,8 +63,9 @@ func ParseURL(ctx context.Context, u string) (*Config, error) {
 	return FromURL(ctx, parsed)
 }
 
-// FromURL returns a [*Config] for the given memory:// [*url.URL]. See
-// [ParseURL] for the URL format.
+// FromURL returns a [Config] for the given URL.
+//
+// See [ParseURL] for the URL format.
 func FromURL(_ context.Context, u *url.URL) (*Config, error) {
 	if u.Scheme != "memory" {
 		return nil, fmt.Errorf("invalid memory URL: unexpected scheme %q", u.Scheme)

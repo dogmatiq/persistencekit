@@ -18,7 +18,7 @@ func TestNew(t *testing.T) {
 	bucket := xtesting.UniqueName("new")
 	xs3.CleanupBucket(t, client, bucket)
 
-	d := s3.New(client, bucket)
+	d := s3.NewFromClient(client, bucket)
 	t.Cleanup(func() {
 		d.Close()
 	})

@@ -9,12 +9,12 @@ import (
 )
 
 func TestNew(t *testing.T) {
-	ref := New("test-new")
+	ref := New(&Config{Silo: "test-new"})
 	t.Cleanup(func() {
 		ref.Close()
 	})
 
-	d := New("test-new")
+	d := New(&Config{Silo: "test-new"})
 	t.Cleanup(func() {
 		d.Close()
 	})
@@ -29,7 +29,7 @@ func TestNew(t *testing.T) {
 }
 
 func TestParseURL(t *testing.T) {
-	ref := New("test-parse-url")
+	ref := New(&Config{Silo: "test-parse-url"})
 	t.Cleanup(func() {
 		ref.Close()
 	})
@@ -58,7 +58,7 @@ func TestParseURL(t *testing.T) {
 
 func TestFromURL(t *testing.T) {
 	t.Run("it returns a working driver", func(t *testing.T) {
-		ref := New("test-from-url")
+		ref := New(&Config{Silo: "test-from-url"})
 		t.Cleanup(func() {
 			ref.Close()
 		})

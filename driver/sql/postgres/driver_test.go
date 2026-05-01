@@ -13,9 +13,34 @@ import (
 )
 
 func TestNew(t *testing.T) {
+	db, dsn := pgtest.Setup(t)
+
+	cfg, err := postgres.ParseURL(t.Context(), dsn)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	d, err := postgres.New(cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		d.Close()
+	})
+
+	drivertest.RunTests(
+		t,
+		d,
+		&pgjournal.BinaryStore{DB: db},
+		&pgkv.BinaryStore{DB: db},
+		&pgset.BinaryStore{DB: db},
+	)
+}
+
+func TestNewFromDB(t *testing.T) {
 	db, _ := pgtest.Setup(t)
 
-	d := postgres.New(db)
+	d := postgres.NewFromDB(db)
 	t.Cleanup(func() {
 		d.Close()
 	})

@@ -9,6 +9,7 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	awss3 "github.com/aws/aws-sdk-go-v2/service/s3"
+	"github.com/dogmatiq/persistencekit/driver"
 	"github.com/dogmatiq/persistencekit/driver/aws/internal/x/xaws"
 	"github.com/dogmatiq/persistencekit/driver/aws/s3/s3journal"
 	"github.com/dogmatiq/persistencekit/driver/aws/s3/s3kv"
@@ -24,8 +25,17 @@ type Driver struct {
 	client *awss3.Client
 }
 
-// New returns a [Driver] that uses the given S3 client and bucket.
-func New(client *awss3.Client, bucket string) *Driver {
+// New returns a [Driver] described by the given configuration.
+func New(cfg *Config) *Driver {
+	return NewFromClient(
+		awss3.NewFromConfig(cfg.AWS, cfg.ClientOptions...),
+		cfg.Bucket,
+	)
+}
+
+// NewFromClient returns a [Driver] that uses a pre-built S3 client and bucket.
+// The caller retains ownership of the client.
+func NewFromClient(client *awss3.Client, bucket string) *Driver {
 	return &Driver{
 		client: client,
 		bucket: bucket,
@@ -44,20 +54,20 @@ type Config struct {
 	Bucket string
 }
 
-// NewDriver creates a [Driver] using the configured AWS settings.
-func (c *Config) NewDriver(context.Context) (*Driver, error) {
-	return &Driver{
-		bucket: c.Bucket,
-		client: awss3.NewFromConfig(c.AWS, c.ClientOptions...),
-	}, nil
+// NewDriver returns a [Driver] described by the given configuration.
+func (c *Config) NewDriver(context.Context) (driver.Driver, error) {
+	return New(c), nil
 }
 
-// ParseURL returns a [*Config] for the given s3:// URL string.
+// ParseURL returns a [Config] for the given URL string.
 //
 // URL format:
 //
 //	s3:///<bucket>
 //	s3://<endpoint>/<bucket>
+//
+// The bucket is the name of the S3 bucket. If an endpoint is specified, it is
+// used as a custom S3-compatible endpoint and path-style addressing is enabled.
 //
 // Supported query parameters:
 //   - region: AWS region (e.g. "us-east-1"); if omitted, resolved from the environment
@@ -71,8 +81,9 @@ func ParseURL(ctx context.Context, u string) (*Config, error) {
 	return FromURL(ctx, parsed)
 }
 
-// FromURL returns a [*Config] for the given s3:// [*url.URL]. See [ParseURL]
-// for the URL format.
+// FromURL returns a [Config] for the given URL.
+//
+// See [ParseURL] for the URL format.
 func FromURL(ctx context.Context, u *url.URL) (*Config, error) {
 	if u.Scheme != "s3" {
 		return nil, fmt.Errorf("invalid s3 URL: unexpected scheme %q", u.Scheme)
