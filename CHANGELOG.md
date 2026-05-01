@@ -11,6 +11,23 @@ The format is based on [Keep a Changelog], and this project adheres to
 [semantic versioning]: https://semver.org/spec/v2.0.0.html
 [bc]: https://github.com/dogmatiq/.github/blob/main/VERSIONING.md#changelogs
 
+## [Unreleased]
+
+### Added
+
+- Added `Driver` interface providing access to `journal.BinaryStore`,
+  `kv.BinaryStore`, and `set.BinaryStore` from a single backend.
+- Added `ParseURL()` and `FromURL()` for constructing a `Driver` from a URL
+  string or `*url.URL`.
+- Added `memory`, `postgres`/`postgresql`, `dynamodb`, and `s3` driver
+  packages with `New()`, `ParseURL()`, and `FromURL()` constructors.
+
+### Changed
+
+- **[BC]** Reorganized AWS driver packages under `driver/aws/dynamodb/` and
+  `driver/aws/s3/` to mirror the existing `driver/sql/postgres/` structure.
+- Updated to Go 1.26.
+
 ## [0.17.0] - 2026-04-25
 
 ### Added

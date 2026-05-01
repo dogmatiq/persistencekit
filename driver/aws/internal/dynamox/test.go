@@ -14,8 +14,9 @@ import (
 	"github.com/testcontainers/testcontainers-go/wait"
 )
 
-// NewTestClient returns a new DynamoDB client for use in a test.
-func NewTestClient(t testing.TB) *dynamodb.Client {
+// NewTestClient returns a new DynamoDB client for use in a test. It also
+// returns the endpoint as a host:port string.
+func NewTestClient(t testing.TB) (*dynamodb.Client, string) {
 	container, err := dynamotc.Run(
 		t.Context(),
 		"amazon/dynamodb-local",
@@ -67,5 +68,19 @@ func NewTestClient(t testing.TB) *dynamodb.Client {
 		func(opts *dynamodb.Options) {
 			opts.BaseEndpoint = aws.String("http://" + endpoint)
 		},
-	)
+	), endpoint
+}
+
+// CleanupTable registers a t.Cleanup that deletes the given tables at the end
+// of the test.
+func CleanupTable(t testing.TB, client *dynamodb.Client, tables ...string) {
+	t.Helper()
+	t.Cleanup(func() {
+		ctx := xtesting.ContextForCleanup(t)
+		for _, table := range tables {
+			if err := DeleteTableIfExists(ctx, client, table, nil); err != nil {
+				t.Error(err)
+			}
+		}
+	})
 }

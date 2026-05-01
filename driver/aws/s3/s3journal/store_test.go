@@ -5,7 +5,7 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/dogmatiq/persistencekit/driver/aws/internal/s3x"
-	. "github.com/dogmatiq/persistencekit/driver/aws/s3journal"
+	. "github.com/dogmatiq/persistencekit/driver/aws/s3/s3journal"
 	"github.com/dogmatiq/persistencekit/internal/x/xtesting"
 	"github.com/dogmatiq/persistencekit/journal"
 )
@@ -27,19 +27,8 @@ func BenchmarkStore(b *testing.B) {
 }
 
 func setup(t testing.TB) (*s3.Client, string) {
-	client := s3x.NewTestClient(t)
+	client, _ := s3x.NewTestClient(t)
 	bucket := xtesting.UniqueName("bucket")
-
-	t.Cleanup(func() {
-		if err := s3x.DeleteBucketIfExists(
-			xtesting.ContextForCleanup(t),
-			client,
-			bucket,
-			nil,
-		); err != nil {
-			t.Error(err)
-		}
-	})
-
+	s3x.CleanupBucket(t, client, bucket)
 	return client, bucket
 }

@@ -1,18 +1,18 @@
-package dynamokv_test
+package dynamojournal_test
 
 import (
 	"testing"
 
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
-	. "github.com/dogmatiq/persistencekit/driver/aws/dynamokv"
+	. "github.com/dogmatiq/persistencekit/driver/aws/dynamodb/dynamojournal"
 	"github.com/dogmatiq/persistencekit/driver/aws/internal/dynamox"
 	"github.com/dogmatiq/persistencekit/internal/x/xtesting"
-	"github.com/dogmatiq/persistencekit/kv"
+	"github.com/dogmatiq/persistencekit/journal"
 )
 
 func TestStore(t *testing.T) {
 	client, table := setup(t)
-	kv.RunTests(
+	journal.RunTests(
 		t,
 		NewBinaryStore(client, table),
 	)
@@ -20,26 +20,15 @@ func TestStore(t *testing.T) {
 
 func BenchmarkStore(b *testing.B) {
 	client, table := setup(b)
-	kv.RunBenchmarks(
+	journal.RunBenchmarks(
 		b,
 		NewBinaryStore(client, table),
 	)
 }
 
 func setup(t testing.TB) (*dynamodb.Client, string) {
-	client := dynamox.NewTestClient(t)
+	client, _ := dynamox.NewTestClient(t)
 	table := xtesting.UniqueName("table")
-
-	t.Cleanup(func() {
-		if err := dynamox.DeleteTableIfExists(
-			xtesting.ContextForCleanup(t),
-			client,
-			table,
-			nil,
-		); err != nil {
-			t.Error(err)
-		}
-	})
-
+	dynamox.CleanupTable(t, client, table)
 	return client, table
 }

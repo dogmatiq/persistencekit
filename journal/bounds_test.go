@@ -269,7 +269,7 @@ func TestLastRecord(t *testing.T) {
 
 			expect := 200
 			if rec != expect {
-				t.Fatalf("unexpected record: got %q, want %q", rec, expect)
+				t.Fatalf("unexpected record: got %d, want %d", rec, expect)
 			}
 		})
 	})
