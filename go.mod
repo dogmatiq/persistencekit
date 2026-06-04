@@ -9,7 +9,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/dynamodb v1.57.8
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.103.1
 	github.com/aws/aws-sdk-go-v2/service/sts v1.43.1
-	github.com/aws/smithy-go v1.27.0
+	github.com/aws/smithy-go v1.27.1
 	github.com/dogmatiq/dyad v1.0.0
 	github.com/dogmatiq/enginekit v0.26.4
 	github.com/google/go-cmp v0.7.0
