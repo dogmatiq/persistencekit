@@ -10,6 +10,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/dogmatiq/persistencekit/internal/x/xtesting"
+	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/modules/localstack"
 )
 
@@ -19,17 +20,21 @@ func NewTestClient(t testing.TB) (*s3.Client, string) {
 	container, err := localstack.Run(
 		t.Context(),
 		"localstack/localstack:4",
+
+		// Allow container reuse, but key it based on the same session ID that
+		// testcontainers does for starting the Ryuk reaper process; otherwise
+		// the container will be shutdown by the first reaper process that
+		// starts.
+		testcontainers.WithReuseByName(
+			fmt.Sprintf(
+				"dogmatiq-persistencekit-localstack-%s",
+				testcontainers.SessionID(),
+			),
+		),
 	)
 	if err != nil {
 		t.Fatal(err)
 	}
-
-	t.Cleanup(func() {
-		ctx := xtesting.ContextForCleanup(t)
-		if err := container.Terminate(ctx); err != nil {
-			t.Log(err)
-		}
-	})
 
 	mappedPort, err := container.MappedPort(t.Context(), "4566/tcp")
 	if err != nil {
