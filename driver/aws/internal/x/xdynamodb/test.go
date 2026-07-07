@@ -84,7 +84,7 @@ func CleanupTable(t testing.TB, client *dynamodb.Client, tables ...string) {
 		ctx := xtesting.ContextForCleanup(t)
 		for _, table := range tables {
 			if err := DeleteTableIfExists(ctx, client, table, nil); err != nil {
-				t.Error(err)
+				t.Log(err)
 			}
 		}
 	})

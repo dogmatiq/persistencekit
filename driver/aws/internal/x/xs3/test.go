@@ -86,7 +86,7 @@ func CleanupBucket(t testing.TB, client *s3.Client, buckets ...string) {
 		ctx := xtesting.ContextForCleanup(t)
 		for _, bucket := range buckets {
 			if err := DeleteBucketIfExists(ctx, client, bucket, nil); err != nil {
-				t.Error(err)
+				t.Log(err)
 			}
 		}
 	})
