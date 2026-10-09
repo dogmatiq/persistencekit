@@ -75,8 +75,8 @@ github.com/dogmatiq/dogma v0.25.0 h1:L1NM8xBaQMyJ+oFSKSH9FWqyQyf91I50qFN/Bz4WsT0
 github.com/dogmatiq/dogma v0.25.0/go.mod h1:BNKrZq9wm3jRu35XUWQXkMRhq4EzYK+rOVbGjrbCVyI=
 github.com/dogmatiq/dyad v1.0.0 h1:T50WQ9rAzCMcT941wVH5RW5+tAGRssuVlNog+ZMQR54=
 github.com/dogmatiq/dyad v1.0.0/go.mod h1:PrUQr7OCSEUjAkhi7ad8BjxFPKe0I9yP2f1kGimPcJE=
-github.com/dogmatiq/enginekit v0.27.0 h1:wS6OV+X7SYtGT8g6YGBtzk5k1uO0x85CAf2WrVIHtnw=
-github.com/dogmatiq/enginekit v0.27.0/go.mod h1:c7IeJrJFCJNTMiGkIXpkPsFvJOaetW+BKyT5BKf0+GA=
+github.com/dogmatiq/enginekit v0.27.1 h1:DNSWvy8f8ZIQTNPK2+OqyHizCTKT3RVeawVP+kXrlO8=
+github.com/dogmatiq/enginekit v0.27.1/go.mod h1:EJaDOYwTfY019XczXnRarez63zO4YY7m4egsf5tWwS0=
 github.com/dogmatiq/jumble v0.1.0 h1:Cb3ExfxY+AoUP4G9/sOwoOdYX8o+kOLK8+dhXAry+QA=
 github.com/dogmatiq/jumble v0.1.0/go.mod h1:FCGV2ImXu8zvThxhd4QLstiEdu74vbIVw9bFJSBcKr4=
 github.com/dogmatiq/spruce v0.2.4 h1:32HqvqvlINlvMKzQ4eWO97+MdI+1CfLfr9RmsTvDphk=
