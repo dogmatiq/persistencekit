@@ -6,7 +6,7 @@ import (
 	"net/url"
 	"testing"
 
-	"github.com/dogmatiq/enginekit/protobuf/uuidpb"
+	"github.com/dogmatiq/protobuf/uuidpb"
 	"github.com/google/uuid"
 	_ "github.com/jackc/pgx/v5/stdlib" // pgx driver for database/sql
 	"github.com/testcontainers/testcontainers-go"
