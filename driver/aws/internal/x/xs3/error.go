@@ -9,8 +9,7 @@ import (
 // IsNotExists returns true if err is an error that indicates the requested
 // object was not found.
 func IsNotExists(err error) bool {
-	var e smithy.APIError
-	if errors.As(err, &e) {
+	if e, ok := errors.AsType[smithy.APIError](err); ok {
 		switch e.ErrorCode() {
 		case "NotFound", "NoSuchKey", "NoSuchBucket":
 			return true
@@ -32,8 +31,7 @@ func IgnoreNotExists(err error) error {
 // IsAlreadyExists returns true if err is an error that indicates the requested
 // object already exists.
 func IsAlreadyExists(err error) bool {
-	var e smithy.APIError
-	if errors.As(err, &e) {
+	if e, ok := errors.AsType[smithy.APIError](err); ok {
 		switch e.ErrorCode() {
 		case "BucketAlreadyExists", "BucketAlreadyOwnedByYou":
 			return true
@@ -45,8 +43,7 @@ func IsAlreadyExists(err error) bool {
 
 // IsConflict returns true if err is an error that indicates an object conflict.
 func IsConflict(err error) bool {
-	var e smithy.APIError
-	if errors.As(err, &e) {
+	if e, ok := errors.AsType[smithy.APIError](err); ok {
 		return e.ErrorCode() == "PreconditionFailed"
 	}
 	return false

@@ -89,8 +89,7 @@ func (j *journ) initMetaData(ctx context.Context, table string) (journal.Interva
 		},
 	)
 
-	var conflict *types.ConditionalCheckFailedException
-	if errors.As(err, &conflict) {
+	if conflict, ok := errors.AsType[*types.ConditionalCheckFailedException](err); ok {
 		return unmarshalUncompactedInterval(conflict.Item)
 	}
 
@@ -293,8 +292,7 @@ func (j *journ) Append(ctx context.Context, pos journal.Position, rec []byte) (e
 		&j.request.Append,
 	)
 
-	var conflict *types.ConditionalCheckFailedException
-	if errors.As(err, &conflict) {
+	if _, ok := errors.AsType[*types.ConditionalCheckFailedException](err); ok {
 		return journal.ConflictError{
 			Journal:  j.Name(),
 			Position: pos,
@@ -316,8 +314,7 @@ func (j *journ) Truncate(ctx context.Context, pos journal.Position) (err error) 
 		&j.request.SetBeginPos,
 	)
 	if err != nil {
-		var conflict *types.ConditionalCheckFailedException
-		if errors.As(err, &conflict) {
+		if _, ok := errors.AsType[*types.ConditionalCheckFailedException](err); ok {
 			return nil
 		}
 		return err

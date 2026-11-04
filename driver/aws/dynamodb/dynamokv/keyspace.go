@@ -98,8 +98,7 @@ func (ks *keyspace) Set(ctx context.Context, k, v []byte, r kv.Revision) (kv.Rev
 	ks.attr.Generation.Value = string(kvrevision.MarshalGeneration(gen))
 
 	convertConflictError := func(message string, err error) error {
-		var conflict *types.ConditionalCheckFailedException
-		if errors.As(err, &conflict) {
+		if _, ok := errors.AsType[*types.ConditionalCheckFailedException](err); ok {
 			return kv.ConflictError[[]byte]{
 				Keyspace: ks.attr.Keyspace.Value,
 				Key:      k,

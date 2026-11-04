@@ -104,7 +104,7 @@ func RunBenchmarks(
 					store,
 					// SETUP
 					func(ctx context.Context, _ BinaryStore, j BinaryJournal) error {
-						for pos := Position(0); pos < 10000; pos++ {
+						for pos := range Position(10000) {
 							rec := []byte(fmt.Sprintf("<record-%d>", pos))
 							if err := j.Append(ctx, pos, rec); err != nil {
 								return err
@@ -130,7 +130,7 @@ func RunBenchmarks(
 					store,
 					// SETUP
 					func(ctx context.Context, _ BinaryStore, j BinaryJournal) error {
-						for pos := Position(0); pos < 10000; pos++ {
+						for pos := range Position(10000) {
 							rec := []byte(fmt.Sprintf("<record-%d>", pos))
 							if err := j.Append(ctx, pos, rec); err != nil {
 								return err
@@ -184,7 +184,7 @@ func RunBenchmarks(
 					store,
 					// SETUP
 					func(ctx context.Context, _ BinaryStore, j BinaryJournal) error {
-						for pos := Position(0); pos < 10000; pos++ {
+						for pos := range Position(10000) {
 							rec := []byte(fmt.Sprintf("<record-%d>", pos))
 							if err := j.Append(ctx, pos, rec); err != nil {
 								return err
@@ -237,7 +237,7 @@ func RunBenchmarks(
 				// SETUP
 				func(ctx context.Context, _ BinaryStore, j BinaryJournal) error {
 					rec := []byte("<record>")
-					for pos := Position(0); pos < 3000; pos++ {
+					for pos := range Position(3000) {
 						if err := j.Append(ctx, pos, rec); err != nil {
 							return err
 						}

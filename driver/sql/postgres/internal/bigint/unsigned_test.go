@@ -60,7 +60,7 @@ func TestConvertUnsigned(t *testing.T) {
 	)
 
 	// Test encoding/decoding of random values produces the original value.
-	for i := 0; i < 1000; i++ {
+	for range 1000 {
 		random := rand.Uint64()
 
 		s, err := ConvertUnsigned(&random).Value()
