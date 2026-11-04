@@ -41,7 +41,7 @@ func TestMarshal(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	for pos := Position(0); pos < 2; pos++ {
+	for pos := range Position(2) {
 		rec, err := j.Get(t.Context(), pos)
 		if err != nil {
 			t.Fatal(err)

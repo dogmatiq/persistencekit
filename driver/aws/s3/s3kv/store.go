@@ -5,7 +5,7 @@ import (
 	"net/url"
 
 	"github.com/aws/aws-sdk-go-v2/service/s3"
-	"github.com/dogmatiq/enginekit/x/xsync"
+	"github.com/dogmatiq/cosyne"
 	"github.com/dogmatiq/persistencekit/driver/aws/internal/x/xs3"
 	"github.com/dogmatiq/persistencekit/kv"
 )
@@ -16,7 +16,7 @@ type store struct {
 	Bucket    string
 	OnRequest func(any) []func(*s3.Options)
 
-	provisionOnce xsync.SucceedOnce
+	provisionOnce cosyne.Once
 }
 
 // NewBinaryStore returns a new [kv.BinaryStore] that uses the given S3 client

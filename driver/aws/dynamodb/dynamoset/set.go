@@ -64,8 +64,7 @@ func (s *setimpl) TryAdd(ctx context.Context, v []byte) (bool, error) {
 	s.request.Put.ConditionExpression = mustNotExist
 	err := s.add(ctx, v)
 
-	var check *types.ConditionalCheckFailedException
-	if errors.As(err, &check) {
+	if _, ok := errors.AsType[*types.ConditionalCheckFailedException](err); ok {
 		return false, nil
 	}
 
@@ -81,8 +80,7 @@ func (s *setimpl) TryRemove(ctx context.Context, v []byte) (bool, error) {
 	s.request.Delete.ConditionExpression = mustExist
 	err := s.delete(ctx, v)
 
-	var check *types.ConditionalCheckFailedException
-	if errors.As(err, &check) {
+	if _, ok := errors.AsType[*types.ConditionalCheckFailedException](err); ok {
 		return false, nil
 	}
 

@@ -33,7 +33,7 @@ func TestScan(t *testing.T) {
 	})
 
 	t.Run("when the journal has records", func(t *testing.T) {
-		for i := 0; i < 3; i++ {
+		for i := range 3 {
 			if err := j.Append(
 				t.Context(),
 				Position(i),
@@ -125,7 +125,7 @@ func TestScanFromSearchResult(t *testing.T) {
 	})
 
 	t.Run("when the journal has records", func(t *testing.T) {
-		for i := 0; i < 10; i++ {
+		for i := range 10 {
 			if err := j.Append(
 				t.Context(),
 				Position(i),

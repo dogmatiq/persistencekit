@@ -655,7 +655,7 @@ func RunTests(
 
 				ks := setup(t)
 
-				for n := uint64(0); n < 2; n++ {
+				for n := range uint64(2) {
 					k := fmt.Sprintf("<key-%d>", n)
 					v := fmt.Sprintf("<value-%d>", n)
 
