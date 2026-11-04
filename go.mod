@@ -1,6 +1,6 @@
 module github.com/dogmatiq/persistencekit
 
-go 1.26.0
+go 1.27
 
 require (
 	github.com/aws/aws-sdk-go-v2 v1.47.5
@@ -10,6 +10,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.114.6
 	github.com/aws/aws-sdk-go-v2/service/sts v1.51.6
 	github.com/aws/smithy-go v1.28.7
+	github.com/dogmatiq/cosyne v0.3.0
 	github.com/dogmatiq/dyad v1.0.0
 	github.com/dogmatiq/enginekit v0.27.7
 	github.com/dogmatiq/protobuf v0.2.0
