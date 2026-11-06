@@ -12,7 +12,7 @@ require (
 	github.com/aws/smithy-go v1.28.7
 	github.com/dogmatiq/cosyne v0.3.0
 	github.com/dogmatiq/dyad v1.0.0
-	github.com/dogmatiq/enginekit v0.29.0
+	github.com/dogmatiq/enginekit v0.30.0
 	github.com/dogmatiq/protobuf v0.2.0
 	github.com/google/go-cmp v0.7.0
 	github.com/google/uuid v1.6.0
