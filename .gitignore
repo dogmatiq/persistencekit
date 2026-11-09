@@ -1,3 +1,5 @@
 /artifacts/
 /.makefiles/
 *.fail
+apm_modules/
+/apm.lock.yaml
