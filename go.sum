@@ -44,8 +44,8 @@ github.com/aws/aws-sdk-go-v2/service/ssooidc v1.44.5 h1:uIOBLMhef4N16WguadoHKuBy
 github.com/aws/aws-sdk-go-v2/service/ssooidc v1.44.5/go.mod h1:NwWmkFLtsTVyXQpbzPOlYLwEoANkdCFjJRtrNcbg/vY=
 github.com/aws/aws-sdk-go-v2/service/sts v1.53.0 h1:my9Y6lxcqvPV5k4OTqnxr8XbiTDDRos1leEh050Z93U=
 github.com/aws/aws-sdk-go-v2/service/sts v1.53.0/go.mod h1:MG6N8U9+lY4LqchrlHPqCOSr7hyxw70XU0Et2YR3eNA=
-github.com/aws/smithy-go v1.28.9 h1:zkZ058OpNX0iGTK24b+ZUEQSMc11CBA6oO7xtKZfzkY=
-github.com/aws/smithy-go v1.28.9/go.mod h1:YE2RhdIuDbA5E5bTdciG9KrW3+TiEONeUWCqxX9i1Fc=
+github.com/aws/smithy-go v1.28.10 h1:SfPnj8fGCVAI/P5YC4/1JjuMsucbPp2dROnSTYNo2PE=
+github.com/aws/smithy-go v1.28.10/go.mod h1:YE2RhdIuDbA5E5bTdciG9KrW3+TiEONeUWCqxX9i1Fc=
 github.com/cenkalti/backoff/v4 v4.3.0 h1:MyRJ/UdXutAwSAT+s3wNd7MfTIcy71VQueUuFK343L8=
 github.com/cenkalti/backoff/v4 v4.3.0/go.mod h1:Y3VNntkOUPxTVeUxJ/G5vcM//AlwfmyYozVcomhLiZE=
 github.com/cespare/xxhash/v2 v2.3.0 h1:UL815xU9SqsFlibzuggzjXhog7bL6oX9BbNZnL2UFvs=
@@ -81,8 +81,8 @@ github.com/dogmatiq/enginekit v0.32.0 h1:Enf5riF2P++8g3ZaO3Xw8Rb7CJqi9D0pNdu7zaC
 github.com/dogmatiq/enginekit v0.32.0/go.mod h1:VpU8RGlXfjp0bVmfQcwgL1i3k28vStIiO/wRRuBE1lc=
 github.com/dogmatiq/jumble v0.1.0 h1:Cb3ExfxY+AoUP4G9/sOwoOdYX8o+kOLK8+dhXAry+QA=
 github.com/dogmatiq/jumble v0.1.0/go.mod h1:FCGV2ImXu8zvThxhd4QLstiEdu74vbIVw9bFJSBcKr4=
-github.com/dogmatiq/protobuf v0.12.0 h1:xvA/tq8JtlNo7NJutWddnOTOuxK1ROOuSi8mC8pL/+0=
-github.com/dogmatiq/protobuf v0.12.0/go.mod h1:96bKDt02UetlEs2RxjOPE8TQvVnk2bVRre5Q3o/cDYg=
+github.com/dogmatiq/protobuf v0.13.0 h1:8trvq2j5pWjY9ZZJI5zFVaVN46Xlvriw3nSH+P9L2qk=
+github.com/dogmatiq/protobuf v0.13.0/go.mod h1:96bKDt02UetlEs2RxjOPE8TQvVnk2bVRre5Q3o/cDYg=
 github.com/dogmatiq/spruce v0.2.4 h1:32HqvqvlINlvMKzQ4eWO97+MdI+1CfLfr9RmsTvDphk=
 github.com/dogmatiq/spruce v0.2.4/go.mod h1:za5ZdNvh+FRWg4B3DCn8jfNB2LVR/9Dk3fkuHVDJLrk=
 github.com/ebitengine/purego v0.10.1 h1:dewVBCBT2GaMu1SrNTYxQhgQBethzfhiwvZiLGP/qyY=

@@ -9,11 +9,11 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/dynamodb v1.74.1
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.116.0
 	github.com/aws/aws-sdk-go-v2/service/sts v1.53.0
-	github.com/aws/smithy-go v1.28.9
+	github.com/aws/smithy-go v1.28.10
 	github.com/dogmatiq/cosyne v0.4.0
 	github.com/dogmatiq/dyad v1.0.0
 	github.com/dogmatiq/enginekit v0.32.0
-	github.com/dogmatiq/protobuf v0.12.0
+	github.com/dogmatiq/protobuf v0.13.0
 	github.com/google/go-cmp v0.7.0
 	github.com/google/uuid v1.6.0
 	github.com/jackc/pgx/v5 v5.13.0
